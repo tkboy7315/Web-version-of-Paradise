@@ -538,8 +538,22 @@ var BGM = {
         let vol = parseFloat(localStorage.getItem('bgm_volume'));
         if (isNaN(vol)) vol = 0.3;
         this._player.volume = vol;
-        this._player.src = src;
-        this._player.loop = true;
+        if (Array.isArray(src)) {
+            this._playlist = src;
+            this._playIdx = 0;
+            this._player.loop = false;
+            this._player.onended = () => {
+                this._playIdx = (this._playIdx + 1) % this._playlist.length;
+                this._player.src = this._playlist[this._playIdx];
+                this._player.play().catch(() => {});
+            };
+            this._player.src = this._playlist[0];
+        } else {
+            this._playlist = null;
+            this._player.onended = null;
+            this._player.loop = true;
+            this._player.src = src;
+        }
         this._player.play().catch(() => {});
     },
     setVolume(v) {
