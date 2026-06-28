@@ -848,21 +848,13 @@ function autoCastSpells() {
 //    🔮 席琳的世界擊殺掉落仍套用 ×3（祝福機率 3%）。
 function rollAffixesNew() {
     let mul = _sherineLootCtx ? 1.5 : 1;   // 🔮 席琳的世界 所有詞綴機率 ×1.5
-    let bless = Math.random() < 0.10 * mul;   // 祝福 10%/15%
+    let bless = Math.random() < 0.01 * mul;   // 祝福 1%/1.5%
     let anc = false;
-    if (Math.random() < 0.03 * mul) anc = 'primordial';   // 太初 3%/4.5%
-    else if (Math.random() < 0.03 * mul) anc = 'immortal';   // 不朽 3%/4.5%
-    else if (Math.random() < 0.03 * mul) anc = 'eternal';   // 永恆 3%/4.5%
-    else if (Math.random() < 0.05 * mul) anc = true;   // 遠古 5%/7.5%
     return { attr: false, bless, anc };
 }
 function rollAffixesOld() {
     let mul = _sherineLootCtx ? 1.5 : 1;   // 🔮 席琳的世界 所有詞綴機率 ×1.5
-    let bless = Math.random() < 0.10 * mul;   // 祝福 10%/15%
+    let bless = Math.random() < 0.01 * mul;   // 祝福 1%/1.5%
     let anc = false;
-    if (Math.random() < 0.03 * mul) anc = 'primordial';   // 太初 3%/4.5%
-    else if (Math.random() < 0.03 * mul) anc = 'immortal';   // 不朽 3%/4.5%
-    else if (Math.random() < 0.03 * mul) anc = 'eternal';   // 永恆 3%/4.5%
-    else if (Math.random() < 0.05 * mul) anc = true;   // 遠古 5%/7.5%
     return { attr: false, bless, anc };
 }
