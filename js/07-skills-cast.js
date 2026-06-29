@@ -241,8 +241,8 @@ function castSkillInner(skId) {
     let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && (needLv === undefined || player.lv < needLv)) return false;
-    if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符
-    if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性
+    //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符
+    //if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性
 
     // 🔧 黑暗妖精：會心一擊（消耗 HP 50% + 剩餘所有 MP；傷害 = 重擊一般攻擊(無視硬皮)×爆擊×(消耗MP佔上限%×10)；對血盟 x2）
     if (sk.darkCrit) {

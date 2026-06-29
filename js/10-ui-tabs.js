@@ -205,8 +205,8 @@ player.inv.forEach(i => {
         let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
-        if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
+        //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
+        //if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         let imgUrl = getIconUrl(sk, true);
         let _bd = !isAvail ? 'border-slate-600 opacity-50'
             : (sk.type === 'manual' ? 'border-amber-500'
@@ -351,8 +351,8 @@ function renderSkillSelects() {
         let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
-        if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
+        //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
+        //if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
