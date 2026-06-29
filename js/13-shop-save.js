@@ -261,17 +261,18 @@ function migrateSaves(){
 function anySaveExists(){ return ['1','2','3','4','5','6','7','8'].some(n => localStorage.getItem('lineage_idle_save_' + n)); }
 function _summaryFromRaw(s){
     if(!s) return null;
+    s = _saveUnwrap(s).payload;   // 🛡️ 先解存檔簽章（摘要顯示不驗章、僅取 payload；舊明文檔原樣回傳）
     try { let d = JSON.parse(s); let p = d.p;
         let clsName = { knight:'騎士', mage:'法師', elf:'妖精', dark:'黑暗妖精', illusion:'幻術士', dragon:'龍騎士', warrior:'戰士', royal:'王族' }[p.cls] || p.cls;
         return { name: p.name || '', cls: clsName, lv: p.lv || 1, gold: p.gold || 0, classic: !!p.classicMode, traditional: !!p.traditionalMode, avatar: p.avatar || null };   // 🎮 經典／🏛️ 傳統模式旗標：供存檔位顯示與傭兵同模式招募限制；avatar＝職業性別頭像名（assets/character/<avatar>.png）；name 未命名時留空字串（顯示端自行省略）
     } catch(e){ return null; }
 }
-function slotSummary(n){ return _summaryFromRaw(localStorage.getItem('lineage_idle_save_' + n)); }
-function slotBackupSummary(n){ return _summaryFromRaw(localStorage.getItem('lineage_idle_save_' + n + '_bak')); }   // 匯入前自動備份的摘要
+function slotSummary(n){ return _summaryFromRaw(_lzGet('lineage_idle_save_' + n)); }
+function slotBackupSummary(n){ return _summaryFromRaw(_lzGet('lineage_idle_save_' + n + '_bak')); }   // 匯入前自動備份的摘要
 let _slotMode = 'new';
 function openSlotSelect(mode){
     _slotMode = mode;
-    { let _ct = document.getElementById('create-classic-toggle'); if (_ct && mode === 'new') _ct.checked = false; if (mode === 'new' && typeof _setTraditionalToggle === 'function') _setTraditionalToggle(false); }   // 🎮 創角流程重置經典＋傳統模式開關（預設關閉，傳統鎖定）
+    { let _ct = document.getElementById('create-classic-toggle'); if (_ct && mode === 'new') _ct.checked = false; let _tt = document.getElementById('create-traditional-toggle'); if (_tt && mode === 'new') _tt.checked = false; }   // 🎮🏛️ 創角流程重置經典＋傳統模式開關（預設皆關閉，兩者獨立）
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('creation-panel').classList.add('hidden');
     document.getElementById('slot-select-panel').classList.remove('hidden');
@@ -281,10 +282,10 @@ function openSlotSelect(mode){
         let sum = slotSummary(n);
         let _classic = !!(sum && sum.classic);   // 🎮 經典模式存檔：以琥珀金顯示
         let _trad = !!(sum && sum.traditional);  // 🏛️ 傳統模式存檔：以淡紫顯示（傳統角色 classic 亦為 true，故先判 traditional）
-        let _tag = _trad ? '🏛️ ' : (_classic ? '⚔ ' : '');
-        let _modeName = _trad ? '（傳統）' : (_classic ? '（經典）' : '');
+        let _tag = (_classic && _trad) ? '⚔🏛️ ' : (_trad ? '🏛️ ' : (_classic ? '⚔ ' : ''));
+        let _modeName = (_classic && _trad) ? '（經典＋傳統）' : (_trad ? '（傳統）' : (_classic ? '（經典）' : ''));
         let label = sum ? `${_tag}存檔 ${n}　${sum.cls} Lv.${sum.lv}${sum.name ? '　' + sum.name : ''}${_modeName}` : `存檔 ${n}　（空）`;   // 未命名時不顯示名稱（連同前置全形空白一併省略）
-        let _classicStyle = _trad ? 'color:#c4b5fd;border-color:#7c3aed;' : (_classic ? 'color:#fbbf24;border-color:#d97706;' : '');   // 🏛️ 傳統＝淡紫文字＋紫邊框；🎮 經典＝琥珀金文字＋琥珀邊框
+        let _classicStyle = (_classic && _trad) ? 'color:#2dd4bf;border-color:#0d9488;' : (_trad ? 'color:#c4b5fd;border-color:#7c3aed;' : (_classic ? 'color:#fbbf24;border-color:#d97706;' : ''));   // 經典＋傳統＝青綠；🏛️ 傳統＝淡紫；🎮 經典＝琥珀金
         let disabled = (mode === 'load' && !sum);
         let bak = (mode === 'load') ? slotBackupSummary(n) : null;
         // 動作區固定寬度：匯入(+復原)鈕各 flex-1。無備份時匯入鈕獨佔整個動作區
@@ -318,15 +319,16 @@ function slotBackToMenu(){
 //       不支援時退回瀏覽器下載（落在預設下載資料夾）。
 async function exportSave(){
     saveGame();   // 先儲存，確保匯出的是最新進度
-    let data = localStorage.getItem('lineage_idle_save_' + currentSlot);
+    let data = _saveUnwrap(_lzGet('lineage_idle_save_' + currentSlot)).payload;   // 💾 解壓並解簽 → 取出明文 JSON payload
     if(!data){ alert('目前沒有可匯出的存檔。'); return; }
     // 🔧 一併收錄共用倉庫（依角色的經典/非經典模式取對應倉庫）；匯入時可選擇是否還原
     try {
         let _obj = JSON.parse(data);
-        let _whRaw = localStorage.getItem(whKey());   // 🎮 目前角色（經典/非經典）對應的倉庫
+        let _whRaw = _lzGet(whKey());   // 🎮 目前角色（經典/非經典）對應的倉庫（💾 解壓成明文）
         if(_whRaw) _obj.wh = JSON.parse(_whRaw);
         data = JSON.stringify(_obj);
     } catch(e){}
+    data = _saveWrap(data);   // 🛡️ 匯出檔加完整性簽章（前綴 'SIG1:'，匯入時驗章；payload 仍為明文 JSON）
     let sum = slotSummary(currentSlot);
     let cname = (sum && sum.name) ? sum.name : ('slot' + currentSlot);   // 未命名 → 用 slotN 當檔名
     let fname = `fable5_save_${currentSlot}_${cname}.json`;
@@ -368,7 +370,11 @@ function importSave(n){
         if(!file) return;
         let reader = new FileReader();
         reader.onload = function(){
-            let text = String(reader.result || '');
+            let _raw = String(reader.result || '');
+            let _u = _saveUnwrap(_raw);   // 🛡️ 解存檔簽章（相容舊版無簽章明文匯出檔）
+            if(_u.signed && !_u.ok){ alert('匯入失敗：檔案完整性校驗未通過，可能已被竄改。'); return; }   // 🛡️ 簽章不符＝被改過：拒絕匯入
+            if(!_u.signed && !confirm('此存檔檔案沒有完整性簽章（可能來自舊版本，或被外部修改/移除簽章）。\n仍要匯入嗎？')) return;   // 🛡️ 未簽章檔（含被剝掉 SIG1 前綴後竄改者）：明示警告＋需確認，避免簽章被「刪前綴」無聲繞過
+            let text = _u.payload;
             let d;
             try { d = JSON.parse(text); }
             catch(e){ alert('匯入失敗：檔案不是有效的存檔（JSON 解析錯誤）。'); return; }
@@ -383,14 +389,14 @@ function importSave(n){
             if(whData !== undefined){ let _c = {}; for(let k in d){ if(k !== 'wh') _c[k] = d[k]; } saveText = JSON.stringify(_c); }
             let cur = localStorage.getItem('lineage_idle_save_' + n);
             if(cur) localStorage.setItem('lineage_idle_save_' + n + '_bak', cur);   // 匯入前自動備份原存檔
-            localStorage.setItem('lineage_idle_save_' + n, saveText);
+            _lzSet('lineage_idle_save_' + n, _saveWrap(saveText));   // 💾 匯入 → 以本機簽章重新封裝後壓縮存入（之後讀檔即可驗章）
             // 🔧 詢問是否一併還原共用倉庫（會覆蓋現有倉庫，四個存檔位共用）
             let whMsg = '';
             if(whData !== undefined){
                 let _cnt = (whData.items && whData.items.length) || 0;
                 let _gold = whData.gold || 0;
                 if(confirm(`此匯入檔包含倉庫資料（物品 ${_cnt} 項、金幣 ${_gold.toLocaleString()}）。\n是否一併還原倉庫？\n⚠ 會覆蓋該角色所屬模式（${(d.p && d.p.classicMode) ? '經典' : '非經典'}）的共用倉庫。`)){
-                    localStorage.setItem(whKey(d.p), JSON.stringify({ items: whData.items || [], gold: whData.gold || 0 }));   // 🎮 依匯入角色的經典/非經典模式寫入對應倉庫
+                    _lzSet(whKey(d.p), JSON.stringify({ items: whData.items || [], gold: whData.gold || 0 }));   // 🎮 依匯入角色的經典/非經典模式寫入對應倉庫（💾 壓縮）
                     whMsg = '\n倉庫已一併還原。';
                 } else {
                     whMsg = '\n（倉庫維持原狀，未還原）';
@@ -502,67 +508,75 @@ function updateCreateUI() {
     document.getElementById('btn-start').disabled = left <= 0 ? false : true;
 }
 
-function _setTraditionalToggle(enabled){   // 同步傳統模式勾選框可用狀態（經典關閉→鎖定並取消傳統）
+function _setTraditionalToggle(enabled){   // 創角流程重置用：取消傳統勾選（傳統已可獨立勾選、不再受經典鎖定）
     let _tt = document.getElementById('create-traditional-toggle');
-    let _tl = document.getElementById('lbl-create-traditional');
-    if (_tt) { _tt.disabled = !enabled; if (!enabled) _tt.checked = false; }
-    if (_tl) _tl.classList.toggle('opacity-40', !enabled);
+    if (_tt && !enabled) _tt.checked = false;
 }
 function onToggleClassic(el) {
-    if (!el.checked) { _setTraditionalToggle(false); return; }   // 取消經典：連帶鎖定＋取消傳統（傳統須建立在經典之上）
-    let ok = confirm('⚔ 經典模式（硬核挑戰）\n\n開啟後，此角色將「永久」套用下列規則，建立後無法關閉：\n\n‧ 物品掉落機率 → 原本的 1/10\n‧ 經驗值取得 → 減半\n‧ 怪物金幣 → 僅剩一般模式的 1/2\n‧ 死亡 → 損失該等級 10% 最大經驗（不會降等）\n‧ 無法賦予裝備祝福、無法進行職業精通\n‧ 無法進入「席琳的世界」\n\n確定要以「經典模式」創建此角色嗎？');
-    if (!ok) { el.checked = false; _setTraditionalToggle(false); return; }   // 取消 → 還原為未勾選並鎖定傳統
-    _setTraditionalToggle(true);   // 經典確認開啟 → 解鎖傳統模式選項
+    if (!el.checked) return;   // 取消勾選不需確認（經典與傳統已獨立、互不連動）
+    let ok = confirm('⚔ 經典模式（硬核挑戰）\n\n開啟後，此角色將「永久」套用下列規則，建立後無法關閉：\n\n‧ 物品掉落機率 → 原本的 1/10\n‧ 經驗值取得 → 減半\n‧ 怪物金幣 → 僅剩一般模式的 1/2\n‧ 死亡 → 損失該等級 10% 最大經驗（不會降等）\n‧ 無法賦予裝備祝福、無法進行職業精通\n‧ 無法進入「席琳的世界」\n\n（可單獨開啟，或與「傳統模式」並用）\n\n確定要以「經典模式」創建此角色嗎？');
+    if (!ok) { el.checked = false; return; }
 }
 function onToggleTraditional(el) {
     if (!el.checked) return;   // 取消勾選不需確認
-    let _ct = document.getElementById('create-classic-toggle');
-    if (!_ct || !_ct.checked) { el.checked = false; alert('傳統模式須先勾選「經典模式」才能啟用。'); return; }   // 防呆：未開經典不可開傳統
-    let ok = confirm('🏛️ 傳統模式（建立在「經典模式」之上）\n\n開啟後，此角色將在經典規則之上「永久」再套用下列規則：\n\n‧ 所有武器/防具/飾品 → 沒有強化選項（隱藏快速強化）\n‧ 怪物不掉落、黑市不販售「對武器/盔甲/飾品施法的卷軸」\n‧ 隱藏肯特城的兌換 NPC（伊賽馬利）\n‧ 取而代之 → 怪物掉落／潘朵拉黑市／製作 的裝備會「隨機自帶已強化值」（商店購買仍為 +0）\n‧ 倉庫與角色 與「經典模式」「一般模式」皆不共通\n\n確定要以「傳統模式」創建此角色嗎？');
+    let ok = confirm('🏛️ 傳統模式（可單獨開啟，或與「經典模式」並用）\n\n開啟後，此角色將「永久」套用下列規則，建立後無法關閉：\n\n‧ 所有武器/防具/飾品 → 沒有強化選項（隱藏快速強化）\n‧ 怪物不掉落、黑市不販售「對武器/盔甲/飾品施法的卷軸」\n‧ 隱藏肯特城的兌換 NPC（伊賽馬利）\n‧ 取而代之 → 怪物掉落／潘朵拉黑市／製作 的裝備會「隨機自帶已強化值」（商店購買仍為 +0）\n‧ 倉庫與角色 與其他模式組合（一般／經典／經典＋傳統）皆不共通\n\n確定要以「傳統模式」創建此角色嗎？');
     if (!ok) el.checked = false;   // 取消 → 還原為未勾選
 }
-// BGM 系統
 var BGM = {
-    _player: null,
-    init() {
-        this._player = document.getElementById('bgm-player');
-        let vol = parseFloat(localStorage.getItem('bgm_volume'));
-        if (isNaN(vol)) vol = 0.3;
-        if (this._player) { this._player.volume = vol; document.getElementById('bgm-volume').value = vol; }
+    _audio: null, _vol: 0.5, _playlist: null, _playIdx: 0, _currentMusic: null,
+    init: function () {
+        this._audio = document.getElementById('bgm-audio') || new Audio();
+        this._audio.loop = true;
+        var saved = parseFloat(localStorage.getItem('bgmVol'));
+        this._vol = isNaN(saved) ? 0.5 : saved;
+        this._audio.volume = this._vol;
+        var lbl = document.getElementById('bgm-vol-label');
+        if (lbl) lbl.textContent = Math.round(this._vol * 100);
+        document.querySelectorAll('input[type=range]').forEach(function (r) {
+            if (r.oninput && r.oninput.toString().indexOf('BGM') !== -1) r.value = Math.round(BGM._vol * 100);
+        });
     },
-    unlock() {
-        if (this._player) this._player.play().catch(() => {});
+    setVolume: function (v) {
+        this._vol = (typeof v === 'number' && v >= 0 && v <= 1) ? v : this._vol;
+        if (this._audio) this._audio.volume = this._vol;
+        localStorage.setItem('bgmVol', this._vol);
+        var lbl = document.getElementById('bgm-vol-label');
+        if (lbl) lbl.textContent = Math.round(this._vol * 100);
     },
-    play(src) {
-        if (!this._player) return;
-        let vol = parseFloat(localStorage.getItem('bgm_volume'));
-        if (isNaN(vol)) vol = 0.3;
-        this._player.volume = vol;
-        if (Array.isArray(src)) {
-            this._playlist = src;
+    play: function (music) {
+        if (!this._audio) this.init();
+        if (this._currentMusic === music) { if (this._audio.paused) this._audio.play(); return; }
+        this._currentMusic = music;
+        if (Array.isArray(music)) {
+            this._playlist = music;
             this._playIdx = 0;
-            this._player.loop = false;
-            this._player.onended = () => {
-                this._playIdx = (this._playIdx + 1) % this._playlist.length;
-                this._player.src = this._playlist[this._playIdx];
-                this._player.play().catch(() => {});
-            };
-            this._player.src = this._playlist[0];
+            this._audio.loop = false;
+            this._playNext();
         } else {
             this._playlist = null;
-            this._player.onended = null;
-            this._player.loop = true;
-            this._player.src = src;
+            this._audio.loop = true;
+            this._audio.onended = null;
+            this._loadAndPlay(music);
         }
-        this._player.play().catch(() => {});
     },
-    setVolume(v) {
-        v = Math.max(0, Math.min(1, parseFloat(v) || 0));
-        if (this._player) this._player.volume = v;
-        localStorage.setItem('bgm_volume', v);
+    _playNext: function () {
+        if (!this._playlist || this._playIdx >= this._playlist.length) { this._playIdx = 0; }
+        if (this._playlist && this._playlist[this._playIdx]) {
+            this._audio.onended = null;
+            this._loadAndPlay(this._playlist[this._playIdx], true);
+            this._playIdx++;
+        }
+    },
+    _loadAndPlay: function (src, isPlaylistItem) {
+        var self = this;
+        if (typeof src === 'number') src = 'assets/Sound/music' + src + '.mp3';
+        this._audio.src = src;
+        this._audio.volume = this._vol;
+        this._audio.currentTime = 0;
+        if (isPlaylistItem) this._audio.onended = function () { self._playNext(); };
+        this._audio.play().catch(function () { });
     }
 };
-BGM.init();
 function startGame() {
     document.getElementById('creation-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
@@ -583,9 +597,10 @@ function startGame() {
     // 👑 王族：依性別自動入盟、不可選擇／退出（王子→特羅斯 tros、公主→依詩蒂 esti）
     if (player.cls === 'royal') player.bloodPledge = (curCreate.rawCls && curCreate.rawCls.startsWith('f_')) ? 'esti' : 'tros';
     player.classicMode = !!(document.getElementById('create-classic-toggle') && document.getElementById('create-classic-toggle').checked);   // 🎮 經典模式：依創角開關決定（此角色永久生效）
-    player.traditionalMode = player.classicMode && !!(document.getElementById('create-traditional-toggle') && document.getElementById('create-traditional-toggle').checked);   // 🏛️ 傳統模式：經典之上的子模式（須經典亦開啟才生效・永久）
+    player.traditionalMode = !!(document.getElementById('create-traditional-toggle') && document.getElementById('create-traditional-toggle').checked);   // 🏛️ 傳統模式：依創角開關決定（與經典獨立·可單開或＋經典·此角色永久生效）
     player.name = null;   // 預設未取名，狀態欄顯示「點擊取名」，玩家可點擊命名
-    
+    player.enSeed = 'es' + uid() + uid();   // 🎲 強化決定論種子（創角產生一次、存進存檔永久固定）：讓強化成敗由種子決定、不可用 save/load 刷
+
     let b = createBase[curCreate.cls];
     player.base = { str: b.str+curCreate.str, dex: b.dex+curCreate.dex, con: b.con+curCreate.con, int: b.int+curCreate.int, wis: b.wis+curCreate.wis, cha: b.cha+curCreate.cha };
     player.lv = 1; player.exp = 0; player.gold = 1000;
@@ -686,7 +701,6 @@ function startGame() {
     startGameTimers();
     logSys(`===== 歡迎來到天堂放置冒險 =====`);
     saveGame();   // 🔧 創角完成立即存檔：先前要等 5 分鐘自動存檔，期間關閉頁面角色會直接消失
-    BGM.unlock();
 }
 
 function updateClassPotionRows() {
@@ -703,6 +717,7 @@ function saveGame() {
     // 死亡狀態不寫檔：避免把 player.dead=true 存進去，導致下次讀檔卡在死亡狀態而不出怪。
     // 死亡期間沒有可保存的進度，保留上一份「存活」存檔即可。
     if (player && player.dead) return;
+    if (typeof sanitizeState === 'function') sanitizeState();   // 🛡️ 寫檔前合理性夾擠：把 runtime(Console)改出的不可能數值夾回合法範圍，連同簽章一起固化、不讓作弊值被存檔/匯出
     // 收集目前的自動化設定 UI 狀態
     player.config = {
         setPot: document.getElementById('set-pot').value,
@@ -740,7 +755,7 @@ function saveGame() {
         if (chk) player.config.autoBuffSkills[sid] = chk.checked;
     });
 
-    localStorage.setItem('lineage_idle_save_' + currentSlot, JSON.stringify({ v: SAVE_VERSION, p: player, ms: mapState, ticks: state.ticks }));   // 🔧 架構#6：寫入存檔版本   // 🔧 一併保存 tick 計數：召喚物/迷魅的 endTick 為絕對 tick，不存會在重載後失準（迷魅重新計時 1 小時）
+    _lzSet('lineage_idle_save_' + currentSlot, _saveWrap(JSON.stringify({ v: SAVE_VERSION, p: player, ms: mapState, ticks: state.ticks })));   // 🔧 架構#6：寫入存檔版本（🛡️ 加完整性簽章後 💾 LZString 壓縮）   // 🔧 一併保存 tick 計數：召喚物/迷魅的 endTick 為絕對 tick，不存會在重載後失準（迷魅重新計時 1 小時）
     logSys(`遊戲進度已儲存。`);
 }
 
@@ -768,10 +783,14 @@ function consolidateInventory() {
 }
 
 function loadGame() {
-    let s = localStorage.getItem('lineage_idle_save_' + currentSlot);
+    let _u = _saveUnwrap(_lzGet('lineage_idle_save_' + currentSlot));   // 🛡️ 解存檔簽章（舊明文存檔 signed:false 照常載入）
+    if (_u.signed && !_u.ok) { alert('此存檔的完整性校驗未通過，可能已被外部修改，無法載入。\n可在載入畫面點「復原備份」還原，或改用未被修改的存檔。'); return; }   // 🛡️ 簽章不符＝被竄改：拒絕載入
+    let s = _u.payload;
     if (s) {
-        let d = JSON.parse(s);
+        let d; try { d = JSON.parse(s); } catch(e){ alert('此存檔位的資料已毀損，無法載入。若先前有匯入過，可在載入畫面點「復原備份」還原。'); return; }   // 🛡️ 與其他讀檔點一致：毀損時乾淨報錯而非拋例外卡死
         player = d.p; mapState = d.ms;
+        if (!player.enSeed) player.enSeed = 'es' + _seedHash((player.name || '') + '|' + (player.cls || '') + '|lz').toString(36);   // 🎲 舊存檔無強化種子：由角色名+職業決定論衍生（重匯入同一份舊檔也得相同種子→不能靠重匯入重洗強化）
+        if (typeof sanitizeState === 'function') sanitizeState();   // 🛡️ 讀檔後合理性夾擠（抓改過/竄改的存檔：等級>100、強化值超上限、負金幣等）
         state.ticks = d.ticks || 0;   // 🔧 還原 tick 計數：讓召喚物/迷魅以絕對 tick 記錄的 endTick 在重載後仍然有效
         // 修復：自動存檔可能在「死亡放置」期間把 player.dead=true 寫入存檔。
         // 讀檔一律以「在村莊甦醒、存活」載入，否則 tick() 會因 player.dead 提早 return，

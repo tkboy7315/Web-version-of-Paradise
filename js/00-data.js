@@ -1,4 +1,166 @@
 /** 遊戲核心資料庫 */
+// 🏷️ 遊戲版本號（顯示於登入頁面下方·單一真相來源）：更新版本時只改這一行，登入頁面自動同步。
+const GAME_VERSION = 'v2.4.17';
+// ===== 💾 存檔壓縮（LZString compressToUTF16/decompressFromUTF16·MIT, Pieroxy）：localStorage 內部以 UTF-16 壓縮，省 ~89%，繞過 5MB 上限 =====
+//  ⚠️ 只壓 localStorage（存檔位/倉庫/共用桶/_bak）；匯出檔維持明文 JSON（可攜·importSave 用 JSON.parse 驗證）。_lzGet 相容舊明文存檔（無 'LZ1:' 前綴→原樣回傳）。
+var LZString = (function () {
+  var f = String.fromCharCode;
+  var LZString = {
+    compressToUTF16: function (input) { if (input == null) return ""; return LZString._compress(input, 15, function (a) { return f(a + 32); }) + " "; },
+    decompressFromUTF16: function (compressed) { if (compressed == null) return ""; if (compressed == "") return null; return LZString._decompress(compressed.length, 16384, function (index) { return compressed.charCodeAt(index) - 32; }); },
+    _compress: function (uncompressed, bitsPerChar, getCharFromInt) {
+      if (uncompressed == null) return "";
+      var i, value, context_dictionary = {}, context_dictionaryToCreate = {}, context_c = "", context_wc = "", context_w = "", context_enlargeIn = 2, context_dictSize = 3, context_numBits = 2, context_data = [], context_data_val = 0, context_data_position = 0, ii;
+      for (ii = 0; ii < uncompressed.length; ii += 1) {
+        context_c = uncompressed.charAt(ii);
+        if (!Object.prototype.hasOwnProperty.call(context_dictionary, context_c)) { context_dictionary[context_c] = context_dictSize++; context_dictionaryToCreate[context_c] = true; }
+        context_wc = context_w + context_c;
+        if (Object.prototype.hasOwnProperty.call(context_dictionary, context_wc)) { context_w = context_wc; } else {
+          if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+            if (context_w.charCodeAt(0) < 256) {
+              for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } }
+              value = context_w.charCodeAt(0);
+              for (i = 0; i < 8; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+            } else {
+              value = 1;
+              for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1) | value; if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = 0; }
+              value = context_w.charCodeAt(0);
+              for (i = 0; i < 16; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+            }
+            context_enlargeIn--; if (context_enlargeIn == 0) { context_enlargeIn = Math.pow(2, context_numBits); context_numBits++; }
+            delete context_dictionaryToCreate[context_w];
+          } else {
+            value = context_dictionary[context_w];
+            for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+          }
+          context_enlargeIn--; if (context_enlargeIn == 0) { context_enlargeIn = Math.pow(2, context_numBits); context_numBits++; }
+          context_dictionary[context_wc] = context_dictSize++; context_w = String(context_c);
+        }
+      }
+      if (context_w !== "") {
+        if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+          if (context_w.charCodeAt(0) < 256) {
+            for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } }
+            value = context_w.charCodeAt(0);
+            for (i = 0; i < 8; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+          } else {
+            value = 1;
+            for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1) | value; if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = 0; }
+            value = context_w.charCodeAt(0);
+            for (i = 0; i < 16; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+          }
+          context_enlargeIn--; if (context_enlargeIn == 0) { context_enlargeIn = Math.pow(2, context_numBits); context_numBits++; }
+          delete context_dictionaryToCreate[context_w];
+        } else {
+          value = context_dictionary[context_w];
+          for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+        }
+        context_enlargeIn--; if (context_enlargeIn == 0) { context_enlargeIn = Math.pow(2, context_numBits); context_numBits++; }
+      }
+      value = 2;
+      for (i = 0; i < context_numBits; i++) { context_data_val = (context_data_val << 1) | (value & 1); if (context_data_position == bitsPerChar - 1) { context_data_position = 0; context_data.push(getCharFromInt(context_data_val)); context_data_val = 0; } else { context_data_position++; } value = value >> 1; }
+      while (true) { context_data_val = (context_data_val << 1); if (context_data_position == bitsPerChar - 1) { context_data.push(getCharFromInt(context_data_val)); break; } else context_data_position++; }
+      return context_data.join('');
+    },
+    _decompress: function (length, resetValue, getNextValue) {
+      var dictionary = [], next, enlargeIn = 4, dictSize = 4, numBits = 3, entry = "", result = [], i, w, bits, resb, maxpower, power, c, data = { val: getNextValue(0), position: resetValue, index: 1 };
+      for (i = 0; i < 3; i += 1) { dictionary[i] = i; }
+      bits = 0; maxpower = Math.pow(2, 2); power = 1;
+      while (power != maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position == 0) { data.position = resetValue; data.val = getNextValue(data.index++); } bits |= (resb > 0 ? 1 : 0) * power; power <<= 1; }
+      switch (next = bits) {
+        case 0: bits = 0; maxpower = Math.pow(2, 8); power = 1; while (power != maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position == 0) { data.position = resetValue; data.val = getNextValue(data.index++); } bits |= (resb > 0 ? 1 : 0) * power; power <<= 1; } c = f(bits); break;
+        case 1: bits = 0; maxpower = Math.pow(2, 16); power = 1; while (power != maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position == 0) { data.position = resetValue; data.val = getNextValue(data.index++); } bits |= (resb > 0 ? 1 : 0) * power; power <<= 1; } c = f(bits); break;
+        case 2: return "";
+      }
+      dictionary[3] = c; w = c; result.push(c);
+      while (true) {
+        if (data.index > length) { return ""; }
+        bits = 0; maxpower = Math.pow(2, numBits); power = 1;
+        while (power != maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position == 0) { data.position = resetValue; data.val = getNextValue(data.index++); } bits |= (resb > 0 ? 1 : 0) * power; power <<= 1; }
+        switch (c = bits) {
+          case 0: bits = 0; maxpower = Math.pow(2, 8); power = 1; while (power != maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position == 0) { data.position = resetValue; data.val = getNextValue(data.index++); } bits |= (resb > 0 ? 1 : 0) * power; power <<= 1; } dictionary[dictSize++] = f(bits); c = dictSize - 1; enlargeIn--; break;
+          case 1: bits = 0; maxpower = Math.pow(2, 16); power = 1; while (power != maxpower) { resb = data.val & data.position; data.position >>= 1; if (data.position == 0) { data.position = resetValue; data.val = getNextValue(data.index++); } bits |= (resb > 0 ? 1 : 0) * power; power <<= 1; } dictionary[dictSize++] = f(bits); c = dictSize - 1; enlargeIn--; break;
+          case 2: return result.join('');
+        }
+        if (enlargeIn == 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+        if (dictionary[c]) { entry = dictionary[c]; } else { if (c === dictSize) { entry = w + w.charAt(0); } else { return null; } }
+        result.push(entry);
+        dictionary[dictSize++] = w + entry.charAt(0); enlargeIn--; w = entry;
+        if (enlargeIn == 0) { enlargeIn = Math.pow(2, numBits); numBits++; }
+      }
+    }
+  };
+  return LZString;
+})();
+// 壓縮寫入：把 JSON 字串以 'LZ1:'+UTF16 壓縮存入；壓縮失敗或 quota 時退回明文（再不行則警告）
+function _lzSet(key, jsonStr) {
+  try { localStorage.setItem(key, 'LZ1:' + LZString.compressToUTF16(jsonStr)); return true; }
+  catch (e) { try { localStorage.setItem(key, jsonStr); return true; } catch (e2) { if (typeof logSys === 'function') logSys('<span class="text-red-400 font-bold">⚠ 瀏覽器儲存空間不足，存檔可能未完整寫入。</span>'); return false; } }
+}
+// 解壓讀取：'LZ1:' 前綴→解壓；否則原樣回傳（相容舊明文存檔）。回傳 JSON 字串或 null（key 不存在）
+function _lzGet(key) {
+  var raw = localStorage.getItem(key); if (raw == null) return null;
+  if (raw.slice(0, 4) === 'LZ1:') { try { return LZString.decompressFromUTF16(raw.slice(4)); } catch (e) { return null; } }
+  return raw;
+}
+
+// 🎲 種子型亂數（決定論 PRNG·xmur3→mulberry32）：相同的字串輸入永遠得到同一個 [0,1) 值。
+//    用途＝把「強化成敗」改成由存檔內種子決定，讓讀檔/匯入舊檔回到強化前也算出完全相同的結果（杜絕 save/load 刷強化值）。
+function _seedHash(str) {
+  str = String(str); let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = (h << 13) | (h >>> 19); }
+  h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+function _seededFloat(str) {
+  let a = (_seedHash(str) + 0x6D2B79F5) | 0;
+  let t = Math.imul(a ^ (a >>> 15), 1 | a);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+// 強化專用決定論亂數：由（角色 player.enSeed＋裝備 uid＋當前強化值[＋標籤]）決定 0~1 的值。
+// 三項輸入全在存檔內 → 匯出/讀檔/匯入舊檔回到強化前，輸入全部還原 → 算出一模一樣的成敗，save/load 刷不到。
+function enRandomUid(itUid, en, tag) {
+  let seed = (typeof player !== 'undefined' && player && player.enSeed) || 'nseed';
+  return _seededFloat(seed + '|' + itUid + '|' + (Number(en) || 0) + '|' + (tag || ''));
+}
+// 🔁 強化身份 uid：詛咒卷軸退階後，裝備被賦予一個「由存檔內計數器 player.enReSeq 決定的新身份」(item.enNonce)，
+//    使重新爬階時各階成敗重置（＝付費重骰該階）。仍 committed：enNonce 取自存檔計數器→讀檔/匯入重現同值→不能 save/load 刷；
+//    只有「再花一張詛咒卷軸」(enNonce 換新)才換命運。未退階過的裝備 enNonce 為空→沿用 uid（既有裝備命運不變·向後相容）。
+function enIdUid(item) { return (item && item.enNonce) ? ('re' + item.enNonce) : (item && item.uid); }
+function enRandom(item, tag) { return enRandomUid(enIdUid(item), item && item.en, tag); }
+
+// 🎲 「獲得/抽取瞬間」決定論亂數（committed RNG·防 SL 存讀檔重抽）：把掉落/製作/兌換/潘朵拉/開箱/裂痕領取/碧恩賦予 等
+//   在行動當下擲出、且會 baked 進存檔的隨機（自帶強化值／詞綴／席琳套裝效果／抽到哪一件…）改由「存檔內遞增序號 player.lootSeq」決定。
+//   序號入存檔且受 SIG1 簽章 → 讀檔或重匯入舊檔回到行動前 → 相同序號 → 算出完全相同結果 → 重抽無效。比照娃娃 dollSeq、強化 enRandom。
+//   ⚠️標題/載入畫面（尚無 player）退回 Math.random（該情境無存檔可 SL，不影響玩家）。每呼叫一次消耗一個序號。
+function lootRng(tag) {
+    if (typeof player === 'undefined' || !player) return Math.random();
+    if (player.lootSeq == null) player.lootSeq = 0;
+    return _seededFloat((player.enSeed || 'nseed') + '|loot|' + (player.lootSeq++) + '|' + (tag || ''));
+}
+
+// 🛡️ 存檔簽章（防隨手竄改）：在 LZ 壓縮層外再包一層 'SIG1:'+簽章+':'+payload。
+//    注意：鹽值內嵌於客戶端原始碼，故僅能擋「解壓→改數值→重壓」這類隨手竄改；擋不了讀原始碼後自行重算簽章的人（純前端無法做到，與整體限制一致）。
+const _SAVE_SALT = 'fb5#9c3a7e1d-save-integrity-salt-do-not-edit#a1b2c3';
+function _signSave(s) {
+  let a = _seedHash(_SAVE_SALT + '::' + s);
+  let b = _seedHash(s + '::' + _SAVE_SALT + '::' + a);
+  return (a >>> 0).toString(36) + '.' + (b >>> 0).toString(36) + '.' + (s.length).toString(36);
+}
+// 包簽章：payload 字串 → 'SIG1:'+sig+':'+payload（sig 只含 0-9a-z 與 '.'，不含 ':'，故解析時取第一個 ':' 切開）
+function _saveWrap(payloadStr) { return 'SIG1:' + _signSave(payloadStr) + ':' + payloadStr; }
+// 解簽章：回傳 {payload, signed, ok}。未簽章（舊檔/舊匯出明文）→ signed:false、ok:true、payload 原樣（向後相容）
+function _saveUnwrap(raw) {
+  if (raw == null) return { payload: null, signed: false, ok: true };
+  if (String(raw).slice(0, 5) === 'SIG1:') {
+    let rest = raw.slice(5), i = rest.indexOf(':');
+    if (i < 0) return { payload: raw, signed: true, ok: false };   // 🛡️ 有 SIG1 前綴卻缺分隔符＝格式毀損/被竄改：視為簽章不符（交由呼叫端拒絕）
+    let sig = rest.slice(0, i), payload = rest.slice(i + 1);
+    return { payload: payload, signed: true, ok: (_signSave(payload) === sig) };
+  }
+  return { payload: raw, signed: false, ok: true };
+}
 const EXP_T = [0, 125, 175, 200, 250, 546, 1105, 1695, 2465, 3439, 4641, 6095, 7825, 9855, 12209, 14911, 17985, 21455, 25345, 29679, 34481, 40033, 45585, 51935, 58849, 66351, 74465, 83215, 92625, 102719, 113521, 125055, 137345, 150415, 164289, 178991, 194545, 210975, 228305, 246559, 265761, 285935, 307105, 329817, 352529, 729360, 1508416, 3495263, 9912189, 36065092];
 function getExpReq(lv) { return lv >= 100 ? Infinity : (lv >= 49 ? 36065092 : EXP_T[lv]); }
 // 高等級打怪經驗衰減（依玩家當前等級）：50~69 ×1/2、70~74 ×1/4、75~78 ×1/8、79 ×1/16、
@@ -87,7 +249,7 @@ const DB = {
         "wpn_strwand": { n: "力量魔法杖", type: "wpn", dmgS: 9, dmgL: 9, hit: 0, dmgBonus: 3, mdmg: -2, str: 3, spd: 1.0, req: "mage", safe: 6, p: 71500, meleeHitPerEn: 1, eff: "magicstrike", gachaWeight: 10 },
         "wpn_manawand": { n: "瑪那魔杖", type: "wpn", dmgS: 3, dmgL: 3, hit: -1, spd: 1.0, req: "mage", safe: 6, p: 10000, eff: "mp_drain", gachaWeight: 20 },
         "wpn_crystalwand": { n: "水晶魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, spd: 1.0, req: "mage", safe: 6, p: 10000, mpR: 10, mpROverSafe: 2, gachaWeight: 20 },
-        "wpn_powerless_baless": { n: "失去魔力的巴列斯魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 0, p: 0, gachaWeight: 0, d: "魔力早已枯竭的古老魔杖，杖芯卻仍隱隱悸動。攜帶它並使用『靈魂之球』，或許能喚回沉睡的力量……（可販售，售價 0）" },   // 🔧 巴列斯任務武器
+        "wpn_powerless_baless": { n: "失去魔力的巴列斯魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 0, p: 0, gachaWeight: 0, noEnhance: true, d: "魔力早已枯竭的古老魔杖，杖芯卻仍隱隱悸動。攜帶它並使用『靈魂之球』，或許能喚回沉睡的力量……（封印狀態無法強化；傳統模式下解封印才附加隨機強化值。可販售，售價 0）" },   // 🔧 巴列斯任務武器；🏛️ noEnhance＝封印恆 +0（傳統模式自帶強化值延後到靈魂之球解封印時附加）
         "wpn_baless": { n: "巴列斯魔杖", type: "wpn", dmgS: 2, dmgL: 3, hit: 0, dmgBonus: 0, mdmg: 2, spd: 1.0, req: "mage", safe: 0, p: 250000, mpR: 10, mpROverSafe: 2, legend: true, gachaWeight: 1, d: "重獲魔力的傳說魔杖，杖身蘊含撼動萬物的共鳴之力。" },   // 🏅 傳說武器（共鳴：見 WAND_LIGHTARROW_IDS）；🔧 安定值0：+0 為 MP自然恢復10，每強化+1再+2（10/12/14…）
         "wpn_39": { n: "潘的角", type: "wpn", dmgS: 3, dmgL: 4, hit: 0, spd: 1.2, req: "all", safe: 6, p: 10, gachaWeight: 100 },
         "wpn_40": { n: "覆上米索莉的角", type: "wpn", dmgS: 4, dmgL: 4, hit: 0, spd: 1.2, req: "all", safe: 6, p: 178, unBonus: true, gachaWeight: 100 },
@@ -459,6 +621,59 @@ const DB = {
         "pet_fang_steel":   { n: "鋼鐵之牙", type: "acc", slot: "pet", req: "all", safe: 0, p: 10000,  c: "text-white", petDmg: 2,            d: "以鋼鐵鑄成的森冷利齒，使項圈夥伴撕咬更為兇猛。寵物裝備（裝在「寵物裝備」欄，只加成所有項圈夥伴、不影響玩家；對飾品施法的卷軸可強化，上限+5）。", gachaWeight: 10 },
         "pet_fang_ruin":    { n: "破滅之牙", type: "acc", slot: "pet", req: "all", safe: 0, p: 100000, c: "text-white", petDmg: 2, petHit: 3, d: "沾染破滅氣息的獠牙，令項圈夥伴的撕咬帶來毀滅。寵物裝備（裝在「寵物裝備」欄，只加成所有項圈夥伴、不影響玩家；對飾品施法的卷軸可強化，上限+5）。", gachaWeight: 0 },
         "pet_fang_victory": { n: "勝利之牙", type: "acc", slot: "pet", req: "all", safe: 0, p: 100000, c: "text-white", petDmg: 3, petHit: 1, d: "銘刻無數勝戰的榮耀之牙，激起項圈夥伴的鬥志。寵物裝備（裝在「寵物裝備」欄，只加成所有項圈夥伴、不影響玩家；對飾品施法的卷軸可強化，上限+5）。", gachaWeight: 0 },
+        // 🪆 魔法娃娃（slot:doll·全職業·裝備後滑鼠游標變成 assets/doll/<物品名稱>.png；亦帶屬性加成）。dollTier=階級(1~6)；袋子開出/合成取得（價格0·無法強化·不可賣）。
+        // 特殊效果引擎欄位：procBonusDmg{rate,dmg}=攻擊機率額外傷害、procPoisonRate=攻擊機率中毒、procSkill+procRateBase=攻擊機率觸發技能、procDmgReduce{rate,amount}=受傷機率減免、abnormalResist=機率抵抗異常、freezeResist/stunResist=抵抗(100=免疫)、immParalyze/immSlow/immPoison=免疫、expBonus/goldBonus=經驗/金錢%、potionBonus=藥水恢復%、weightCap=負重、er/magicHit/extraMp/mdmg=ER/魔法命中/額外魔點/固定魔傷。
+        "doll_野狼寶寶":   { n: "魔法娃娃：野狼寶寶", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", procBonusDmg: { rate: 3, dmg: 15 }, d: "一階魔法娃娃。一般攻擊時 3% 機率該次攻擊額外傷害 +15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_史巴托":     { n: "魔法娃娃：史巴托", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", procDmgReduce: { rate: 4, amount: 3 }, d: "一階魔法娃娃。受到傷害時 4% 機率傷害減免 3。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_奎斯坦修":   { n: "魔法娃娃：奎斯坦修", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", procBonusDmg: { rate: 3, dmg: 15 }, d: "一階魔法娃娃。一般攻擊時 3% 機率該次攻擊額外傷害 +15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_稻草人":     { n: "魔法娃娃：稻草人", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", mhp: 50, d: "一階魔法娃娃。HP +50。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_蛇女":       { n: "魔法娃娃：蛇女", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", mpR: 4, procPoisonRate: 5, d: "一階魔法娃娃。MP 自然恢復 +4；攻擊時 5% 機率使目標中毒。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_肥肥":       { n: "魔法娃娃：肥肥", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", weightCap: 20, d: "一階魔法娃娃。負重上限 +20。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_希爾黛斯":   { n: "魔法娃娃：希爾黛斯", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", hpR: 10, d: "一階魔法娃娃。HP 自然恢復量 +10。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_石頭高崙":   { n: "魔法娃娃：石頭高崙", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 1, noEnhance: true, gachaWeight: 0, c: "text-slate-200", dr: 1, d: "一階魔法娃娃。傷害減免 +1。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_長老":       { n: "魔法娃娃：長老", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 2, noEnhance: true, gachaWeight: 0, c: "text-green-300", mpR: 4, d: "二階魔法娃娃。MP 自然恢復 +4。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_雪怪":       { n: "魔法娃娃：雪怪", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 2, noEnhance: true, gachaWeight: 0, c: "text-green-300", ac: 3, freezeResist: 5, d: "二階魔法娃娃。防禦力(AC) -3；5% 機率抵抗冰凍。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_亞力安":     { n: "魔法娃娃：亞力安", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 2, noEnhance: true, gachaWeight: 0, c: "text-green-300", rangedDmg: 1, rangedHit: 1, d: "二階魔法娃娃。遠距離傷害 +1、遠距離命中 +1。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_美人魚":     { n: "魔法娃娃：美人魚", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 2, noEnhance: true, gachaWeight: 0, c: "text-green-300", expBonus: 3, d: "二階魔法娃娃。獲得經驗值 +3%。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_小思克巴":   { n: "魔法娃娃：小思克巴", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 2, noEnhance: true, gachaWeight: 0, c: "text-green-300", mpR: 4, d: "二階魔法娃娃。MP 自然恢復 +4。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_巨人":       { n: "魔法娃娃：巨人", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 2, noEnhance: true, gachaWeight: 0, c: "text-green-300", meleeDmg: 1, meleeHit: 1, dr: 1, mhp: 50, d: "二階魔法娃娃。近距離傷害 +1、近距離命中 +1、傷害減免 +1、HP +50。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_王子":       { n: "魔法娃娃：王子", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, weightCap: 15, str: 1, con: 1, d: "三階魔法娃娃。HP自然恢復+15、負重+15、力量+1、體質+1。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_公主":       { n: "魔法娃娃：公主", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, weightCap: 15, str: 1, con: 1, d: "三階魔法娃娃。MP自然恢復+5、負重+15、力量+1、體質+1。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_男騎士":     { n: "魔法娃娃：男騎士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, con: 2, weightCap: 15, d: "三階魔法娃娃。HP自然恢復+15、體質+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_女騎士":     { n: "魔法娃娃：女騎士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, con: 2, weightCap: 15, d: "三階魔法娃娃。MP自然恢復+5、體質+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_男妖精":     { n: "魔法娃娃：男妖精", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, dex: 2, weightCap: 15, d: "三階魔法娃娃。HP自然恢復+15、敏捷+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_女妖精":     { n: "魔法娃娃：女妖精", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, dex: 2, weightCap: 15, d: "三階魔法娃娃。MP自然恢復+5、敏捷+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_男法師":     { n: "魔法娃娃：男法師", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, int: 2, weightCap: 15, d: "三階魔法娃娃。HP自然恢復+15、智力+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_女法師":     { n: "魔法娃娃：女法師", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, int: 2, weightCap: 15, d: "三階魔法娃娃。MP自然恢復+5、智力+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_男黑暗妖精": { n: "魔法娃娃：男黑暗妖精", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, str: 1, dex: 1, weightCap: 15, d: "三階魔法娃娃。HP自然恢復+15、力量+1、敏捷+1、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_女黑暗妖精": { n: "魔法娃娃：女黑暗妖精", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, str: 1, dex: 1, weightCap: 15, d: "三階魔法娃娃。MP自然恢復+5、力量+1、敏捷+1、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_男龍騎士":   { n: "魔法娃娃：男龍騎士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, str: 2, weightCap: 15, d: "三階魔法娃娃。HP自然恢復+15、力量+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_女龍騎士":   { n: "魔法娃娃：女龍騎士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, str: 2, weightCap: 15, d: "三階魔法娃娃。MP自然恢復+5、力量+2、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_男幻術士":   { n: "魔法娃娃：男幻術士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", hpR: 15, int: 1, wis: 1, weightCap: 15, d: "三階魔法娃娃。HP自然恢復+15、智力+1、精神+1、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_女幻術士":   { n: "魔法娃娃：女幻術士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, int: 1, wis: 1, weightCap: 15, d: "三階魔法娃娃。MP自然恢復+5、智力+1、精神+1、負重+15。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_思克巴女皇": { n: "魔法娃娃：思克巴女皇", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 3, noEnhance: true, gachaWeight: 0, c: "text-sky-300", mpR: 5, mdmg: 1, extraMp: 1, d: "三階魔法娃娃。MP自然恢復+5、魔法傷害+1、額外魔法點數+1。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_阿魯巴":     { n: "魔法娃娃：阿魯巴", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", rangedHit: 2, rangedDmg: 2, dex: 1, mhp: 25, mmp: 25, d: "四階魔法娃娃。遠距離命中+2、遠距離傷害+2、敏捷+1、HP+25、MP+25。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_墮落":       { n: "魔法娃娃：墮落", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", mpR: 3, mdmg: 2, magicHit: 5, abnormalResist: 10, d: "四階魔法娃娃。MP自然恢復+3、魔法傷害+2、魔法命中率+5；10% 機率抵抗異常狀態。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_變形怪":     { n: "魔法娃娃：變形怪", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", ac: 1, hpR: 5, mpR: 2, extraDmg: 1, extraHit: 2, weightCap: 20, d: "四階魔法娃娃。AC-1、HP自然恢復+5、MP自然恢復+2、額外傷害+1、額外命中+2、負重+20。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_飛龍":       { n: "魔法娃娃：飛龍", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", mpR: 5, er: 3, mr: 10, resFire: 3, d: "四階魔法娃娃。MP自然恢復+5、ER+3、MR+10、火屬性抗性+3。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_莫提斯":     { n: "魔法娃娃：莫提斯", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", mpR: 2, expBonus: 10, goldBonus: 10, weightCap: 80, d: "四階魔法娃娃。MP自然恢復+2、獲得經驗+10%、獲得金錢+10%、負重+80。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_黑長者":     { n: "魔法娃娃：黑長者", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", mpR: 10, int: 2, wis: 2, d: "四階魔法娃娃。MP自然恢復+10、智力+2、精神+2。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_獨眼巨人":   { n: "魔法娃娃：獨眼巨人", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 4, noEnhance: true, gachaWeight: 0, c: "text-purple-300", hpR: 30, str: 2, con: 2, d: "四階魔法娃娃。HP自然恢復+30、力量+2、體質+2。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_艾莉絲":     { n: "魔法娃娃：艾莉絲", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", mpR: 5, rangedDmg: 4, rangedHit: 3, d: "五階魔法娃娃。MP自然恢復+5、遠距離傷害+4、遠距離命中+3。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_木乃伊王":   { n: "魔法娃娃：木乃伊王", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", hpR: 20, mhp: 150, d: "五階魔法娃娃。HP自然恢復+20、HP+150。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_死亡騎士":   { n: "魔法娃娃：死亡騎士", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", hpR: 15, meleeDmg: 5, procSkill: "sk_blaze", procRateBase: 1, d: "五階魔法娃娃。HP自然恢復+15、近距離傷害+5；一般攻擊命中 1% 機率觸發烈炎術。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_巴風特":     { n: "魔法娃娃：巴風特", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", mpR: 3, mdmg: 1, magicHit: 1, procSkill: "sk_earthquake", procRateBase: 1, d: "五階魔法娃娃。MP自然恢復+3、魔法傷害+1、魔法命中+1；一般攻擊命中 1% 機率觸發地裂術。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_吸血鬼":     { n: "魔法娃娃：吸血鬼", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", hpR: 35, potionBonus: 10, er: 5, dr: 2, d: "五階魔法娃娃。HP自然恢復+35、藥水恢復量+10%、ER+5、傷害減免+2。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_克特":       { n: "魔法娃娃：克特", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", extraHit: 3, ac: 2, procSkill: "sk_thunder", procRateBase: 1, d: "五階魔法娃娃。額外命中+3、AC-2；一般攻擊命中 1% 機率觸發極道落雷。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_冰之女王":   { n: "魔法娃娃：冰之女王", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", mpR: 10, int: 2, wis: 2, resWater: 10, d: "五階魔法娃娃。MP自然恢復+10、智力+2、精神+2、冰屬性抗性+10。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_巴蘭卡":     { n: "魔法娃娃：巴蘭卡", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", meleeDmg: 3, meleeHit: 3, dr: 3, d: "五階魔法娃娃。近距離傷害+3、近距離命中+3、傷害減免+3。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_巫妖":       { n: "魔法娃娃：巫妖", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 5, noEnhance: true, gachaWeight: 0, c: "text-orange-300", mpR: 5, mdmg: 3, int: 2, mmp: 50, procDmgReduce: { rate: 5, amount: 5 }, d: "五階魔法娃娃。MP自然恢復+5、魔法傷害+3、智力+2、MP+50；受到傷害時 5% 機率傷害減免 5。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_安塔瑞斯":   { n: "魔法娃娃：安塔瑞斯", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 6, noEnhance: true, gachaWeight: 0, c: "text-red-400", hpR: 20, mpR: 10, resEarth: 20, ac: 5, mr: 10, mhp: 100, dr: 10, immPoison: true, immParalyze: true, d: "六階魔法娃娃。HP自然恢復+20、MP自然恢復+10、地屬性抗性+20、AC-5、MR+10、HP+100、傷害減免+10；免疫中毒、麻痺。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_法利昂":     { n: "魔法娃娃：法利昂", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 6, noEnhance: true, gachaWeight: 0, c: "text-red-400", hpR: 20, mpR: 10, resWater: 20, mdmg: 5, int: 2, wis: 2, freezeResist: 100, d: "六階魔法娃娃。HP自然恢復+20、MP自然恢復+10、水屬性抗性+20、魔法傷害+5、智力+2、精神+2；免疫冰凍。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_林德拜爾":   { n: "魔法娃娃：林德拜爾", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 6, noEnhance: true, gachaWeight: 0, c: "text-red-400", hpR: 20, mpR: 10, resWind: 20, rangedDmg: 4, rangedHit: 8, er: 5, immSlow: true, d: "六階魔法娃娃。HP自然恢復+20、MP自然恢復+10、風屬性抗性+20、遠距離傷害+4、遠距離命中+8、ER+5；免疫緩速。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_巴拉卡斯":   { n: "魔法娃娃：巴拉卡斯", type: "acc", slot: "doll", req: "all", safe: 0, p: 0, doll: true, dollTier: 6, noEnhance: true, gachaWeight: 0, c: "text-red-400", hpR: 20, mpR: 10, resFire: 20, meleeDmg: 4, meleeHit: 8, dr: 5, stunResist: 100, d: "六階魔法娃娃。HP自然恢復+20、MP自然恢復+10、火屬性抗性+20、近距離傷害+4、近距離命中+8、傷害減免+5；免疫暈眩。裝於魔法娃娃欄，游標變其模樣。" },
+        "doll_bag":        { n: "魔法娃娃的袋子", type: "misc", p: 0, c: "text-pink-300", eff: "doll_bag", noSell: true, gachaWeight: 0, d: "打開可隨機獲得一隻魔法娃娃。於威頓村魔法娃娃商人用多餘銀卡兌換取得。" },
+        "doll_box_high":   { n: "高級魔法娃娃的盒子", type: "misc", p: 0, c: "text-amber-300", eff: "doll_box_high", noSell: true, gachaWeight: 0, d: "打開可隨機獲得一隻較高階（二～四階）的魔法娃娃。於威頓村魔法娃娃商人用多餘金卡兌換取得。" },
         "scroll_weapon": { n: "對武器施法的卷軸", p: 22500, c: "text-white", d: "強化武器 (安定值6)", gachaWeight: 50 },
         "scroll_armor": { n: "對盔甲施法的卷軸", p: 9000, c: "text-white", d: "強化防具 (安定值4/0)", gachaWeight: 100 },
         "scroll_weapon_b": { n: "祝福的 對武器施法的卷軸", p: 22500, c: "text-yellow-300", d: "祝福的：成功時隨機提升 +1~+3 (強化武器，安定值6)", isB: true, gachaWeight: 0 },
@@ -658,7 +873,7 @@ const DB = {
         "wpn_dual_destroy": { n: "破壞雙刀", type: "wpn", w2h: true, dmgS: 16, dmgL: 10, hit: 6, dmgBonus: 1, str: 1, wis: 2, spd: 0.8, req: "dark", safe: 6, p: 150000, legend: true, gachaWeight: 1, eff: "combo", comboRate: 30, procBurstPoison: { rateBase: 1, ratePerEn: 1 }, d: "蘊含猛爆毒性的漆黑雙刃，揮舞間散逸出腐蝕一切的劇毒。黑暗妖精專屬・雙刀（雙手・近距離）。雙擊 30%；力量+1、精神+2；近距離傷害+1、近距離命中+6。攻擊時 1%（每強化+1%）機率發動猛爆劇毒（每秒 100 固定傷害，持續 5 秒，最多 1 層）。" },
         "wpn_claw_destroy": { n: "破壞鋼爪", type: "wpn", w2h: true, dmgS: 19, dmgL: 18, hit: 6, dmgBonus: 1, str: 1, wis: 2, spd: 0.9, req: "dark", safe: 6, p: 150000, legend: true, gachaWeight: 1, eff: "combo", comboRate: 30, procBurstPoison: { rateBase: 1, ratePerEn: 1 }, d: "凝聚猛爆毒性的漆黑利爪，每一抓都將致命劇毒灌入血肉。黑暗妖精專屬・鋼爪（雙手・近距離）。雙擊 30%；力量+1、精神+2；近距離傷害+1、近距離命中+6。攻擊時 1%（每強化+1%）機率發動猛爆劇毒（每秒 100 固定傷害，持續 5 秒，最多 1 層）。" },
         "wpn_demon_xbow": { n: "惡魔十字弓", type: "wpn", isBow: true, ranged: true, rapidfire: 60, w2h: true, dmgS: 3, dmgL: 3, hit: 2, dmgBonus: 4, spd: 1.0, req: "elf", safe: 6, p: 47300, gachaWeight: 1, equipHaste: true, d: "以惡魔之骨為弦的十字弓，箭雨傾瀉如墮入煉獄。連射 60%、加速（與自我加速藥水/加速術無法重疊）。" },
-        "wpn_powerless_baphomet": { n: "失去魔力的巴風特魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 6, p: 0, gachaWeight: 0, d: "曾屬於魔神巴風特的魔杖，如今魔力枯竭、沉默不語。對靈魂之球使用可恢復為巴風特魔杖。（可販售，售價 0）" },
+        "wpn_powerless_baphomet": { n: "失去魔力的巴風特魔杖", type: "wpn", dmgS: 1, dmgL: 1, hit: 0, dmgBonus: 0, spd: 1.0, req: "all", safe: 6, p: 0, gachaWeight: 0, noEnhance: true, d: "曾屬於魔神巴風特的魔杖，如今魔力枯竭、沉默不語。對靈魂之球使用可恢復為巴風特魔杖。（封印狀態無法強化；傳統模式下解封印才附加隨機強化值。可販售，售價 0）" },   // 🏛️ noEnhance＝封印恆 +0（傳統模式自帶強化值延後到靈魂之球解封印時附加）
         "wpn_baphomet_wand": { n: "巴風特魔杖", type: "wpn", dmgS: 7, dmgL: 6, hit: 8, dmgBonus: 5, spd: 1.0, req: "mage", safe: 0, p: 210000, legend: true, gachaWeight: 1, procSkill: "sk_earthquake", procRateBase: 8, procRatePerEn: 2, mdmgEnFrom7Max3: true, d: "魔神巴風特之力重新甦醒，杖身迴盪著大地撕裂的共鳴。攻擊時 8% 機率發動地裂術（每強化 +1 機率 +2%）；強化 +7 起魔法傷害 +1，最高 +3。" },
         "wpn_qigu_obsidian": { n: "黑曜石奇古獸", type: "wpn", qigu: true, dmgS: 24, dmgL: 24, hit: 0, spd: 0.8, mdmg: 1, wis: 1, req: "illusion", safe: 6, p: 100000, gachaWeight: 10, d: "幻術士豢養的奇古獸，化作以心念支配的兵器。幻術士專屬·奇古獸。一般攻擊化為必中的魔法傷害（受魔抗減免）。魔法傷害+1、精神+1。" },
         "wpn_qigu_meditate": { n: "冥想奇古獸", type: "wpn", qigu: true, dmgS: 25, dmgL: 25, hit: 0, spd: 0.8, wis: 1, mpR: 5, mpRPerEn: 1, req: "illusion", safe: 6, p: 100000, gachaWeight: 10, d: "沉入冥想的奇古獸，靜默中源源汲取魔力。幻術士專屬·奇古獸。精神+1、MP自然恢復量+5（每強化+1再+1）。" },
@@ -1625,7 +1840,7 @@ const DB = {
 				{ id: "npc_falin", n: "法林", title: "製作", type: "craft", d: "法林手藝獨到，能製作銀釘皮裝備。" },
                 { id: "npc_ryan", n: "萊恩", title: "製作", type: "craft", d: "萊恩在爐火旁默默打磨成品，提供物品製作服務。" },
 				{ id: "npc_james", n: "詹姆", title: "試煉", type: "quest", d: "法師的試煉：傳說唯有獻上足夠的祭品，才能讀懂封印其中的奧義。收集祭品可換取魔法能量之書。" },
-				{ id: "npc_gunter", n: "甘特", title: "試煉", type: "quest", d: "騎士的試煉：榮耀從不輕易賜予。收集特定材料可換取專屬裝備。" },
+				{ id: "npc_gunter", n: "甘特", title: "試煉", type: "quest", d: "騎士與王族的試煉：榮耀從不輕易賜予。收集特定材料可換取專屬裝備。" },
                 { id: "npc_yuria", n: "尤麗婭", title: "兌換", type: "quest", d: "據說歐林曾將自己的鍛甲心得寫進日記。以歐林的日記本兌換臂甲（裝於副手，可與雙手武器並用；三選一）。" },
                 { id: "npc_rabiani", n: "拉比安尼", title: "製作", type: "craft", d: "宮廷御用的鍛書師，能將四顆心臟之力封入書頁。以四種心之材料為王族鍛造特殊魔法書（灼熱武器／勇猛意志／閃亮之盾／王者加護）。" }
             ]
@@ -1722,17 +1937,18 @@ const DB = {
                 { id: "npc_bayes", n: "巴耶斯", title: "魔法商人", type: "shop", d: "博覽群書的巴耶斯，書架上盡是深奧的咒文。販售各種高階魔法書。" },
                 { id: "npc_krista", n: "克里斯特", title: "交換物品", type: "exchange", classicHide: true, d: "克里斯特掌管著祝福的奧秘。以施法卷軸與金幣交換『賦予祝福卷軸』。" },
                 { id: "npc_bian", n: "碧恩", title: "祝福裝備", type: "bless", classicHide: true, d: "祝福匠碧恩，能將神聖之力銘刻於裝備之上。用賦予祝福卷軸為身上裝備附加詞綴。" },
-                { id: "npc_digallatin", n: "迪嘉勒廷", title: "試煉", type: "quest", d: "嚴苛的試煉主持者迪嘉勒廷，只認可真正的強者。騎士、妖精、法師的 50 級試煉（需等級 50）。" },
+                { id: "npc_digallatin", n: "迪嘉勒廷", title: "試煉", type: "quest", d: "嚴苛的試煉主持者迪嘉勒廷，只認可真正的強者。騎士、妖精、法師與王族的 50 級試煉（需等級 50）。" },
                 { id: "npc_dytite", n: "迪泰特", title: "解除封印", type: "craft", d: "通曉古法的迪泰特，能讀懂被歲月遺忘的封印。以古代的卷軸解除被遺忘裝備的封印，還原成古老的武器與防具。" }
             ]
         },
         "town_witon": {
             n: "威頓村",
             npcs: [
-                { id: "npc_masha", n: "馬沙", title: "試煉", type: "quest", d: "沉默寡言的試煉者馬沙，靜候挑戰者前來。妖精與騎士的試煉。" },
+                { id: "npc_masha", n: "馬沙", title: "試煉", type: "quest", d: "沉默寡言的試煉者馬沙，靜候挑戰者前來。妖精、騎士與王族的試煉。" },
                 { id: "npc_han", n: "漢", title: "精通", type: "mastery", classicHide: true, d: "威頓村的傳奇人物漢，早已超越凡人的極限。等級 50 以上的強者，可在此接受超越自我的精通任務。" },   // 🏅
                 { id: "npc_keluya", n: "客盧亞", title: "製作", type: "craft", d: "客盧亞傳承著上古鍛造的失落技藝。以古代材料打造古代臂甲與傳說武器（古代神之槍／古代神之斧）。" },
-                { id: "npc_zeus_golem", n: "宙斯之熔岩高崙", title: "製作", type: "craft", d: "由熔岩鑄成的宙斯之熔岩高崙，爐心燃著遠古之火，專為戰士鍛兵。以惡魔斧頭與黑色米索莉金屬板為戰士鍛造「魔物的斧頭」。" }
+                { id: "npc_zeus_golem", n: "宙斯之熔岩高崙", title: "製作", type: "craft", d: "由熔岩鑄成的宙斯之熔岩高崙，爐心燃著遠古之火，專為戰士鍛兵。以惡魔斧頭與黑色米索莉金屬板為戰士鍛造「魔物的斧頭」。" },
+                { id: "npc_doll_merchant", n: "魔法娃娃商人", title: "卡片合成", type: "synth", d: "蒐羅怪物卡片的魔法娃娃商人。能將你身上重複的卡片合成為更高階的卡片——10 張同名普卡換 1 張銀卡，10 張同名銀卡換 1 張金卡。" }
             ]
         },
         "town_sherine": {   // 🔮 新安全區：席琳神殿
@@ -1799,7 +2015,7 @@ const DB = {
         "sk_sunlight": { n: "日光術", type: "buff", tier: 1, reqM: 4, reqE: 8, reqK: 16, reqI: 10, reqDk: 15, mp: 4, dur: 7200, msg: "你更容易被怪物發現了。" },
         "sk_shield": { n: "保護罩", type: "buff", tier: 1, reqM: 4, reqE: 8, reqK: 16, mp: 2, dur: 1200, d: { ac: 2 } },
         "sk_lightarrow": { n: "光箭", type: "atk", tier: 1, reqM: 4, reqE: 8, reqK: 16, mp: 3, dmgType: "magic", ele: "none", dmgDice: [1, 6] },
-        "sk_teleport": { n: "傳送術", type: "manual", tier: 1, reqM: 4, reqE: 8, reqK: 16, mp: 5, mEff: "teleport" },
+        "sk_teleport": { n: "傳送術", type: "manual", tier: 1, reqM: 4, reqE: 8, reqK: 16, reqI: 10, reqDk: 15, mp: 5, mEff: "teleport" },
         "sk_icearrow": { n: "冰箭", type: "atk", tier: 1, reqM: 4, reqE: 8, reqK: 16, mp: 3, dmgType: "magic", ele: "water", dmgDice: [1, 4] },
         "sk_windblade": { n: "風刃", type: "atk", tier: 1, reqM: 4, reqE: 8, reqK: 16, mp: 3, dmgType: "magic", ele: "wind", dmgDice: [1, 4] },
         "sk_holy_wpn": { n: "神聖武器", type: "buff", tier: 1, reqM: 4, reqE: 8, reqK: 16, mp: 10, dur: 1200, d: { extraDmg: 1, extraHit: 1 }, msg: "你的武器暫時被注入了神聖力量。" },
@@ -1841,7 +2057,7 @@ const DB = {
         "sk_heal2": { n: "高級治癒術", type: "heal", tier: 5, reqM: 20, reqE: 40, mp: 20, valDice: [2, 30], healDice: [1, 100], healBase: 100, msg: "你感覺舒服了一點。" },
         "sk_holy_light": { n: "聖潔之光", type: "heal", tier: 5, reqM: 20, reqE: 40, mp: 10, msg: "神聖光芒驅散了詛咒。" },
         "sk_ice_spike": { n: "冰錐", type: "atk", tier: 5, reqM: 20, reqE: 40, mp: 21, dmgType: "magic", ele: "water", dmgDice: [6, 6] },
-        "sk_demon_kiss": { n: "惡魔之吻", type: "atk", tier: 3, mp: 0, dmgType: "magic", ele: "earth", dmgDice: [3, 20] },   // 🏛️ 底比斯歐西里斯武器附魔施放（procSkill·不需學習/不耗MP·受魔法傷害公式影響）
+        "sk_demon_kiss": { n: "惡魔之吻", type: "atk", tier: 3, mp: 0, dmgType: "magic", ele: "earth", dmgDice: [3, 20], procOnly: true },   // 🏛️ 底比斯歐西里斯武器附魔施放（procSkill·不需學習/不耗MP·受魔法傷害公式影響）；procOnly：純武器proc、不顯示於技能列表/下拉
         "sk_mana_drain": { n: "魔力奪取", type: "convert", tier: 5, reqM: 20, reqE: 40, hpCost: 50, drain: true },   // 🔧 改為轉換技能（法師/妖精）：消耗HP、需對怪物施展且以異常魔法命中判定，命中吸取 MP=1D(怪物等級/2)；其餘機制比照魂體轉換
         "sk_dark_shadow": { n: "黑闇之影", type: "atk", tier: 5, reqM: 20, reqE: 40, mp: 25, dmgType: "magic", status: { kind: "blind", pbase: 150, hit: 5, dur: 20 } },
 

@@ -727,6 +727,7 @@ function renderIsmaelExchange(el) {
                 <div class="text-sm text-slate-200 leading-relaxed">100 張 <span class="text-sky-300">對盔甲施法的卷軸</span> → 1 張 <span class="text-amber-300 font-bold">祝福的 對盔甲施法的卷軸</span><br><span class="text-xs text-slate-400">持有：${sa} 張（無次數限制）</span></div>
                 <button class="btn bg-blue-700 hover:bg-blue-600 border-blue-500 py-2 px-4 font-bold shrink-0" onclick="ismaelExchange('armor')">兌換</button>
             </div>
+            ${traditionalActive() ? '' : `
             <div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-3">
                 <div class="text-sm text-slate-200 leading-relaxed">100 張 <span class="text-sky-300">對武器施法的卷軸</span> → 1 張 <span class="c-cursed">詛咒的 對武器施法的卷軸</span><br><span class="text-xs text-slate-400">持有：${sw} 張（無次數限制）</span></div>
                 <button class="btn bg-purple-800 hover:bg-purple-700 border-purple-500 py-2 px-4 font-bold shrink-0" onclick="ismaelMakeCursed('weapon')">兌換</button>
@@ -734,7 +735,7 @@ function renderIsmaelExchange(el) {
             <div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-3">
                 <div class="text-sm text-slate-200 leading-relaxed">100 張 <span class="text-sky-300">對盔甲施法的卷軸</span> → 1 張 <span class="c-cursed">詛咒的 對盔甲施法的卷軸</span><br><span class="text-xs text-slate-400">持有：${sa} 張（無次數限制）</span></div>
                 <button class="btn bg-purple-800 hover:bg-purple-700 border-purple-500 py-2 px-4 font-bold shrink-0" onclick="ismaelMakeCursed('armor')">兌換</button>
-            </div>
+            </div>`}
             <div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-3">
                 <div class="text-sm text-slate-200 leading-relaxed">3 張 <span class="c-cursed">詛咒的 對武器施法的卷軸</span> → 1 張 <span class="text-amber-300 font-bold">祝福的 對武器施法的卷軸</span><br><span class="text-xs text-slate-400">持有：${swc} 張（無次數限制）</span></div>
                 <button class="btn bg-blue-700 hover:bg-blue-600 border-blue-500 py-2 px-4 font-bold shrink-0" onclick="ismaelCursedExchange('weapon')">兌換</button>
@@ -856,10 +857,10 @@ function doBianBless(slotKey) {
     let sc = player.inv.find(i => i.id === scrollId);
     if (!sc || sc.cnt < 1) { logSys(`<span class="text-red-400">缺少 ${scrollNm}。</span>`); return; }
     sc.cnt--; if (sc.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== sc.uid);
-    let pick = Math.floor(Math.random() * 3);
+    let pick = Math.floor(lootRng('bianpick') * 3);   // 🎲 committed RNG（防 SL 重抽碧恩賦予結果）
     let msg = '';
     if (pick === 2) {
-        let rolled = (Math.random() < 0.5) ? true : 'cursed';   // 祝福的 / 詛咒的 各半
+        let rolled = (lootRng('bianbless') < 0.5) ? true : 'cursed';   // 祝福的 / 詛咒的 各半
         let curB = item.bless || false;
         let curN = (curB === true) ? 'blessed' : (curB || false);
         let rolN = (rolled === true) ? 'blessed' : rolled;
@@ -923,7 +924,7 @@ function renderBianBless(el) {
         </div>`;
 }
 function ismaelBuyAcc() {
-    if (traditionalActive()) { alert('🏛️ 傳統模式無法購買施法卷軸。'); return; }   // 🏛️ 縱深防護（伊賽馬利在傳統模式已隱藏，正常情況不可達）
+    if (tradNoScrolls()) { alert('🏛️ 經典＋傳統模式無法購買施法卷軸。'); return; }   // 🏛️ 縱深防護：僅經典+傳統封鎖（伊賽馬利在該模式已隱藏，不可達）；一般+傳統可購買，與可見性閘 tradNoScrolls 及 gainItem 一致
     if (!ismaelAccAvailable()) { alert('本次購買額度已用完，攻城獲勝後可再購買 1 張。'); return; }
     if (player.gold < 1000000) { alert(`金幣不足（需 1,000,000，目前 ${player.gold.toLocaleString()}）。`); return; }
     player.gold -= 1000000;
@@ -1066,7 +1067,40 @@ function changeMap(force) {
         renderMobs();
     }
     syncMapSelectors();   // 切換完成後，同步分類選單與地圖選單為目前所在地圖
-    (function(){let _m=mapState.current;let _s=$_=>'assets/Sound/music'+$_+'.mp3';if(_m==='shadow_temple'){BGM.play(_s(60));return;}if(_m.startsWith('rastabad_')||_m==='dark_magic_lab'||_m==='necro_training'||_m==='elder_room'||_m==='demon_temple'){BGM.play(_s(61));return;}if(_m==='town_pride'||_m.startsWith('pride_')){BGM.play(_s(62));return;}if(_m==='town_talking'||_m.startsWith('talking_island')){BGM.play(_s(12));return;}if(_m==='town_elf'){BGM.play(_s(13));return;}if(_m==='zone_01'){BGM.play(_s(16));return;}if(_m==='town_ivory_tower'||(_m>='zone_37'&&_m<='zone_41')){BGM.play(_s(11));return;}if(_m==='gludio'){BGM.play(_s(18));return;}if(_m==='dragon_valley'){BGM.play(_s(19));return;}if(_m==='town_giran'){BGM.play(_s(20));return;}if(_m==='town_heine'){BGM.play(_s(23));return;}if(_m==='heine'){BGM.play(_s(27));return;}if(_m==='town_witon'){BGM.play(_s(28));return;}if(_m==='town_oren'){BGM.play(_s(54));return;}if(_m==='zone_02'){BGM.play(_s(29));return;}if(_m==='town_aden'){BGM.play(_s(41));return;}if(_m==='kent'){BGM.play(_s(14));return;}if(_m==='windwood'){BGM.play(_s(52));return;}if(_m==='town_gludio'){BGM.play(_s(55));return;}if(_m==='town_silver_knight'){BGM.play(_s(57));return;}if(_m==='silver_knight'||_m==='training'){BGM.play(_s(82));return;}if(_m==='town_rift'){BGM.play(_s(92));return;}if(_m==='thebes_desert'){BGM.play(_s(94));return;}if(_m==='thebes_pyramid'){BGM.play(_s(95));return;}if(_m==='thebes_temple'){BGM.play(_s(103));return;}if(_m==='giant_tomb'){BGM.play(_s(48));return;}if(_m>='zone_06'&&_m<='zone_12'){BGM.play(_s(32));return;}if(_m>='zone_34'&&_m<='zone_36'){BGM.play(_s(24));return;}if(_m==='eva_kingdom'){BGM.play(_s(36));return;}BGM.play(_m.startsWith('town_')?_s(0):_s(6));})();
+    (function () {
+        if (typeof BGM === 'undefined') return;
+        var _m = mapState.current;
+        var _town = DB.maps[_m] && DB.maps[_m].town;
+        if (_m === 'shadow_temple') BGM.play(60);
+        else if (_m.indexOf('rastabad_') === 0 || _m === 'dark_magic_lab' || _m === 'necro_training' || _m === 'elder_room' || _m === 'demon_temple') BGM.play(61);
+        else if (_m.indexOf('town_pride') === 0 || _m.indexOf('pride_') === 0) BGM.play(62);
+        else if (_m === 'town_talking' || _m.indexOf('talking_island_') === 0) BGM.play(12);
+        else if (_m === 'town_elf') BGM.play(13);
+        else if (_m === 'zone_01') BGM.play(16);
+        else if (_m === 'town_ivory_tower' || (_m >= 'zone_37' && _m <= 'zone_41')) BGM.play(11);
+        else if (_m === 'gludio') BGM.play(18);
+        else if (_m.indexOf('dragon_valley') === 0) BGM.play(19);
+        else if (_m === 'town_giran') BGM.play(20);
+        else if (_m === 'town_heine') BGM.play(23);
+        else if (_m.indexOf('heine') === 0 && _m !== 'town_heine') BGM.play(27);
+        else if (_m === 'town_witon') BGM.play(28);
+        else if (_m === 'town_oren') BGM.play(54);
+        else if (_m === 'zone_02') BGM.play(29);
+        else if (_m === 'town_aden') BGM.play(41);
+        else if (_m === 'kent') BGM.play(14);
+        else if (_m === 'windwood') BGM.play(52);
+        else if (_m === 'town_gludio') BGM.play(55);
+        else if (_m === 'town_silver_knight') BGM.play(57);
+        else if (_m === 'silver_knight' || _m === 'training') BGM.play(82);
+        else if (_m === 'town_rift') BGM.play(92);
+        else if (_m === 'thebes_desert' || _m === 'thebes_pyramid' || _m === 'thebes_temple') BGM.play(94);
+        else if (_m === 'giant_tomb') BGM.play(48);
+        else if (_m >= 'zone_06' && _m <= 'zone_12') BGM.play(32);
+        else if (_m >= 'zone_34' && _m <= 'zone_36') BGM.play(24);
+        else if (_m === 'eva_kingdom') BGM.play(36);
+        else if (_town) BGM.play(0);
+        else BGM.play(6);
+    })();
 }
 
 // ===== 🔮 席琳神殿：祈禱（席琳的世界 開關介面）=====
@@ -1265,7 +1299,7 @@ function renderTownNPCs(townId) {
         }
         if (npc.darkOnly && player.cls !== 'dark') return;   // 🔧 黑暗妖精限定試煉：其他職業看不到
         if (npc.classicHide && player.classicMode) return;   // 🔥 經典模式：隱藏克里斯特/碧恩/漢（無法賦予祝福與精通）
-        if (npc.traditionalHide && player.traditionalMode) return;   // 🏛️ 傳統模式：隱藏肯特城兌換 NPC（伊賽馬利）
+        if (npc.traditionalHide && tradNoScrolls()) return;   // 🏛️ 僅經典+傳統：隱藏肯特城兌換 NPC（伊賽馬利）；一般+傳統照常可兌換（卷軸有用·供賦予祝福/飾品卷軸）
         let el = document.createElement('div');
         el.className = 'bg-slate-800 border border-slate-600 rounded-lg p-3 hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-between';
         
@@ -1283,6 +1317,7 @@ function renderTownNPCs(townId) {
         else if(npc.type === 'castleguard') typeIcon = "🛡️";
         else if(npc.type === 'petstore') typeIcon = "🐾";
         else if(npc.type === 'travel') typeIcon = "⛵";
+        else if(npc.type === 'synth') typeIcon = "🎴";
 
         el.innerHTML = `
             <div class="flex items-start justify-between mb-2">
@@ -1341,7 +1376,7 @@ function interactNPC(npcId, townId) {
     let npc = DB.towns[townId].npcs.find(n => n.id === npcId);
     if(!npc) return;
     if (npc.classicHide && player.classicMode) return;   // 🔥 經典模式：克里斯特/碧恩/漢 不可互動（縱深防護，正常情況卡片已不渲染）
-    if (npc.traditionalHide && player.traditionalMode) return;   // 🏛️ 傳統模式：肯特城兌換 NPC（伊賽馬利）不可互動（縱深防護）
+    if (npc.traditionalHide && tradNoScrolls()) return;   // 🏛️ 僅經典+傳統：肯特城兌換 NPC（伊賽馬利）不可互動（縱深防護）；一般+傳統照常
     _activePanel = null;   // 開啟新面板：先清除自動刷新標記，由對應 render 視需要重新設定
 
     document.getElementById('town-npc-container').classList.add('hidden');
@@ -1432,6 +1467,8 @@ function interactNPC(npcId, townId) {
         renderPetStorageNPC(contentDiv);
     } else if (npc.id === 'npc_isba') {
         renderIsbaTravel(contentDiv);
+    } else if (npc.id === 'npc_doll_merchant') {
+        renderCardSynth(contentDiv);
     } else {
         // 未來要擴充的 製作 / 交換 / 任務 預留版面
         contentDiv.innerHTML = `

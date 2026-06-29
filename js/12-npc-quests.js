@@ -1,7 +1,10 @@
 // ===== 共用倉庫（存檔角色共用，獨立於存檔位的 localStorage 鍵）=====
 // 🎮 經典模式與非經典模式角色的倉庫不共通：依 player.classicMode 切換 localStorage 鍵（傭兵走存檔位、與倉庫無關，仍共通）。
 const WH_KEY = 'lineage_idle_warehouse';
-function whKey(p){ let _p = (p !== undefined) ? p : player; return (_p && _p.traditionalMode) ? (WH_KEY + '_trad') : (_p && _p.classicMode) ? (WH_KEY + '_classic') : WH_KEY; }   // 🏛️ 傳統倉庫獨立桶（須先判 traditional，因傳統角色 classicMode 亦為 true）
+// 🎮🏛️ 四種模式組合各自獨立的 localStorage 鍵後綴（倉庫桶／圖鑑桶／傭兵同模式招募共用·單一真相）：
+//   經典+傳統→'_trad'(沿用舊鍵·向後相容既有經典傳統角色)、一般+傳統→'_tradonly'、經典→'_classic'、一般→''。
+function modeSuffix(c, t){ return (c && t) ? '_trad' : t ? '_tradonly' : c ? '_classic' : ''; }
+function whKey(p){ let _p = (p !== undefined) ? p : player; return WH_KEY + modeSuffix(!!(_p && _p.classicMode), !!(_p && _p.traditionalMode)); }   // 🏛️🎮 依模式組合取對應倉庫桶
 const WH_MAX = 500;   // 倉庫格數上限（🔧 100 → 200 → 500）
 const WH_NO_STORE = ['item_dk_insignia','new_item_239','new_item_241','new_item_collar_husky','new_item_238','new_item_184','new_item_185','new_collar_rabbit','new_collar_fox','new_collar_beagle','new_collar_stbernard','item_mastery_proof',
     'item_pride_pass_11','item_pride_pass_21','item_pride_pass_31','item_pride_pass_41','item_pride_pass_51','item_pride_pass_61','item_pride_pass_71','item_pride_pass_81','item_pride_pass_91',
@@ -19,18 +22,75 @@ function whCategory(id){
     return 'item';                                              // 其餘皆道具
 }
 function whSetFilter(v){ _whFilter = v; renderWarehouseNPC(document.getElementById('interaction-content')); }
+// 🛡️ 倉庫資料安全網（防「不匯出匯入也會清空」）：
+//   _whLoadOk＝最近一次 loadWarehouse 是否成功解碼（桶存在卻解不開＝false → saveWarehouse 拒絕用空覆蓋，先把原始位元組備份）。
+//   _whLoadUids＝最近一次載入到的 uid 集合（多分頁加寫合併：寫入前比對，保留其他分頁在本快照之後新存入、而本次沒有的堆疊；本快照原有的 uid 不併→不會復活本次刻意取出的物品）。
+//   兩者由 loadWarehouse 設定、saveWarehouse 讀取；所有寫入者皆「同步 loadWarehouse→…→saveWarehouse」相鄰成對（saveGame 不碰倉庫），故旗標必對應同一次操作。
+let _whLoadOk = true;
+let _whLoadUids = null;
 function loadWarehouse(){
-    try { let s = localStorage.getItem(whKey()); if(s){ let w = JSON.parse(s); return { items: w.items || [], gold: w.gold || 0 }; } } catch(e){}
-    return { items: [], gold: 0 };
+    _whLoadOk = true; _whLoadUids = null;
+    let key = whKey();
+    let raw;
+    try { raw = localStorage.getItem(key); } catch(e){ _whLoadOk = false; return { items: [], gold: 0 }; }
+    if(raw == null){ _whLoadUids = new Set(); return { items: [], gold: 0 }; }   // 真正不存在＝空倉庫（正常·非失敗）
+    try {
+        let s = _lzGet(key);
+        if(s == null || s === ''){ _whLoadOk = false; return { items: [], gold: 0 }; }   // 桶存在但解壓失敗→不可當成空倉庫
+        let w = JSON.parse(s);
+        let items = w.items || [];
+        _whLoadUids = new Set(items.map(it => it && it.uid).filter(u => u != null));
+        return { items: items, gold: w.gold || 0 };
+    } catch(e){ _whLoadOk = false; return { items: [], gold: 0 }; }   // JSON 毀損→不可當成空倉庫
 }
-function saveWarehouse(w){ localStorage.setItem(whKey(), JSON.stringify({ items: w.items, gold: w.gold })); }
+function saveWarehouse(w){
+    let key = whKey();
+    // 安全網 A：上一次讀取失敗（桶存在卻解不開）→ 絕不用可能是空的資料覆蓋還救得回的位元組；先一次性備份原始值再拒寫並警告。
+    if(_whLoadOk === false){
+        try { let raw = localStorage.getItem(key); if(raw != null && localStorage.getItem(key + '_bak') == null) localStorage.setItem(key + '_bak', raw); } catch(e){}
+        if(typeof logSys === 'function') logSys('<span class="text-red-400 font-bold">⚠ 倉庫資料讀取失敗，已暫停寫入以免覆蓋遺失（原始資料已備份至 ' + key + '_bak）。請重新整理頁面後再操作倉庫。</span>');
+        return false;
+    }
+    let items = (w && w.items) || [];
+    // 安全網 B（多分頁）：寫入前重讀桶現值，併入「其他分頁在本快照之後新存入、本快照沒見過且本次也沒寫」的堆疊（以 uid 比對·只增不減·偏向重複而非遺失）。
+    try {
+        if(_whLoadUids){
+            let cs = _lzGet(key);
+            if(cs != null && cs !== ''){
+                let cur = JSON.parse(cs);
+                let haveUid = new Set(items.map(it => it && it.uid).filter(u => u != null));
+                (cur.items || []).forEach(it => { if(it && it.uid != null && !_whLoadUids.has(it.uid) && !haveUid.has(it.uid)) items.push(it); });
+            }
+        }
+    } catch(e){}
+    return _lzSet(key, JSON.stringify({ items: items, gold: (w && w.gold) || 0 }));
+}
 // ===== 🎴🗡️ 共用收集圖鑑（卡片 cardDex／裝備 equipDex）：同模式角色共用，獨立於存檔位的 localStorage 鍵（概念同共用倉庫）=====
 const CARDDEX_KEY = 'lineage_idle_carddex';
 const EQUIPDEX_KEY = 'lineage_idle_equipdex';
-function _dexKey(base, p){ let _p = (p !== undefined) ? p : player; return (_p && _p.traditionalMode) ? (base + '_trad') : (_p && _p.classicMode) ? (base + '_classic') : base; }   // 🏛️ 傳統／🎮 經典 各自獨立桶（同倉庫規則）
-function _readDex(base){ try { let s = localStorage.getItem(_dexKey(base)); if (s) { let o = JSON.parse(s); if (o && typeof o === 'object') return o; } } catch(e){} return {}; }
-function saveCardDex(){ if (player && player.cardDex) { try { localStorage.setItem(_dexKey(CARDDEX_KEY), JSON.stringify(Object.assign({ _v: 2 }, player.cardDex))); } catch(e){} } }   // 🎴 _v:2＝積分制（區分舊階級桶）
-function saveEquipDex(){ if (player && player.equipDex) { try { localStorage.setItem(_dexKey(EQUIPDEX_KEY), JSON.stringify(player.equipDex)); } catch(e){} } }
+function _dexKey(base, p){ let _p = (p !== undefined) ? p : player; return base + modeSuffix(!!(_p && _p.classicMode), !!(_p && _p.traditionalMode)); }   // 🏛️🎮 四模式各自獨立桶（同 whKey 規則·見 modeSuffix）
+function _readDex(base){ try { let s = _lzGet(_dexKey(base)); if (s) { let o = JSON.parse(s); if (o && typeof o === 'object') return o; } } catch(e){} return {}; }
+// 🔄 多開同步：回寫前先讀桶現值並合併（卡片取較高分、_v:2＝積分制；裝備布林聯集），避免用本分頁快照覆蓋其他分頁的進度（lost-update）
+function saveCardDex(){
+    if (!player || !player.cardDex) return;
+    try {
+        let cur = _readDex(CARDDEX_KEY);
+        let _mig = (typeof cardTierToScore === 'function') ? cardTierToScore : function(v){ return v || 0; };
+        let _old = (cur && cur._v !== 2);   // 桶為舊階級制→遷移
+        let out = { _v: 2 };
+        for (let k in cur) { if (k === '_v') continue; out[k] = _old ? _mig(cur[k]) : (cur[k] || 0); }   // 桶現值（其他分頁可能剛寫入）
+        for (let k in player.cardDex) { let v = player.cardDex[k] || 0; if (v > (out[k] || 0)) out[k] = v; }   // 取較高分（只增不減）
+        _lzSet(_dexKey(CARDDEX_KEY), JSON.stringify(out));
+    } catch(e){}
+}
+function saveEquipDex(){
+    if (!player || !player.equipDex) return;
+    try {
+        let out = Object.assign({}, _readDex(EQUIPDEX_KEY));   // 桶現值（其他分頁可能剛寫入）
+        for (let k in player.equipDex) if (player.equipDex[k]) out[k] = true;   // 布林聯集（只增不減）
+        _lzSet(_dexKey(EQUIPDEX_KEY), JSON.stringify(out));
+    } catch(e){}
+}
 // 讀檔／創角時呼叫：把共用桶併進 player.cardDex/equipDex（卡片取較高分·裝備取聯集·只增不減），並回寫共用桶（種子化＋遷移舊存檔 per-character 資料·不丟失）
 function loadSharedCollections(){
     if (!player) return;
@@ -47,6 +107,38 @@ function loadSharedCollections(){
     player.equipDex = Object.assign({}, shEquip, player.equipDex || {});   // 🗡️ 裝備：布林聯集
     saveCardDex(); saveEquipDex();
 }
+// 🔄 多開同步：把「同模式」共用桶併回本分頁 player.cardDex/equipDex（只增不減）；回傳是否有變更。不回寫桶（避免分頁間 ping-pong）。which: 'card'|'equip'|undefined(兩者)
+function mergeSharedIntoPlayer(which){
+    if (!player) return false;
+    let changed = false;
+    if (which !== 'equip') {
+        if (!player.cardDex) player.cardDex = {};
+        let cur = _readDex(CARDDEX_KEY), _old = (cur && cur._v !== 2);
+        let _mig = (typeof cardTierToScore === 'function') ? cardTierToScore : function(v){ return v || 0; };
+        for (let k in cur) { if (k === '_v') continue; let v = _old ? _mig(cur[k]) : (cur[k] || 0); if (v > (player.cardDex[k] || 0)) { player.cardDex[k] = v; changed = true; } }
+    }
+    if (which !== 'card') {
+        if (!player.equipDex) player.equipDex = {};
+        let cur = _readDex(EQUIPDEX_KEY);
+        for (let k in cur) if (cur[k] && !player.equipDex[k]) { player.equipDex[k] = true; changed = true; }
+    }
+    return changed;
+}
+function _refreshAfterDexSync(){
+    if (typeof calcStats === 'function') calcStats();   // 重算地區完成加成並刷新角色面板（calcStats=recompute+updateUI）
+    // ⚠️ 不呼叫 renderTabs：dex 不在 renderTabs._sig 簽章內、分頁內容不因 dex 改變；且 renderTabs(true) 會繞過 _tabPointerDown 延後保護→外部 storage 事件若落在玩家按住分頁鈕時會把按鈕重繪掉而吃掉點擊
+    if (typeof _cardBookOpen !== 'undefined' && _cardBookOpen && typeof renderCardBook === 'function') renderCardBook();
+    if (typeof _equipBookOpen !== 'undefined' && _equipBookOpen && typeof renderEquipBook === 'function') renderEquipBook();
+}
+// storage 事件：其他分頁更新了「同模式」桶 → 立即併回並刷新（一般/經典_classic/傳統_trad 各自獨立，互不同步）。
+//  ⚠️ file:// 跨分頁不保證觸發 storage 事件→另在 openCardBook/openEquipBook 開頭 re-merge 作兜底。
+function _syncSharedFromStorage(ev){
+    if (!ev || !player || !player.cls) return;   // player 在標題/載入畫面是 cls:null 的 stub（js/01 createBase 前）→尚未開始遊戲，不對空 player 跑 merge/recompute/render
+    let ck = _dexKey(CARDDEX_KEY), ek = _dexKey(EQUIPDEX_KEY);
+    if (ev.key !== ck && ev.key !== ek) return;
+    if (mergeSharedIntoPlayer(ev.key === ck ? 'card' : 'equip')) _refreshAfterDexSync();
+}
+if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('storage', _syncSharedFromStorage);
 function _whStackFind(arr, it){ return ((it.en||0)===0 && !it.lock) ? arr.find(x => !x.lock && (x.en||0)===0 && sameItemSig(x, it)) : null; }   // 🔧 架構#3：統一簽章比對
 // 物品完整簽章：名字(id)+強化值(en)+詞綴(祝福/遠古/屬性)；一鍵存入用來比對「完全相同」
 function whSig(it){ return itemSig(it); }   // 🔧 架構#3：委派給單一事實來源 itemSig

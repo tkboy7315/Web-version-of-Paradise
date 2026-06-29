@@ -1,9 +1,9 @@
 function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
-    // 🏛️ 傳統模式：任何來源都不產生施法卷軸（武器/盔甲/飾品＋祝福/詛咒變體）——掉落／黑市／歐西里斯寶箱／血盟入盟禮／兌換等全擋
-    if (TRAD_NO_SCROLLS[id] && traditionalActive()) return null;
+    // 🏛️ 僅「經典+傳統」任何來源都不產生施法卷軸（武器/盔甲/飾品＋祝福/詛咒變體）——掉落／黑市／歐西里斯寶箱／血盟入盟禮／兌換等全擋；一般+傳統照常產生（供克里斯特→賦予祝福）
+    if (TRAD_NO_SCROLLS[id] && tradNoScrolls()) return null;
     // 卷軸變祝福／詛咒機率：各 1%（互斥）
     if (!forceNormal && (id === 'scroll_weapon' || id === 'scroll_armor')) {
-        let _r = Math.random();
+        let _r = lootRng('scrollvar');   // 🎲 committed RNG（防 SL 重抽卷軸祝福/詛咒變體）
         if (_r < 0.01) id = id + '_b';        // 1% 變成祝福的
         else if (_r < 0.02) id = id + '_c';   // 1% 變成詛咒的
     }
@@ -42,12 +42,12 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     let seteff = false;
     if (d) {
         let _slotOk = sherineSetEligible(d);
-        if (_slotOk && _sherineLootCtx && Math.random() < (_sherineLootCtx.boss ? 0.05 : (_sherineLootCtx.grace ? 0.005 : 0.001)) * (_sherineLootCtx.mad ? 3 : 1)) {
-            seteff = SHERINE_EFFECTS[Math.floor(Math.random() * SHERINE_EFFECTS.length)];
+        if (_slotOk && _sherineLootCtx && lootRng('setdrop') < (_sherineLootCtx.boss ? 0.05 : (_sherineLootCtx.grace ? 0.005 : 0.001)) * (_sherineLootCtx.mad ? 3 : 1)) {   // 🎲 committed RNG
+            seteff = SHERINE_EFFECTS[Math.floor(lootRng('setpick') * SHERINE_EFFECTS.length)];
             logSys(`<span class="c-sherine font-bold">✦ 掉落的裝備蘊含著席琳的祝福：【${seteff}】！</span>`);
         }
         if (_slotOk && !seteff && _forceSherineSet) {
-            seteff = SHERINE_EFFECTS[Math.floor(Math.random() * SHERINE_EFFECTS.length)];
+            seteff = SHERINE_EFFECTS[Math.floor(lootRng('setpick') * SHERINE_EFFECTS.length)];
             logSys(`<span class="c-sherine font-bold">✦ 席琳結晶引導出套裝效果：【${seteff}】！</span>`);
         }
     }
@@ -55,7 +55,7 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     // 🏛️ 傳統模式：掉落／黑市／製作的「裝備」隨機自帶強化值（_tradLootCtx 期間；商店 forceNormal=true 不設→恆 +0；箭矢/材料/消耗品不套）
     let _tEn = (_tradLootCtx && !forceNormal && d && !d.noEnhance && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && traditionalActive()) ? rollTraditionalEnhance(d) : 0;   // 🏛️ 無法強化的裝備（古老系列 noEnhance）恆 +0，不自帶強化值
     let _probe = { id: id, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
-    let ex = _tEn > 0 ? null : player.inv.find(i => (i.en || 0) === 0 && sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（並容忍舊存檔 en 為 undefined）；🏛️ 自帶強化(en>0)獨立成堆、不併入 +0
+    let ex = player.inv.find(i => sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（itemSig 已含 en→+0 只併 +0、+3 只併 +3，永不誤併不同強化值）；🏛️ 傳統自帶強化：同名同強化值同詞綴自動疊加（移除原 en>0 不疊加限制）
     if(ex) ex.cnt += cnt;   // 不論是否鎖定都疊加；僅加數量、不更動既有堆疊的鎖定/廢品狀態
     else player.inv.push({ id: id, uid: uid(), cnt: cnt, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff, lock: false, junk: !!(player.junkPrefs && player.junkPrefs[itemSig(_probe)]) && !(d && d.noJunk) });   // 🔧 廢品記憶改以完整簽章比對：詞綴物品也可自動標記，但僅限「完全相同詞綴」者；🎴 noJunk(收集冊)永不自動標記
 
@@ -92,9 +92,9 @@ const ATTR_AFFIX = {
 };
 // 隨機產生一個屬性詞綴代碼：之60% / 中階30% / 靈10%，四元素均分
 function rollAttrAffix() {
-    let r = Math.random();
+    let r = lootRng('attrtier');   // 🎲 committed RNG（防 SL 重抽屬性詞綴階）
     let tier = r < 0.60 ? 1 : (r < 0.90 ? 3 : 5);
-    let ele = ['fire', 'water', 'wind', 'earth'][Math.floor(Math.random() * 4)];
+    let ele = ['fire', 'water', 'wind', 'earth'][Math.floor(lootRng('attrele') * 4)];
     return ele + tier;
 }
 // 取得詞綴定義（相容舊存檔：attr 為非法值/true 時回傳 null）
@@ -217,7 +217,7 @@ function getItemFullName(item) {
     }
     if (item.anc)   segs += `<span class="${ancColorClass(item.anc)}">${ancName(item.anc)} </span>`;   // 遠古系：遠古紫/永恆紅/不朽綠/太初藍
     if (item.bless) segs += `<span class="${blessColorClass(item.bless)}">${blessName(item.bless)} </span>`;   // 祝福的金/詛咒的紅
-    let en = (item.en > 0) ? (`+${capEn(item.en, d)} `) : "";   // 🔧 一律顯示 +N（夾擠至上限：武器/防具/飾品+50；過往超過上限的資料以上限顯示）
+    let en = (item.en > 0) ? (`+${capEn(item.en, d)} `) : "";   // 🔧 一律顯示 +N（夾擠至上限：武器+20/防具+15/飾品+5；過往超過上限的資料以上限顯示）
     let cnt = item.cnt > 1 ? ` (${item.cnt})` : "";
     let setPrefix = item.seteff ? item.seteff.slice(0, 2) : "";   // 🔮 席琳套裝：套裝名冠在裝備名稱前（如「紅獅環甲」）；顏色沿用 getItemColor（規則同前）
     return `${segs}<span class="${getItemColor(item)}">${en}${setPrefix}${d.n}${cnt}</span>`;
@@ -236,6 +236,8 @@ function useItem(u, silent = false) {
     if (d.eff === 'cardbook') { if (silent) return; if (typeof openCardBook === 'function') openCardBook(); return; }
     if (d.eff === 'equipbook') { if (silent) return; if (typeof openEquipBook === 'function') openEquipBook(); return; }   // 🗡️ 裝備收集冊
     if (d.eff === 'card') { if (silent) return; if (typeof useCardItem === 'function') useCardItem(item); return; }
+    if (d.eff === 'doll_bag') { if (silent) return; if (typeof openDollBag === 'function') openDollBag(item, false); return; }   // 🪆 開啟魔法娃娃的袋子
+    if (d.eff === 'doll_box_high') { if (silent) return; if (typeof openDollBox === 'function') openDollBox(item, false); return; }   // 🎁 開啟高級魔法娃娃的盒子
 
     // 🗼 封印的傲慢之塔傳送符：使用後解封，獲得對應的 傲慢之塔傳送符（消耗 1 個）
     if (d.eff === 'pride_unseal') {
@@ -285,11 +287,13 @@ function useItem(u, silent = false) {
             let _seteff = _wand.seteff || false;
             item.cnt--; if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);   // 消耗靈魂之球 ×1
             _wand.cnt--; if (_wand.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== _wand.uid);   // 消耗失去魔力魔杖 ×1
-            let _probe = { id:resultId, en:0, bless:false, anc:false, attr:false, seteff:_seteff };
-            let _ex = player.inv.find(i => (i.en||0)===0 && sameItemSig(i, _probe));
+            // 🏛️ 傳統模式：解封印時才為「重獲魔力的魔杖」附加隨機強化值（封印狀態 noEnhance 恆 +0）；一般/經典模式維持 +0（沿用手動強化）。committed RNG（rollTraditionalEnhance 內走 lootRng）防 SL 重抽
+            let _tEn = traditionalActive() ? rollTraditionalEnhance(DB.items[resultId]) : 0;
+            let _probe = { id:resultId, en:_tEn, bless:false, anc:false, attr:false, seteff:_seteff };
+            let _ex = _tEn > 0 ? null : player.inv.find(i => (i.en||0)===0 && sameItemSig(i, _probe));   // 🏛️ 自帶強化(en>0)獨立成堆、不併入 +0（比照 gainItem）
             if (_ex) _ex.cnt += 1;
-            else player.inv.push({ id:resultId, uid:uid(), cnt:1, en:0, bless:false, anc:false, attr:false, seteff:_seteff, lock:false, junk:false });
-            logSys(`<span class="c-legend font-bold">靈魂之球與${powerlessName}發出強烈的銀色光芒！</span><span class="text-amber-200">你獲得了 ${resultName}${_seteff ? `（<span class="c-sherine font-bold">${_seteff}</span>）` : ''}！</span>`);
+            else player.inv.push({ id:resultId, uid:uid(), cnt:1, en:_tEn, bless:false, anc:false, attr:false, seteff:_seteff, lock:false, junk:false });
+            logSys(`<span class="c-legend font-bold">靈魂之球與${powerlessName}發出強烈的銀色光芒！</span><span class="text-amber-200">你獲得了 ${_tEn>0?('+'+_tEn+' '):''}${resultName}${_seteff ? `（<span class="c-sherine font-bold">${_seteff}</span>）` : ''}！</span>`);
             renderTabs(); updateUI(); saveGame();
             if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
             return true;
@@ -316,7 +320,7 @@ function useItem(u, silent = false) {
         }
         if (item.id.includes('potion_heal') || item.id === 'potion_strong' || item.id === 'potion_ult') {
             if (player.cds.pot > 0) return;
-            let h = Math.floor(d.val * (1 + getConPotionPct(player.d.con) / 100));
+            let h = Math.floor(d.val * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus')) / 100));   // 🪆 魔法娃娃 potionBonus%（吸血鬼）
             if (hasMastery('k_survive')) h = Math.floor(h * 1.25);   // 🏅 生存精通：治癒藥水恢復 +25%
             if (hasMastery('k_tough') && player.hp < player.mhp * 0.4) h = Math.floor(h * 1.5);   // ⚔️ 堅韌精通：HP<40% 時藥水治癒量 +50%
             if (hasMastery('k_dragonblood')) h = Math.floor(h * 1.15);   // 🐉 龍血精通：治癒藥水恢復 +15%
@@ -442,8 +446,8 @@ function useItem(u, silent = false) {
         if(reqLv === undefined) { logSys(`你的職業無法學習「${sd.n}」。`); return; }
         if(player.lv < reqLv) { logSys(`等級不足，需要等級 ${reqLv} 才能學習「${sd.n}」。`); return; }
         
-        // 👇 補上這兩行：確保屬性相符才能吃水晶！（已解除限制）
-        //if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }
+        // 👇 補上這兩行：確保屬性相符才能吃水晶！
+        if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }
         if(sd.reqEleAny && !player.elfEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }
 
         if(!player.skills.includes(d.sk)) {
@@ -850,7 +854,7 @@ function doEnhance(targetUid, isEq = true) {
     if(!target) return;
 
     let d = DB.items[target.id];
-    let _cap = enhanceCap(d);   // 🔧 強化上限：武器/防具/飾品+50
+    let _cap = enhanceCap(d);   // 🔧 強化上限：武器+20 / 防具+15 / 飾品+10
     if ((Number(target.en) || 0) >= _cap) {   // 已達上限：不消耗卷軸，提示後返回
         logSys(`<span class="text-amber-300">${getItemFullName(target)} 已達強化上限（+${_cap}），無法再強化。</span>`);
         activeScroll = null; closeModal();
@@ -895,13 +899,13 @@ function doEnhance(targetUid, isEq = true) {
         } else {                                      // 防具：安定值6（其餘安定值防呆比照）
             rate = en === safe ? 0.30 : 0.20;
         }
-        if (Math.random() < rate) success = true;
+        if (enRandom(target) < rate) success = true;  // 🎲 決定論：成敗由 (enSeed,uid,en) 決定，讀檔/匯入舊檔回到強化前算出相同結果（不可 save/load 刷）
         else destroy = true;                          // 失敗即爆裝
     }
     
     let fn = getItemFullName(target);
     if (success) {
-        let add = (DB.items[scroll.id] && DB.items[scroll.id].isB) ? roll(1, 3) : 1;
+        let add = (DB.items[scroll.id] && DB.items[scroll.id].isB) ? (1 + Math.floor(enRandom(target, 'amt') * 3)) : 1;   // 🎲 祝福加值也決定論化（防 save/load 重洗 +2/+3）
         target.en = Math.min(_cap, target.en + add);   // 🔧 祝福卷軸跳級不超過上限
         let prefix = (target.en > (d.safe||0)) ? "持續" : "";
         let _enTxt = '+' + capEn(target.en, d);   // 🔧 顯示 +N（夾擠至強化上限）
@@ -1064,7 +1068,7 @@ function _updateUIImpl() {
       // ⚠️ 用「狀態改變才寫 DOM」的守衛：避免每個 tick 重複 toggle class / 設 display 造成按鈕閃爍。
       { let tpb = document.getElementById('btn-teleport'); if (tpb) { let _hideTp = !!(KING_ROOMS[mapState.current] || (typeof prideTeleportBlocked === 'function' && prideTeleportBlocked()) || state.oblivion); if (tpb.classList.contains('hidden') !== _hideTp) { tpb.classList.toggle('hidden', _hideTp); tpb.style.display = _hideTp ? 'none' : ''; } } } }   // ⚠️ _hideTp 必須 !! 強轉布林：否則 (undefined||false||undefined)===undefined → 守衛 (boolean!==undefined) 恆真 → toggle('hidden', undefined) 變成「無參數 bare toggle」每幀翻轉 → 按鈕閃爍
     { let vb = document.getElementById('victory-badge'); if (vb) { let _va = siegeVictoryActive(); vb.style.display = _va ? 'inline-flex' : 'none'; if (_va) vb.title = `攻城獲勝期間：全商店8折、開放${victoryCityCfg().castleName}`; } }   // 攻城獲勝淡金黃標記（inline-flex 讓👑與文字水平置中；🔧 tooltip 依實際獲勝城池動態，不再固定肯特）
-    { let cb = document.getElementById('classic-badge'); if (cb) cb.style.display = (player.classicMode && !player.traditionalMode) ? 'inline' : 'none'; let tb = document.getElementById('traditional-badge'); if (tb) tb.style.display = player.traditionalMode ? 'inline' : 'none'; }   // 🎮 經典／🏛️ 傳統模式標記（傳統角色顯示傳統徽章、不重複顯示經典）
+    { let cb = document.getElementById('classic-badge'); if (cb) cb.style.display = player.classicMode ? 'inline' : 'none'; let tb = document.getElementById('traditional-badge'); if (tb) tb.style.display = player.traditionalMode ? 'inline' : 'none'; }   // 🎮 經典／🏛️ 傳統模式標記（兩者獨立：經典+傳統 兩個徽章都顯示；一般+傳統 只顯示傳統）
     applyAreaBackground();   // 區域背景：地監/攻城→戰鬥區、城堡→村莊畫面
     
     // 處理顯示文字：只顯示 騎士、法師、妖精、黑暗妖精
