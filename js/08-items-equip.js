@@ -18,6 +18,8 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
 
     // 🗡️ 裝備收集冊：獲得任何武器/防具/飾品(非箭矢)即登錄圖鑑（永久·只增不減）
     if (typeof registerEquipObtained === 'function') registerEquipObtained(id);
+    // 🧰 道具收集冊：獲得任何可分類道具即登錄（藥水/卷軸/技能書/材料/其他）
+    if (typeof registerMiscObtained === 'function') registerMiscObtained(id);
 
     // 🔧 持有上限 maxHold（如精靈的私語=10）：裁切本次獲得量使總持有不超過上限；已達上限則不獲得
     if (d && d.maxHold) {
@@ -30,7 +32,7 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     let anc = false;
     let attr = false;   
     
-    if (!forceNormal && d && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc')) {
+    if (!forceNormal && !_noAffixCtx && d && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc')) {   // 🦴 _noAffixCtx：白板（寵物裝備製作）→ 不附詞綴（強化值另由下方 _tradLootCtx 區段放行）
         // 詞綴：怪物掉落/製作走新制(單1%/雙0.1%/三0.01%)；潘朵拉/血盟(affixOld=true)沿用舊制(各1%)。箭矢不附加。
         let _af = affixOld ? rollAffixesOld() : rollAffixesNew();
         attr = _af.attr; bless = _af.bless; anc = _af.anc;
@@ -320,7 +322,7 @@ function useItem(u, silent = false) {
         }
         if (item.id.includes('potion_heal') || item.id === 'potion_strong' || item.id === 'potion_ult') {
             if (player.cds.pot > 0) return;
-            let h = Math.floor(d.val * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus')) / 100));   // 🪆 魔法娃娃 potionBonus%（吸血鬼）
+            let h = Math.floor(d.val * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus') + (player._miscPotionBonus || 0)) / 100));   // 🪆 魔法娃娃 potionBonus%（吸血鬼）；🧰 道具收集冊 材料/其他全收集：藥水恢復%
             if (hasMastery('k_survive')) h = Math.floor(h * 1.25);   // 🏅 生存精通：治癒藥水恢復 +25%
             if (hasMastery('k_tough') && player.hp < player.mhp * 0.4) h = Math.floor(h * 1.5);   // ⚔️ 堅韌精通：HP<40% 時藥水治癒量 +50%
             if (hasMastery('k_dragonblood')) h = Math.floor(h * 1.15);   // 🐉 龍血精通：治癒藥水恢復 +15%
@@ -500,7 +502,7 @@ const DARK_BLOCK = [
     '藤甲','皮甲','死亡騎士盔甲','金屬盔甲','克特盔甲',
     '死亡騎士長靴','克特長靴','黑長者涼鞋',
     '法師長袍','黑長者長袍',
-    '騎士頭巾','西瑪之帽','馬庫爾之帽','巴土瑟之帽','卡士柏之帽','法師之帽','紅騎士頭巾',
+    '西瑪之帽','馬庫爾之帽','巴土瑟之帽','卡士柏之帽','法師之帽','紅騎士頭巾',
     '力量魔法頭盔','敏捷魔法頭盔','治癒魔法頭盔','精靈體質頭盔','精靈敏捷頭盔','艾爾穆的祝福','死亡騎士頭盔','克特頭盔',
     '保護者手套','死亡騎士手套','克特手套','水晶手套',
     '瑪那斗篷',
@@ -899,13 +901,13 @@ function doEnhance(targetUid, isEq = true) {
         } else {                                      // 防具：安定值6（其餘安定值防呆比照）
             rate = en === safe ? 0.30 : 0.20;
         }
-        if (enRandom(target) < rate) success = true;  // 🎲 決定論：成敗由 (enSeed,uid,en) 決定，讀檔/匯入舊檔回到強化前算出相同結果（不可 save/load 刷）
+        if (Math.random() < rate) success = true;     // 🎲 即時擲骰：成敗純機率（每次嘗試獨立，可 save/load 重抽）
         else destroy = true;                          // 失敗即爆裝
     }
     
     let fn = getItemFullName(target);
     if (success) {
-        let add = (DB.items[scroll.id] && DB.items[scroll.id].isB) ? (1 + Math.floor(enRandom(target, 'amt') * 3)) : 1;   // 🎲 祝福加值也決定論化（防 save/load 重洗 +2/+3）
+        let add = (DB.items[scroll.id] && DB.items[scroll.id].isB) ? (1 + Math.floor(Math.random() * 3)) : 1;   // 🌟 祝福卷成功時隨機 +1~+3（純機率）
         target.en = Math.min(_cap, target.en + add);   // 🔧 祝福卷軸跳級不超過上限
         let prefix = (target.en > (d.safe||0)) ? "持續" : "";
         let _enTxt = '+' + capEn(target.en, d);   // 🔧 顯示 +N（夾擠至強化上限）

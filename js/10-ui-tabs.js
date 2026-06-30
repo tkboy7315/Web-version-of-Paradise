@@ -441,7 +441,9 @@ const WEAPON_TAGS = {
     wpn_demon_sword_hidden:['單手劍'],   // 👹 隱藏的魔族之劍：反擊(單手劍)
     wpn_demon_claw_hidden:['鋼爪'],   // 👹 隱藏的魔族鋼爪：鋼爪標籤(雙擊33預設＋貫穿＋黑暗妖精可裝)
     // 🏴‍☠️ 海賊島武器：血紅慾望短劍(匕首/出血)、榮耀之劍/短刀/海賊彎刀(單手劍/反擊)、深淵雙刀(雙刀/雙擊)
-    wpn_pirate_dagger:['匕首'], wpn_glory_sword:['單手劍'], wpn_pirate_shortblade:['單手劍'], wpn_pirate_cutlass:['單手劍'], wpn_abyss_dualblade:['雙刀']
+    wpn_pirate_dagger:['匕首'], wpn_glory_sword:['單手劍'], wpn_pirate_shortblade:['單手劍'], wpn_pirate_cutlass:['單手劍'], wpn_abyss_dualblade:['雙刀'],
+    // ⚡ 元素施放傳說武器：雷神之鎚／歐西斯衝撞錘(單手鈍器·鈍擊)・馬普勒的懲罰(雙手鈍器·重擊)・帕格里奧之怒／伊娃的責罵(單手劍·反擊)
+    wpn_thor_hammer:['單手鈍器'], wpn_osis_hammer:['單手鈍器'], wpn_mapler_punish:['雙手鈍器'], wpn_pagrio_wrath:['單手劍'], wpn_eva_scold:['單手劍']
 };
 function getWeaponTags(id){ return WEAPON_TAGS[id] || []; }
 // ⚔️ 雙擊機率 comboRate：未明定者依武器標籤套預設（鋼爪 33% / 雙刀 25%）；個別武器可在 def 寫 comboRate 覆寫（底比斯歐西里斯雙刀30 / 死亡之指20 / 恨之鋼爪50 / 破壞雙刀·破壞鋼爪30）。日後新增 combo 武器自動取得預設機率。
@@ -736,7 +738,7 @@ function openModal(item, isEq, slot) {
     }
 
     // 廢品勾選（所有背包道具：武器/防具/飾品/藥水/卷軸/魔法書/技能書/材料/試煉道具等）：
-    //   勾選後可被「一鍵賣出廢品」整批賣出；鎖定中無法勾選且會自動取消。
+    //   勾選後系統會每隔一段時間（每 60 秒）自動賣出（autoSellJunk）；鎖定中無法勾選且會自動取消。
     if (!isEq && !(DB.items[item.id] && DB.items[item.id].noJunk)) {   // 🎴 noJunk(收集冊等)：不顯示「標記為廢品」
         let locked = !!item.lock;
         let checked = (item.junk && !locked) ? 'checked' : '';
@@ -931,7 +933,7 @@ function executeAutoSafeEnhance(targetUid, isEq, scrollId, goal) {
             } else {                                      // 防具：安定值6（其餘安定值防呆比照）
                 rate = en === safe ? 0.30 : 0.20;
             }
-            if (enRandomUid(enIdUid(target), en, '') < rate) {   // 🎲 決定論：與單抽 doEnhance 同一套 (enSeed,強化身份,en) → 一鍵/單抽結果一致、不可 save/load 刷（enIdUid 含詛咒退階重骰）
+            if (Math.random() < rate) {   // 🎲 即時擲骰：成敗純機率（與單抽 doEnhance 同一套機率表）
                 target.en += 1;   // 成功
             } else {
                 destroyed = true; // 失敗即爆裝，過程視為失敗
@@ -988,9 +990,7 @@ function executeCurseDeEnhance(targetUid, isEq, scrollId) {
     scrollItem.cnt -= 1;
     if (scrollItem.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== scrollItem.uid);
 
-    if (player.enReSeq == null) player.enReSeq = 0;
-    target.enNonce = ++player.enReSeq;   // 🔁 退階＝付費重骰：賦予由存檔計數器決定的新強化身份→重爬時各階成敗重置（仍 committed·讀檔/匯入不能重骰·只有再花一張卷軸才換命運·見 enIdUid）
-    target.en -= 1;   // 100% 成功降 1 階
+    target.en -= 1;   // 100% 成功降 1 階（強化已改純機率→重爬時各階自然重新擲骰，無需重骰身份）
     logSys(`消耗了 1 個 <span class="c-cursed">${scrollName}</span>，<span class="text-red-300 font-bold">+${target.en} ${d.n} 散發出黯淡的光芒。</span>`);
 
     calcStats();
@@ -1020,7 +1020,7 @@ function _qeEligibleItems(type) {
 
 // 模擬單一件裝備從 startEn 強化到 goal：每階消耗對應卷軸，安定值前必成功、安定值起依機率，失敗即爆裝。
 // scrollStacks 為 {scrollId:{cnt}} 的可變計數器（多件共用同一池），回傳 {en, destroyed, used}
-function _quickEnhanceUnit(d, startEn, goal, scrollStacks, keyBase, useBless) {
+function _quickEnhanceUnit(d, startEn, goal, scrollStacks, useBless) {
     let en = startEn, used = 0, destroyed = false;
     let safe = d.safe || 0;
     let cap = enhanceCap(d);
@@ -1033,9 +1033,9 @@ function _quickEnhanceUnit(d, startEn, goal, scrollStacks, keyBase, useBless) {
         let st = scrollStacks[scrollId];
         if (!st || st.cnt <= 0) break;   // 卷軸用盡：停在目前等級（不爆裝）
         st.cnt -= 1; used += 1;
-        let ok = (en < safe) || (enRandomUid(keyBase, en, '') < _enhanceRate(d, en, safe));   // 安定值前必成功；之後依機率（🎲 決定論 keyBase=堆疊uid:副本序，與一般卷同一擲、不可 save/load 刷）
+        let ok = (en < safe) || (Math.random() < _enhanceRate(d, en, safe));   // 安定值前必成功；之後依機率（🎲 即時擲骰，可 save/load 重抽）
         if (!ok) { destroyed = true; break; }   // 失敗即爆裝
-        let add = bless ? (1 + Math.floor(enRandomUid(keyBase, en, 'amt') * 3)) : 1;   // 🌟 祝福卷成功時隨機 +1~+3（決定論 'amt' 標籤，比照 doEnhance）；一般卷 +1
+        let add = bless ? (1 + Math.floor(Math.random() * 3)) : 1;   // 🌟 祝福卷成功時隨機 +1~+3（純機率）；一般卷 +1
         en = Math.min(cap, en + add);   // 跳級不超過淬鍊上限
     }
     return { en, destroyed, used };
@@ -1044,7 +1044,7 @@ function _quickEnhanceUnit(d, startEn, goal, scrollStacks, keyBase, useBless) {
 function buildQuickEnhanceHeader(type) {
     let st = quickEnh[type];
     let hdr = document.createElement('div');
-    hdr.className = 'sticky top-0 z-10 bg-slate-900 pb-2';   // 🔧 移除 mb-1 透明間隙、pb 加大為不透明：滾動時物品不會從按鈕底部下方透出
+    hdr.className = 'sticky top-0 z-10 bg-slate-800 pb-2';   // 🔧 遮擋條改用與框底色(.panel=#1e293b=slate-800)相同色→融入面板不突兀；仍為不透明：滾動時物品不會從按鈕上/下方透出
     // 🔧 表頭上緣亦覆蓋容器的 12px 上內距(p-3)：往上拉時 sticky 黏在裁切邊(top/margin-top:-12)、paddingTop:12 維持按鈕原位 → 物品也不會從按鈕「上方」透出（滾動後＝滾動前）。用 inline style（Tailwind CDN JIT 不保證新 class 即時生成）
     hdr.style.top = '-12px'; hdr.style.marginTop = '-12px'; hdr.style.paddingTop = '12px';
     if (!st.active) {
@@ -1101,7 +1101,7 @@ function runQuickEnhance(type) {
         removeUids.add(entry.uid);
         for (let u = 0; u < cnt; u++) {
             if ((entry.en || 0) >= Math.min(goal, enhanceCap(d))) { skipped++; survivors.push({ ...entry, cnt: 1, uid: uid() }); continue; }   // 已達/超過目標（或已達淬鍊上限）：原樣保留
-            let r = _quickEnhanceUnit(d, entry.en || 0, goal, scrollStacks, enIdUid(entry) + ':' + u, st.useBless);   // 🎲 keyBase=強化身份(含詛咒退階重骰):副本序 → 決定論、每副本獨立；🌟 st.useBless＝使用祝福卷
+            let r = _quickEnhanceUnit(d, entry.en || 0, goal, scrollStacks, st.useBless);   // 🌟 st.useBless＝使用祝福卷（強化成敗為即時擲骰）
             usedTotal += r.used;
             if (r.destroyed) { destroyed++; continue; }   // 爆裝：不保留
             if (r.en >= goal) reached++; else partial++;  // 抵達 or 卷軸不足停在中途
@@ -1145,7 +1145,7 @@ function buildQuickHeader(type) {
     let jnk = quickJunk[type];
     if (jnk.active) _qjSync(type);   // 🔧 渲染前先同步新掉落物品到面板狀態（新廢品預先勾選），確認時才不會誤取消其標記
     let hdr = document.createElement('div');
-    hdr.className = 'sticky top-0 z-10 bg-slate-900 pb-2';   // 🔧 移除 mb-1 透明間隙、pb 加大為不透明：滾動時物品不會從按鈕底部下方透出
+    hdr.className = 'sticky top-0 z-10 bg-slate-800 pb-2';   // 🔧 遮擋條改用與框底色(.panel=#1e293b=slate-800)相同色→融入面板不突兀；仍為不透明：滾動時物品不會從按鈕上/下方透出
     // 🔧 表頭上緣亦覆蓋容器的 12px 上內距(p-3)：往上拉時 sticky 黏在裁切邊(top/margin-top:-12)、paddingTop:12 維持按鈕原位 → 物品也不會從按鈕「上方」透出（滾動後＝滾動前）。用 inline style（Tailwind CDN JIT 不保證新 class 即時生成）
     hdr.style.top = '-12px'; hdr.style.marginTop = '-12px'; hdr.style.paddingTop = '12px';
     if (jnk.active) {   // 快速廢品進行中：取消／確認／全選（無數值選擇）
@@ -1274,10 +1274,6 @@ const invSortCmp = (function () {
     return function (ia, ib) {
         let da = DB.items[ia.id], db = DB.items[ib.id];
         if (!da || !db) return 0;
-        // 🔧 收集冊置頂：卡片收集冊 → 裝備收集冊 永遠排在最前（其餘照常規則）
-        let ba = (ia.id === 'item_card_book' ? 0 : (ia.id === 'item_equip_book' ? 1 : 2));
-        let bb = (ib.id === 'item_card_book' ? 0 : (ib.id === 'item_equip_book' ? 1 : 2));
-        if (ba !== bb) return ba - bb;
         let ca = catRank(da), cb = catRank(db);
         if (ca !== cb) return ca - cb;
 
@@ -1321,18 +1317,20 @@ function sortInventory() {
 }
 
 // 一鍵賣出所有已勾為廢品的武器/防具/飾品（鎖定者不會被賣，因鎖定時已自動取消勾選）
-function sellAllJunk() {
+// ⏲️ 自動賣出廢品：由主迴圈 tick（每 60 秒）呼叫；賣掉所有標示為廢品(且非鎖定/可販售)的物品。無廢品→靜默不洗版。
+function autoSellJunk() {
+    if (!player || !Array.isArray(player.inv)) return;
     let toSell = player.inv.filter(i => {
         let d = DB.items[i.id];
         return i.junk && !i.lock && d && !d.noSell;   // 🏅 不可販售物（精通之證）排除
     });
-    if (toSell.length === 0) { logSys('<span class="text-slate-400">沒有勾選為廢品的道具。</span>'); return; }
+    if (toSell.length === 0) return;   // 無廢品→靜默
     let totalGold = 0, totalCount = 0;
     toSell.forEach(i => { totalGold += getSellPrice(i) * i.cnt; totalCount += i.cnt; });
     let _grantSold = toSell.some(i => DB.items[i.id] && DB.items[i.id].grantSkills);
     player.inv = player.inv.filter(i => !toSell.includes(i));
     player.gold += totalGold;
-    logSys(`一鍵賣出 ${toSell.length} 件(共 ${totalCount} 個)廢品，獲得 <span class="text-yellow-400 font-bold">${totalGold}</span> 金幣。`);
+    logSys(`<span class="text-amber-300">系統自動賣出 ${toSell.length} 件(共 ${totalCount} 個)廢品，獲得 <span class="text-yellow-400 font-bold">${totalGold}</span> 金幣。</span>`);
     renderTabs();
     updateUI();
     if(_grantSold) { calcStats(); renderSkillSelects(); }

@@ -255,10 +255,10 @@ function renderShopItems() {
 
 function migrateSaves(){
     // 舊單一存檔 → 第1格（既有玩家預設落在存檔1）
-    let oldS = localStorage.getItem('lineage_idle_save');
-    if(oldS && !localStorage.getItem('lineage_idle_save_1')) localStorage.setItem('lineage_idle_save_1', oldS);
+    let oldS = _lsGet('lineage_idle_save');
+    if(oldS && !_lsGet('lineage_idle_save_1')) _lsSet('lineage_idle_save_1', oldS);
 }
-function anySaveExists(){ return ['1','2','3','4','5','6','7','8'].some(n => localStorage.getItem('lineage_idle_save_' + n)); }
+function anySaveExists(){ return ['1','2','3','4','5','6','7','8'].some(n => _lsGet('lineage_idle_save_' + n)); }
 function _summaryFromRaw(s){
     if(!s) return null;
     s = _saveUnwrap(s).payload;   // 🛡️ 先解存檔簽章（摘要顯示不驗章、僅取 payload；舊明文檔原樣回傳）
@@ -387,8 +387,8 @@ function importSave(n){
             let whData = d.wh;
             let saveText = text;
             if(whData !== undefined){ let _c = {}; for(let k in d){ if(k !== 'wh') _c[k] = d[k]; } saveText = JSON.stringify(_c); }
-            let cur = localStorage.getItem('lineage_idle_save_' + n);
-            if(cur) localStorage.setItem('lineage_idle_save_' + n + '_bak', cur);   // 匯入前自動備份原存檔
+            let cur = _lsGet('lineage_idle_save_' + n);
+            if(cur) _lsSet('lineage_idle_save_' + n + '_bak', cur);   // 匯入前自動備份原存檔
             _lzSet('lineage_idle_save_' + n, _saveWrap(saveText));   // 💾 匯入 → 以本機簽章重新封裝後壓縮存入（之後讀檔即可驗章）
             // 🔧 詢問是否一併還原共用倉庫（會覆蓋現有倉庫，四個存檔位共用）
             let whMsg = '';
@@ -412,11 +412,11 @@ function importSave(n){
 }
 // 復原匯入前自動建立的備份：把備份寫回該存檔位（取代目前內容）。
 function restoreBackup(n){
-    let bak = localStorage.getItem('lineage_idle_save_' + n + '_bak');
+    let bak = _lsGet('lineage_idle_save_' + n + '_bak');
     if(!bak){ alert('沒有可復原的備份。'); return; }
     let b = slotBackupSummary(n);
     if(!confirm(`確定要將存檔 ${n} 復原為匯入前的備份${b ? `（${b.cls} Lv.${b.lv}　${b.name}）` : ''}嗎？\n目前存檔 ${n} 的內容將被取代。`)) return;
-    localStorage.setItem('lineage_idle_save_' + n, bak);
+    _lsSet('lineage_idle_save_' + n, bak);
     openSlotSelect(_slotMode);   // 刷新清單
     alert(`存檔 ${n} 已復原為匯入前的備份。`);
 }
@@ -522,61 +522,6 @@ function onToggleTraditional(el) {
     let ok = confirm('🏛️ 傳統模式（可單獨開啟，或與「經典模式」並用）\n\n開啟後，此角色將「永久」套用下列規則，建立後無法關閉：\n\n‧ 所有武器/防具/飾品 → 沒有強化選項（隱藏快速強化）\n‧ 怪物不掉落、黑市不販售「對武器/盔甲/飾品施法的卷軸」\n‧ 隱藏肯特城的兌換 NPC（伊賽馬利）\n‧ 取而代之 → 怪物掉落／潘朵拉黑市／製作 的裝備會「隨機自帶已強化值」（商店購買仍為 +0）\n‧ 倉庫與角色 與其他模式組合（一般／經典／經典＋傳統）皆不共通\n\n確定要以「傳統模式」創建此角色嗎？');
     if (!ok) el.checked = false;   // 取消 → 還原為未勾選
 }
-var BGM = {
-    _audio: null, _vol: 0.5, _playlist: null, _playIdx: 0, _currentMusic: null,
-    init: function () {
-        this._audio = document.getElementById('bgm-audio') || new Audio();
-        this._audio.loop = true;
-        var saved = parseFloat(localStorage.getItem('bgmVol'));
-        this._vol = isNaN(saved) ? 0.5 : saved;
-        this._audio.volume = this._vol;
-        var lbl = document.getElementById('bgm-vol-label');
-        if (lbl) lbl.textContent = Math.round(this._vol * 100);
-        document.querySelectorAll('input[type=range]').forEach(function (r) {
-            if (r.oninput && r.oninput.toString().indexOf('BGM') !== -1) r.value = Math.round(BGM._vol * 100);
-        });
-    },
-    setVolume: function (v) {
-        this._vol = (typeof v === 'number' && v >= 0 && v <= 1) ? v : this._vol;
-        if (this._audio) this._audio.volume = this._vol;
-        localStorage.setItem('bgmVol', this._vol);
-        var lbl = document.getElementById('bgm-vol-label');
-        if (lbl) lbl.textContent = Math.round(this._vol * 100);
-    },
-    play: function (music) {
-        if (!this._audio) this.init();
-        if (this._currentMusic === music) { if (this._audio.paused) this._audio.play(); return; }
-        this._currentMusic = music;
-        if (Array.isArray(music)) {
-            this._playlist = music;
-            this._playIdx = 0;
-            this._audio.loop = false;
-            this._playNext();
-        } else {
-            this._playlist = null;
-            this._audio.loop = true;
-            this._audio.onended = null;
-            this._loadAndPlay(music);
-        }
-    },
-    _playNext: function () {
-        if (!this._playlist || this._playIdx >= this._playlist.length) { this._playIdx = 0; }
-        if (this._playlist && this._playlist[this._playIdx]) {
-            this._audio.onended = null;
-            this._loadAndPlay(this._playlist[this._playIdx], true);
-            this._playIdx++;
-        }
-    },
-    _loadAndPlay: function (src, isPlaylistItem) {
-        var self = this;
-        if (typeof src === 'number') src = 'assets/Sound/music' + src + '.mp3';
-        this._audio.src = src;
-        this._audio.volume = this._vol;
-        this._audio.currentTime = 0;
-        if (isPlaylistItem) this._audio.onended = function () { self._playNext(); };
-        this._audio.play().catch(function () { });
-    }
-};
 function startGame() {
     document.getElementById('creation-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
@@ -648,9 +593,10 @@ function startGame() {
             gainItem('bk_lightarrow', 1, true, true); // 光箭魔法書
         }
     }
-    if (typeof loadSharedCollections === 'function') loadSharedCollections();   // 🎴🗡️ 創角：載入同模式共用收集圖鑑（新角色即承接同模式既有收集）
-    gainItem('item_card_book', 1, true, true);   // 🎴 卡片收集冊（全職業創角預設）
-    if (typeof ensureEquipBook === 'function') ensureEquipBook();   // 🗡️ 裝備收集冊（全職業創角預設＋登錄起始裝備）
+    if (typeof loadSharedCollections === 'function') loadSharedCollections();   // 🎴🗡️🧰 創角：載入同模式共用收集圖鑑（新角色即承接同模式既有收集）
+    if (typeof ensureCardBook === 'function') ensureCardBook();   // 🎴 怪物收集冊改由「收藏」面板開啟（移除道具欄本體）
+    if (typeof ensureEquipBook === 'function') ensureEquipBook();   // 🗡️ 裝備收集冊改由「收藏」面板開啟＋登錄起始裝備
+    if (typeof ensureMiscDex === 'function') ensureMiscDex();   // 🧰 道具收集冊：登錄起始道具
 
     calcStats();
     player.hp = player.mhp; player.mp = player.mmp;
@@ -869,8 +815,9 @@ function loadGame() {
         // 日後新增欄位只需登錄於 SAVE_DEFAULTS；上方逐項 if(undefined) 為歷史遷移，不必再增列。
         applySaveDefaults(player);
         if (typeof loadSharedCollections === 'function') loadSharedCollections();   // 🎴🗡️ 讀檔：載入同模式共用收集圖鑑（卡片/裝備·併入該角色既有資料）
-        if (typeof ensureCardBook === 'function') ensureCardBook();   // 🎴 舊存檔保底：道具欄補一本卡片收集冊
-        if (typeof ensureEquipBook === 'function') ensureEquipBook();   // 🗡️ 舊存檔保底：補裝備收集冊＋登錄現有(背包/已裝備)裝備
+        if (typeof ensureCardBook === 'function') ensureCardBook();   // 🎴 舊存檔遷移：移除道具欄的卡片收集冊本體（改由「收藏」面板開啟）
+        if (typeof ensureEquipBook === 'function') ensureEquipBook();   // 🗡️ 舊存檔遷移：移除裝備收集冊本體＋登錄現有(背包/已裝備)裝備
+        if (typeof ensureMiscDex === 'function') ensureMiscDex();   // 🧰 舊存檔遷移：登錄現有道具到道具收集冊
 
         // 👇 正確的新版起點邏輯
         // 🔧 讀檔回「家」改走 getHomeTown()：血盟成員回盟主村莊（海音/歐瑞），否則回職業起始村，與回村按鈕邏輯一致
