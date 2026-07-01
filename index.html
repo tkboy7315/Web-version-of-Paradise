@@ -171,8 +171,8 @@
 
             <div id="automation-panel" class="panel flex-1 overflow-hidden flex flex-col">
                 <div class="panel-header flex items-center justify-between" style="cursor:pointer;user-select:none;" onclick="toggleAutomationCollapse()"><span class="flex-1 text-center">自動化設定</span><span id="automation-collapse-arrow" class="text-sm" style="padding:0 0.25rem;">▼</span></div>
-                <div id="automation-body" class="p-4 text-base flex flex-col gap-4 overflow-y-auto">
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 flex flex-col gap-2">
+                <div class="px-4 py-3 border-b border-slate-700 bg-slate-900/50 shrink-0">
+                    <div class="flex flex-col gap-2">
                         <div class="flex items-center justify-between gap-3">
                             <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-sfx-on" class="w-4 h-4" onchange="try{setSfxOn(this.checked)}catch(e){}"><span class="text-sm text-amber-200 font-bold">🔊 戰鬥音效</span></label>
                             <input type="range" id="set-sfx-vol" min="0" max="100" value="50" step="5" class="flex-1 max-w-[150px]" oninput="try{setSfxVol(this.value)}catch(e){}" title="音效音量">
@@ -182,6 +182,8 @@
                             <input type="range" id="set-bgm-vol" min="0" max="100" value="35" step="5" class="flex-1 max-w-[150px]" oninput="try{setBgmVol(this.value)}catch(e){}" title="音樂音量">
                         </div>
                     </div>
+                </div>
+                <div id="automation-body" class="p-4 text-base flex flex-col gap-4 overflow-y-auto">
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
                         <div class="flex flex-col gap-2">
                             <div class="flex justify-between items-center">
