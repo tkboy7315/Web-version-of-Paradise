@@ -1398,6 +1398,7 @@ function switchTab(t, btn) {
     ['stats', 'equip', 'weapons', 'skill', 'armors', 'items', 'audit', 'attrd', 'search'].forEach(id => { let _e = document.getElementById(`tab-${id}`); if(_e) _e.classList.add('hidden'); });
     document.getElementById(`tab-${t}`).classList.remove('hidden');
     if(t === 'audit' && typeof renderAuditTab === 'function') renderAuditTab();
+    if(t !== 'search') { document.querySelectorAll('#tab-search .mob-map-list').forEach(function(el){ el.classList.add('hidden'); }); }
 }
 
 // ===== 🤝 協力傭兵隊伍面板（Phase 1：顯示血/魔/經驗條＋每傭兵攻擊技能/治癒魔法設定）=====
