@@ -290,75 +290,122 @@ function playMobKill(mob) {
     if (!_sfxPlayPool(key, 0.60)) playSfx('kill');   // 缺檔(null)→退回通用擊殺音
 }
 
-// ===== 🎵 BGM 背景音樂（自製簡潔版：編號映射 → assets/Sound/music<id>.mp3）=====
-var BGM = {
-    _a: null, _id: -1, _on: true, _vol: 35,
-    play: function (id) {
-        if (id < 0 || id === this._id || !this._on) return;
-        this._id = id;
-        if (!this._a) { this._a = new Audio(); this._a.loop = true; this._a.preload = 'auto'; }
-        this._a.src = 'assets/Sound/music' + id + '.mp3';
-        this._a.volume = Math.max(0, Math.min(1, this._vol / 100));
-        try { this._a.currentTime = 0; } catch (e) {}
-        var p = this._a.play(); if (p && p.catch) p.catch(function () {});
-    },
-    stop: function () { if (this._a) { try { this._a.pause(); } catch (e) {} } this._id = -1; },
-    setOn: function (on) { this._on = !!on; if (!this._on) this.stop(); },
-    setVol: function (v) { this._vol = Math.max(0, Math.min(100, parseInt(v, 10) || 0)); if (this._a) this._a.volume = this._vol / 100; }
+// ===== 🎵 背景音樂（自製系統 v2 · v2.5.8 場景偵測＋交叉淡入引擎，播 assets/Sound/music<id>.mp3）=====
+//   場景 title(登入)/create(創角)/town(共通安全區)/battle(野外戰鬥)/boss(頭目戰)＋專屬城鎮＋非城鎮區域（見 BGM_SCENE_MAP）。
+//   music 檔 assets/Sound/music<id>.mp3（id 對應 BGM_SCENE_MAP）。交叉淡入 1 秒（雙 Audio 元素）。
+var _bgmCfg = { on: true, vol: 35 };
+// 場景 → music ID 映射（依 BGM設定紀錄.md）；無對應→回退對應（如 boss 暫用 battle 曲）
+var BGM_SCENE_MAP = {
+    title: 0, create: 0, town: 0, battle: 6, boss: 6,
+    // 專屬城鎮
+    town_talking: 12, town_elf: 13, town_ivory_tower: 11,
+    town_giran: 20, town_heine: 23, town_witon: 28,
+    town_oren: 54, town_aden: 41, town_gludio: 55,
+    town_silver_knight: 57, town_pride: 62,
+    town_kent_castle: 0, town_windwood_castle: 0, town_silent: 0,
+    // 非城鎮區域專屬
+    zone_01: 16, zone_15: 16, zone_16: 16, zone_17: 16,   // 妖精森林周邊
+    zone_02: 29,                                           // 歐瑞周邊
+    zone_06: 32, zone_07: 32, zone_08: 32, zone_09: 32, zone_10: 32, zone_11: 32, zone_12: 32,  // 古魯丁地監
+    zone_34: 24, zone_35: 24, zone_36: 24,                 // 地下通道
+    zone_37: 11, zone_38: 11, zone_39: 11, zone_40: 11, zone_41: 11,  // 象牙塔
+    talking_island: 12, talking_island_port: 12, zone_13: 12, zone_14: 12,
+    gludio: 18,
+    dragon_valley: 19, zone_26: 19, zone_27: 19, zone_28: 19, zone_29: 19, zone_30: 19, zone_31: 19,
+    antaras_lair: 19, silent_outer: 19,
+    heine: 27, mirror_forest: 27,
+    kent: 14, windwood: 52,
+    silver_knight: 82, training: 82,
+    shadow_temple: 60,
+    rastabad_cave1: 61, rastabad_cave2: 61, rastabad_cave3: 61, rastabad_gate: 61,
+    dark_magic_lab: 61, necro_training: 61, elder_room: 61, demon_temple: 61,
+    king_baranka_room: 61, law_king_room: 61, necro_king_room: 61, assassin_king_room: 61,
+    town_rift: 92,
+    thebes_desert: 94, thebes_pyramid: 95, thebes_temple: 103, thebes: 103,
+    giant_tomb: 48,
+    eva_kingdom: 36, fafurion_lair: 36,
+    pride: 62,                                             // 傲慢之塔所有樓層（pride_f1~f100、pride_2_10~91_100）
 };
-function _bgmDetectId() {
-    if (typeof player === 'undefined' || !player || !player.cls || typeof mapState === 'undefined' || !mapState) return -1;
-    var m = mapState.current; if (!m) return -1;
-    var t = m.indexOf('town_') === 0;
-    if (m === 'zone_01' || m === 'zone_15' || m === 'zone_16' || m === 'zone_17') return 16;
-    if (m === 'zone_02') return 29;
-    if (m >= 'zone_06' && m <= 'zone_12') return 32;
-    if (m >= 'zone_34' && m <= 'zone_36') return 24;
-    if (m >= 'zone_37' && m <= 'zone_41') return 11;
-    if (m === 'talking_island' || m === 'talking_island_port' || m === 'zone_13' || m === 'zone_14') return 12;
-    if (m === 'gludio') return 18;
-    if (m === 'dragon_valley' || m === 'zone_26' || m === 'zone_27' || m === 'zone_28' || m === 'zone_29' || m === 'zone_30' || m === 'zone_31' || m === 'antaras_lair' || m === 'silent_outer') return 19;
-    if (m === 'heine' || m === 'mirror_forest') return 27;
-    if (m === 'kent') return 14;
-    if (m === 'windwood') return 52;
-    if (m === 'silver_knight' || m === 'training') return 82;
-    if (m === 'shadow_temple') return 60;
-    if (m.indexOf('rastabad') === 0 || m === 'dark_magic_lab' || m === 'necro_training' || m === 'elder_room' || m === 'king_baranka_room' || m === 'law_king_room' || m === 'necro_king_room' || m === 'assassin_king_room' || m === 'demon_temple') return 61;
-    if (m === 'town_rift') return 92;
-    if (m === 'thebes_desert') return 94;
-    if (m === 'thebes_pyramid') return 95;
-    if (m === 'thebes_temple') return 103;
-    if (m === 'thebes') return 103;
-    if (m === 'giant_tomb') return 48;
-    if (m === 'eva_kingdom' || m === 'fafurion_lair') return 36;
-    if (m === 'town_talking') return 12;
-    if (m === 'town_elf') return 13;
-    if (m === 'town_ivory_tower') return 11;
-    if (m === 'town_giran') return 20;
-    if (m === 'town_heine') return 23;
-    if (m === 'town_witon') return 28;
-    if (m === 'town_oren') return 54;
-    if (m === 'town_aden') return 41;
-    if (m === 'town_gludio') return 55;
-    if (m === 'town_silver_knight') return 57;
-    if (m === 'town_pride') return 62;
-    if (m.indexOf('pride_') === 0) return 62;
-    if (t) return 0;
-    return 6;
+var _TOWN_BGM = {}; Object.keys(BGM_SCENE_MAP).forEach(function (s) { if (s.indexOf('town_') === 0) _TOWN_BGM[s] = 1; });
+var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
+
+function _bgmLoadCfg() {
+    try {
+        var s = (typeof _lsGet === 'function') ? _lsGet('fb5_bgm') : null;
+        if (s) { var o = JSON.parse(s); if (o && typeof o === 'object') { _bgmCfg.on = (o.on !== false); _bgmCfg.vol = (typeof o.vol === 'number') ? o.vol : 35; } }
+    } catch (e) {}
 }
-function _bgmTick() { try { BGM.play(_bgmDetectId()); } catch (e) {} }
+function _bgmSaveCfg() { try { if (typeof _lsSet === 'function') _lsSet('fb5_bgm', JSON.stringify(_bgmCfg)); } catch (e) {} }
+function _bgmTargetVol() { return Math.max(0, Math.min(1, _bgmCfg.vol / 100)); }
+
+function _bgmResolve(scene) {
+    var id = BGM_SCENE_MAP[scene];
+    _bgmUrl[scene] = (id != null) ? 'assets/Sound/music' + id + '.mp3' : null;
+}
+
+function _bgmIsCreateScreen() {
+    if (typeof document === 'undefined') return false;
+    var p = document.getElementById('creation-panel');
+    return !!(p && p.classList && !p.classList.contains('hidden'));
+}
+function _bgmDetectScene() {
+    if (typeof player === 'undefined' || !player || !player.cls) return _bgmIsCreateScreen() ? 'create' : 'title';
+    var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
+    if (cur && cur.indexOf('town_') === 0) return _TOWN_BGM[cur] ? cur : 'town';
+    if (typeof mapState !== 'undefined' && mapState && mapState.mobs && mapState.mobs.some(function (m) { return m && m.boss && m.curHp > 0; })) return 'boss';
+    if (cur && BGM_SCENE_MAP[cur] != null) return cur;     // 非城鎮區域專屬（底比斯/龍之谷等）
+    if (cur && cur.indexOf('pride_') === 0) return 'pride'; // 傲慢之塔各樓層（統一 music62）
+    return 'battle';
+}
+
+function _bgmCrossfade(oldEl, newEl) {
+    if (_bgmFadeTimer) clearInterval(_bgmFadeTimer);
+    var target = _bgmTargetVol(), steps = 20, n = 0;
+    _bgmFadeTimer = setInterval(function () {
+        n++; var t = n / steps;
+        if (newEl) newEl.volume = Math.max(0, Math.min(1, target * t));
+        if (oldEl) oldEl.volume = Math.max(0, Math.min(1, target * (1 - t)));
+        if (n >= steps) { clearInterval(_bgmFadeTimer); _bgmFadeTimer = null; if (oldEl) { try { oldEl.pause(); } catch (e) {} } }
+    }, 50);
+}
+
+function _bgmSwitch(scene) {
+    if (!_bgmCfg.on) return;
+    if (scene === _bgmScene) return;
+    var url = _bgmUrl[scene];
+    if (!url) return;
+    _bgmScene = scene;
+    var newIdx = (_bgmActive === 0) ? 1 : 0;
+    if (!_bgmEls[newIdx]) { var e0 = new Audio(); e0.loop = true; e0.preload = 'auto'; e0.volume = 0; _bgmEls[newIdx] = e0; }
+    var nu = _bgmEls[newIdx], old = (_bgmActive >= 0) ? _bgmEls[_bgmActive] : null;
+    try { if (!nu.src || nu.src.indexOf(url) === -1) nu.src = url; nu.currentTime = 0; } catch (e) {}
+    nu.volume = 0;
+    var p = nu.play(); if (p && p.catch) p.catch(function () {});
+    _bgmCrossfade(old, nu);
+    _bgmActive = newIdx;
+}
+function _bgmStopAll() {
+    if (_bgmFadeTimer) { clearInterval(_bgmFadeTimer); _bgmFadeTimer = null; }
+    for (var i = 0; i < 2; i++) { if (_bgmEls[i]) { try { _bgmEls[i].pause(); } catch (e) {} _bgmEls[i].volume = 0; } }
+    _bgmActive = -1;
+}
+function _bgmTick() { if (_bgmInited) { try { _bgmSwitch(_bgmDetectScene()); } catch (e) {} } }
+
+function setBgmOn(on) { _bgmCfg.on = !!on; _bgmSaveCfg(); if (!on) { _bgmStopAll(); _bgmScene = null; } else { _bgmScene = null; _bgmTick(); } }
+function setBgmVol(v) { _bgmCfg.vol = Math.max(0, Math.min(100, parseInt(v, 10) || 0)); _bgmSaveCfg(); if (!_bgmFadeTimer && _bgmActive >= 0 && _bgmEls[_bgmActive]) _bgmEls[_bgmActive].volume = _bgmTargetVol(); }
+function _bgmSyncUI() {
+    var c = document.getElementById('set-bgm-on'); if (c) c.checked = !!_bgmCfg.on;
+    var v = document.getElementById('set-bgm-vol'); if (v) v.value = _bgmCfg.vol;
+}
 function _bgmInit() {
+    if (_bgmInited) return; _bgmInited = true;
+    _bgmLoadCfg();
+    Object.keys(BGM_SCENE_MAP).forEach(function (s) { _bgmResolve(s); });
     _bgmSyncUI();
     setInterval(_bgmTick, 1000);
-    var kick = function () { if (BGM._a) { var p = BGM._a.play(); if (p && p.catch) p.catch(function () {}); } _bgmTick(); };
+    var kick = function () { _bgmScene = null; _bgmTick(); };
     document.addEventListener('pointerdown', kick, { once: true });
     document.addEventListener('keydown', kick, { once: true });
-}
-function setBgmOn(on) { BGM.setOn(on); var c = document.getElementById('set-bgm-on'); if (c) c.checked = !!on; }
-function setBgmVol(v) { BGM.setVol(v); var s = document.getElementById('set-bgm-vol'); if (s) s.value = BGM._vol; }
-function _bgmSyncUI() {
-    var c = document.getElementById('set-bgm-on'); if (c) c.checked = BGM._on;
-    var v = document.getElementById('set-bgm-vol'); if (v) v.value = BGM._vol;
 }
 
 if (typeof document !== 'undefined') {

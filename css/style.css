@@ -394,3 +394,14 @@
 .c-card-silver { color: #f8fafc; text-shadow: 0 0 5px #cbd5e1; }
 .c-card-gold   { color: #fcd34d; text-shadow: 0 0 7px #f59e0b; }
 .card-silhouette { filter: brightness(0) saturate(0); opacity: .55; }
+
+/* ===== 🖥️ v2.5.8 流動式版面：填滿整個視窗，內層三欄 flex 隨視窗大小自然伸縮 ===== */
+#app-stage { position: fixed; inset: 0; }
+#game-screen { position: absolute; inset: 0; padding: 16px; }
+#map-view-panel { flex: 1 1 0; min-height: 0; }
+#log-row { flex: 0 0 340px; min-height: 0; }
+#combat-log-panel { flex: 1 1 0; min-width: 0; min-height: 0; }
+#syslog-panel { flex: 1 1 0; height: auto; min-width: 0; min-height: 0; }
+#battle-view { flex: 1 1 auto; min-height: 0; }
+#battle-view:not(.area-fit):not(.hidden) { display: flex; align-items: center; justify-content: center; }
+#battle-view.area-fit .mob-img-wrap img { object-fit: contain; object-position: center bottom; }
