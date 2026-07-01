@@ -1395,7 +1395,7 @@ function switchTab(t, btn) {
     Array.from(btn.parentElement.children).forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     // 👇 更新陣列名單
-    ['stats', 'equip', 'weapons', 'skill', 'armors', 'items', 'audit'].forEach(id => { let _e = document.getElementById(`tab-${id}`); if(_e) _e.classList.add('hidden'); });
+    ['stats', 'equip', 'weapons', 'skill', 'armors', 'items', 'audit', 'attrd', 'search'].forEach(id => { let _e = document.getElementById(`tab-${id}`); if(_e) _e.classList.add('hidden'); });
     document.getElementById(`tab-${t}`).classList.remove('hidden');
     if(t === 'audit' && typeof renderAuditTab === 'function') renderAuditTab();
 }
@@ -1557,4 +1557,115 @@ function toggleSquadCollapse() {
     let collapsed = !(body && body.classList.contains('hidden'));
     _applySquadCollapse(collapsed);
     try { _lsSet('fb5_squad_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+}
+
+// ===== 🔍 物品掉落查詢 =====
+let _dropIndex = null;
+let _mobMapIndex = null;
+function _buildDropIndex() {
+    if (_dropIndex) return;
+    _dropIndex = {};
+    let tables = [MOB_DROPS, DRAGON_DROPS, WARRIOR_DROPS, DARK_WEAPON_DROPS, MEM_DROPS, DARK_CRYSTAL_DROPS];
+    for (let ti = 0; ti < tables.length; ti++) {
+        let tbl = tables[ti];
+        if (!tbl) continue;
+        for (let mob in tbl) {
+            if (!Object.prototype.hasOwnProperty.call(tbl, mob)) continue;
+            let drops = tbl[mob];
+            if (!drops || !drops.length) continue;
+            for (let di = 0; di < drops.length; di++) {
+                let itemId = drops[di][0];
+                if (!itemId) continue;
+                if (!_dropIndex[itemId]) _dropIndex[itemId] = [];
+                if (_dropIndex[itemId].indexOf(mob) === -1) _dropIndex[itemId].push(mob);
+            }
+        }
+    }
+}
+function _buildMobMapIndex() {
+    if (_mobMapIndex) return;
+    _mobMapIndex = {};
+    let idToName = {};
+    for (let id in DB.mobs) {
+        if (Object.prototype.hasOwnProperty.call(DB.mobs, id) && DB.mobs[id] && DB.mobs[id].n) {
+            idToName[id] = DB.mobs[id].n;
+        }
+    }
+    for (let mapKey in DB.maps) {
+        if (!Object.prototype.hasOwnProperty.call(DB.maps, mapKey)) continue;
+        let mobIds = DB.maps[mapKey];
+        if (!mobIds || !mobIds.length) continue;
+        let entry = typeof mapEntryOf === 'function' ? mapEntryOf(mapKey) : null;
+        let mapName = (entry && entry.t) ? entry.t : mapKey;
+        for (let mi = 0; mi < mobIds.length; mi++) {
+            let mobName = idToName[mobIds[mi]];
+            if (!mobName) continue;
+            if (!_mobMapIndex[mobName]) _mobMapIndex[mobName] = [];
+            if (_mobMapIndex[mobName].indexOf(mapName) === -1) _mobMapIndex[mobName].push(mapName);
+        }
+    }
+}
+function toggleMobMap(el, mobName) {
+    let target = el.nextElementSibling;
+    if (target && target.classList.contains('mob-map-list')) {
+        target.classList.toggle('hidden');
+        return;
+    }
+    _buildMobMapIndex();
+    let zones = _mobMapIndex[mobName];
+    let div = document.createElement('div');
+    div.className = 'mob-map-list mt-1.5 p-2 rounded bg-slate-900/60 border border-slate-600 flex flex-wrap gap-1';
+    if (zones && zones.length) {
+        div.innerHTML = '<span class="text-xs text-slate-400 w-full mb-0.5">📍 出沒區域：</span>' + zones.map(function(z) {
+            return '<span class="px-1.5 py-0.5 rounded text-xs bg-slate-700/80 text-cyan-200 border border-slate-500">' + z + '</span>';
+        }).join('');
+    } else {
+        div.innerHTML = '<span class="text-xs text-slate-500">未知區域</span>';
+    }
+    el.parentNode.insertBefore(div, el.nextSibling);
+}
+function onSearchInput() {
+    let input = document.getElementById('search-input');
+    let results = document.getElementById('search-results');
+    let stats = document.getElementById('search-stats');
+    if (!input || !results || !stats) return;
+    let q = input.value.trim();
+    if (!q) { results.innerHTML = ''; stats.textContent = ''; return; }
+    _buildDropIndex();
+    let ql = q.toLowerCase();
+    let found = [];
+    for (let id in DB.items) {
+        if (!Object.prototype.hasOwnProperty.call(DB.items, id)) continue;
+        let name = DB.items[id].n;
+        if (!name || name.toLowerCase().indexOf(ql) === -1) continue;
+        let mobs = _dropIndex[id];
+        if (mobs && mobs.length) {
+            found.push({ id: id, name: name, mobs: mobs });
+        }
+    }
+    found.sort(function(a, b) {
+        let aEx = a.name.toLowerCase() === ql ? 0 : 1;
+        let bEx = b.name.toLowerCase() === ql ? 0 : 1;
+        if (aEx !== bEx) return aEx - bEx;
+        return a.name.localeCompare(b.name, 'zh');
+    });
+    if (!found.length) {
+        results.innerHTML = '<div class="text-slate-500 text-center py-8">找不到符合的物品，或該物品無怪物掉落</div>';
+        stats.textContent = '查無結果';
+        return;
+    }
+    stats.textContent = '找到 ' + found.length + ' 項物品（點擊怪物名稱查看出沒區域）';
+    let html = '';
+    for (let fi = 0; fi < found.length; fi++) {
+        let f = found[fi];
+        html += '<div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">';
+        html += '<div class="text-cyan-300 font-bold text-base mb-1">' + f.name + '</div>';
+        html += '<div class="flex flex-wrap gap-1.5">';
+        for (let mi = 0; mi < f.mobs.length; mi++) {
+            let mob = f.mobs[mi];
+            html += '<span class="px-2 py-0.5 rounded text-xs bg-slate-700/60 text-slate-300 border border-slate-600 cursor-pointer hover:bg-slate-600 hover:text-white" onclick="toggleMobMap(this,\'' + mob.replace(/'/g, "\\'") + '\')">' + mob + '</span>';
+        }
+        html += '</div></div>';
+    }
+    results.innerHTML = html;
 }

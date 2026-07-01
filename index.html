@@ -324,6 +324,9 @@
                 <button class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #312e81 0%, #4f46e5 28%, #28236b 52%, #4338ca 76%, #1e1b4b 100%); color: #c7d2fe; border-color: #6366f1;" onclick="exportSave()">匯出</button>
                 <button class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #064e3b 0%, #059669 28%, #053f30 52%, #047857 76%, #042f24 100%); color: #a7f3d0; border-color: #10b981;" onclick="saveGame()">存檔</button>
                 <button id="btn-sort-inv" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #0c4a5e 0%, #0e7490 28%, #0a3d4d 52%, #11657e 76%, #093440 100%); color: #a5f3fc; border-color: #0891b2;" onclick="sortInventory()">一鍵排列</button>
+                <!-- 第五排：裝備說明 + 查詢 -->
+                <button class="btn text-base py-2 font-bold px-0 col-span-1" style="background: linear-gradient(135deg, #3b1f4a 0%, #7c2d8a 28%, #321a3d 52%, #6a2878 76%, #261430 100%); color: #e9d5ff; border-color: #9333ea;" onclick="switchTab('attrd', this)">📖 裝備說明</button>
+                <button class="btn text-base py-2 font-bold px-0 col-span-2" style="background: linear-gradient(135deg, #1a3a4a 0%, #1e6a8a 28%, #162e3d 52%, #1a5a78 76%, #102230 100%); color: #a5f3fc; border-color: #06b6d4;" onclick="switchTab('search', this)">🔍 查詢</button>
             </div>
 
             <div id="tab-content-panel" class="panel flex-1 flex flex-col overflow-hidden relative">
@@ -381,6 +384,147 @@
                 <div id="tab-weapons" class="p-3 overflow-y-auto h-full hidden flex-col gap-2"></div>
                 <div id="tab-armors" class="p-3 overflow-y-auto h-full hidden flex-col gap-2"></div>
                 <div id="tab-audit" class="p-3 overflow-y-auto h-full hidden flex-col gap-2"></div>
+                <div id="tab-attrd" class="p-4 overflow-y-auto h-full hidden flex-col gap-3 text-sm">
+                    <div class="border-b border-slate-700 pb-2 mb-1">
+                        <span class="text-yellow-400 font-bold text-base">📖 裝備系統說明</span>
+                        <span class="text-slate-400 ml-2 text-xs">附加屬性・祝福/詛咒・遠古系列・套裝・收藏</span>
+                    </div>
+
+                    <!-- 屬性附加 -->
+                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                        <div class="text-cyan-300 font-bold text-base mb-1">⚡ 屬性附加（火/水/風/地）</div>
+                        <div class="text-slate-400 text-xs mb-2">出現率：T1 60% / T3 30% / T5 10%，四元素均分</div>
+                        <div class="grid grid-cols-4 gap-1 text-xs font-bold text-center mb-1">
+                            <span class="text-red-300">火</span><span class="text-blue-300">水</span><span class="text-green-300">風</span><span class="text-amber-300">地</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1 text-xs text-center text-slate-300 mb-1 border-b border-slate-700 pb-1">
+                            <span>T1 火之</span><span>T1 水之</span><span>T1 風之</span><span>T1 地之</span>
+                            <span>T3 爆炎</span><span>T3 海嘯</span><span>T3 暴風</span><span>T3 崩裂</span>
+                            <span>T5 火靈</span><span>T5 水靈</span><span>T5 風靈</span><span>T5 地靈</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
+                            <span>武器：固定傷</span><span class="text-white text-right">T1:+1 / T3:+3 / T5:+5</span>
+                            <span>武器：剋屬追加</span><span class="text-white text-right">T1:+6 / T3:+9 / T5:+12（弱點怪物）</span>
+                            <span>防具：屬抗</span><span class="text-white text-right">T1:1% / T3:2% / T5:3%</span>
+                            <span>防具：MR</span><span class="text-white text-right">T1:+1 / T3:+2 / T5:+3</span>
+                            <span>屬性相剋</span><span class="text-white text-right">火→地→風→水→火，剋屬傷害 ×1.4，被剋 ×0.6</span>
+                        </div>
+                    </div>
+
+                    <!-- 祝福/詛咒 -->
+                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                        <div class="text-amber-300 font-bold text-base mb-1">✨ 祝福 / 💀 詛咒</div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
+                            <span>武器祝福</span><span class="text-white text-right">額外傷+1、命中+1、MP+2</span>
+                            <span>武器詛咒</span><span class="text-red-400 text-right">額外傷-1、命中-1、MP-2</span>
+                            <span>防具祝福</span><span class="text-white text-right">AC-1、DR+1</span>
+                            <span>防具詛咒</span><span class="text-red-400 text-right">AC+1、DR-1</span>
+                            <span>飾品祝福</span><span class="text-white text-right">AC-1、MR+1</span>
+                            <span>飾品詛咒</span><span class="text-red-400 text-right">AC+1、MR-1</span>
+                        </div>
+                        <div class="text-slate-500 text-xs mt-1">詛咒裝備無法卸下，需「解除詛咒卷軸」（象牙塔碧恩）</div>
+                    </div>
+
+                    <!-- 遠古系列 -->
+                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                        <div class="font-bold text-base mb-1"><span class="text-purple-400">遠</span><span class="text-red-400">古</span><span class="text-green-400">系</span><span class="text-blue-400">列</span></div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
+                            <span><span class="text-purple-400">遠古</span> 武器</span><span class="text-white text-right">額外傷+2、魔法傷+1</span>
+                            <span><span class="text-purple-400">遠古</span> 防具</span><span class="text-white text-right">DR+2</span>
+                            <span><span class="text-purple-400">遠古</span> 飾品</span><span class="text-white text-right">DR+1、MR+1</span>
+                            <span class="border-t border-slate-700 pt-1"><span class="text-red-400">永恆</span></span><span class="text-white text-right border-t border-slate-700 pt-1">武器額外傷+4／防具AC-2／飾品額外傷+1 AC-1</span>
+                            <span><span class="text-green-400">不朽</span></span><span class="text-white text-right">武器命中+4／防具ER+2／飾品額外傷+1 命中+1</span>
+                            <span><span class="text-blue-400">太初</span></span><span class="text-white text-right">武器魔法傷+2／防具MR+4／飾品MR+2 MP+2</span>
+                        </div>
+                    </div>
+
+                    <!-- 席琳套裝 -->
+                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                        <div class="text-pink-300 font-bold text-base mb-1">👑 席琳套裝（12 組，2/3/5 件效果）</div>
+                        <div class="text-slate-500 text-xs mb-2">僅「席琳的世界」掉落：一般怪 0.1%／BOSS 5%</div>
+                        <div class="space-y-1 text-xs">
+                            <div class="flex justify-between"><span class="text-red-300">紅獅</span><span class="text-slate-300 text-right">2:額外傷+5 MP+3 / 3:DR+10 / 5:最終傷+20%</span></div>
+                            <div class="flex justify-between"><span class="text-blue-200">白鳥</span><span class="text-slate-300 text-right">2:命中+5 / 3:CHA+10 / 5:普攻脆弱3秒+20%傷</span></div>
+                            <div class="flex justify-between"><span class="text-slate-300">鐵衛</span><span class="text-slate-300 text-right">2:AC-3 DR+5 / 3:受傷-20% / 5:挨打反擊全敵</span></div>
+                            <div class="flex justify-between"><span class="text-pink-200">麗人</span><span class="text-slate-300 text-right">2:近傷+3 近命+3 / 3:近爆+3% / 5:連續miss加命中</span></div>
+                            <div class="flex justify-between"><span class="text-green-200">疾風</span><span class="text-slate-300 text-right">2:遠傷+3 遠命+3 / 3:遠爆+3% / 5:彈幕傷30%→80%</span></div>
+                            <div class="flex justify-between"><span class="text-yellow-200">月光</span><span class="text-slate-300 text-right">2:額外傷+2 命中+3 / 3:ER+5 MR+10 / 5:ER對魔法生效</span></div>
+                            <div class="flex justify-between"><span class="text-sky-200">學徒</span><span class="text-slate-300 text-right">2:MPR+5 MP+6 / 3:魔爆+3% / 5:MP<30%耗魔減半</span></div>
+                            <div class="flex justify-between"><span class="text-purple-200">魔女</span><span class="text-slate-300 text-right">2:魔法傷+3 / 3:水抗+10 MP+5 / 5:5共振→免費冰雪暴</span></div>
+                            <div class="flex justify-between"><span class="text-gray-300">暗影</span><span class="text-slate-300 text-right">2:額外傷+7 / 3:閃避回2%HP / 5:雙擊傷×2</span></div>
+                            <div class="flex justify-between"><span class="text-indigo-200">幻覺</span><span class="text-slate-300 text-right">2:魔傷回LV/10 MP / 3:輔助技MP-50% / 5:魔法附加等傷</span></div>
+                            <div class="flex justify-between"><span class="text-red-400">龍血</span><span class="text-slate-300 text-right">2:物傷回1%HP / 3:耗HP技龍鱗10s減傷15% / 5:耗HP技傷+20%</span></div>
+                            <div class="flex justify-between"><span class="text-orange-300">狂怒</span><span class="text-slate-300 text-right">2:負重+500 / 3:HP+20% / 5:每少10%HP ±4%傷(±20%極限)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 傳統套裝 -->
+                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                        <div class="text-emerald-300 font-bold text-base mb-1">🛡️ 傳統套裝</div>
+                        <div class="space-y-1 text-xs">
+                            <div class="flex justify-between"><span>皮套裝</span><span class="text-slate-300">4件 AC-3</span></div>
+                            <div class="flex justify-between"><span>歐西斯套裝</span><span class="text-slate-300">4件 AC-3</span></div>
+                            <div class="flex justify-between"><span>侏儒套裝</span><span class="text-slate-300">3件 AC-1 HP+5</span></div>
+                            <div class="flex justify-between"><span>銀釘套裝</span><span class="text-slate-300">4件 AC-3</span></div>
+                            <div class="flex justify-between"><span>骷髏套裝</span><span class="text-slate-300">3件 AC-2 HP+10</span></div>
+                            <div class="flex justify-between"><span>鋼鐵套裝</span><span class="text-slate-300">5件 AC-2 DR+2</span></div>
+                            <div class="flex justify-between"><span>法師套裝</span><span class="text-slate-300">2件 MP+50</span></div>
+                            <div class="flex justify-between"><span>死亡騎士套裝</span><span class="text-slate-300">4件 AC-4 變身真死騎(傷+6 命+6 攻速+35%)</span></div>
+                            <div class="flex justify-between"><span>克特套裝</span><span class="text-slate-300">4件 AC-4 變身真克特(傷+4 命+8 攻速+35%)</span></div>
+                            <div class="flex justify-between"><span>抗魔套裝</span><span class="text-slate-300">3件 MR+5</span></div>
+                            <div class="flex justify-between"><span>守護套裝</span><span class="text-slate-300">3件 AC-1</span></div>
+                            <div class="flex justify-between"><span>四大軍王套裝</span><span class="text-slate-300">4件 HP+30 MP+30 HPR+10 MPR+10 CHA+3</span></div>
+                            <div class="flex justify-between"><span>惡魔套裝</span><span class="text-slate-300">4件 AC-2 HPR+5 變身惡魔(多種加成可堆疊)</span></div>
+                            <div class="flex justify-between"><span>黑暗妖精套裝</span><span class="text-slate-300">3件 AC-3 STR-2 DEX+2 變身高精(遠傷+5 遠命+5 攻速+30%)</span></div>
+                        </div>
+                    </div>
+
+                    <!-- 裝備收藏 -->
+                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+                        <div class="text-yellow-400 font-bold text-base mb-1">📚 裝備收藏（29 類）</div>
+                        <div class="text-slate-500 text-xs mb-2">收集全類別物品 → 永久加成（帳號共通）</div>
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                            <span class="text-slate-300">匕首</span><span class="text-white text-right">MP+5</span>
+                            <span class="text-slate-300">單手劍</span><span class="text-white text-right">DR+1</span>
+                            <span class="text-slate-300">雙手劍</span><span class="text-white text-right">HP+10</span>
+                            <span class="text-slate-300">武士刀</span><span class="text-white text-right">HP+5</span>
+                            <span class="text-slate-300">單/雙手鈍器</span><span class="text-white text-right">負重+10 各</span>
+                            <span class="text-slate-300">矛</span><span class="text-white text-right">MR+1</span>
+                            <span class="text-slate-300">鋼爪</span><span class="text-white text-right">HPR+1</span>
+                            <span class="text-slate-300">雙刀</span><span class="text-white text-right">DR+1</span>
+                            <span class="text-slate-300">鎖鏈劍</span><span class="text-white text-right">HP+5</span>
+                            <span class="text-slate-300">弓</span><span class="text-white text-right">ER+1</span>
+                            <span class="text-slate-300">十字弓</span><span class="text-white text-right">MR+1</span>
+                            <span class="text-slate-300">魔杖</span><span class="text-white text-right">MPR+1</span>
+                            <span class="text-slate-300">奇古獸</span><span class="text-white text-right">MP+5</span>
+                            <span class="text-slate-300 border-t border-slate-700 pt-0.5">頭盔</span><span class="text-white text-right border-t border-slate-700 pt-0.5">DR+1</span>
+                            <span class="text-slate-300">盔甲</span><span class="text-white text-right">AC-1</span>
+                            <span class="text-slate-300">斗篷</span><span class="text-white text-right">MR+1</span>
+                            <span class="text-slate-300">長靴</span><span class="text-white text-right">ER+1</span>
+                            <span class="text-slate-300">手套</span><span class="text-white text-right">DR+1</span>
+                            <span class="text-slate-300">盾牌</span><span class="text-white text-right">HP+10</span>
+                            <span class="text-slate-300">臂甲</span><span class="text-white text-right">負重+10</span>
+                            <span class="text-slate-300 border-t border-slate-700 pt-0.5">項鍊</span><span class="text-white text-right border-t border-slate-700 pt-0.5">HPR+1</span>
+                            <span class="text-slate-300">戒指</span><span class="text-white text-right">MPR+1</span>
+                            <span class="text-slate-300">腰帶</span><span class="text-white text-right">負重+20</span>
+                            <span class="text-slate-300">耳環</span><span class="text-white text-right">MPR+1</span>
+                            <span class="text-slate-300 border-t border-slate-700 pt-0.5">寵物裝備</span><span class="text-white text-right border-t border-slate-700 pt-0.5">寵物命中+1</span>
+                            <span class="text-slate-300">魔法娃娃</span><span class="text-white text-right">全屬性+1</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-search" class="p-4 overflow-y-auto h-full hidden flex-col gap-3 text-sm">
+                    <div class="border-b border-slate-700 pb-2 mb-1">
+                        <span class="text-yellow-400 font-bold text-base">🔍 物品掉落查詢</span>
+                        <span class="text-slate-400 ml-2 text-xs">輸入物品名稱，查詢哪些怪物會掉落；點擊怪物名稱查看出沒區域</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="search-input" class="flex-1 bg-slate-900 border border-slate-600 text-white px-3 py-2 rounded text-base outline-none focus:border-cyan-500" placeholder="輸入物品名稱…" oninput="onSearchInput()">
+                        <button class="btn px-4 py-2 bg-cyan-800 hover:bg-cyan-700 border-cyan-600 text-white font-bold" onclick="onSearchInput()">查詢</button>
+                    </div>
+                    <div id="search-stats" class="text-slate-500 text-xs"></div>
+                    <div id="search-results" class="flex flex-col gap-2"></div>
+                </div>
             </div>
         </div>
     </div>
