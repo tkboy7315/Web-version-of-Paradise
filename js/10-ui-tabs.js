@@ -205,8 +205,8 @@ player.inv.forEach(i => {
         let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;   // 屬性限制已解除
-        //if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;             // 屬性限制已解除
+        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
+        if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         let imgUrl = getIconUrl(sk, true);
         let _bd = !isAvail ? 'border-slate-600 opacity-50'
             : (sk.type === 'manual' ? 'border-amber-500'
@@ -242,6 +242,7 @@ player.inv.forEach(i => {
     // 還原各分頁捲動位置
     ['tab-items','tab-weapons','tab-armors','tab-equip','tab-skill'].forEach(id => { let el = document.getElementById(id); if(el && _scroll[id] != null) el.scrollTop = _scroll[id]; });
     updateSummonLock();
+    if (typeof refreshEquipmentWindow === 'function') refreshEquipmentWindow();
 }
 
 // ===== 召喚類技能互斥：迷魅 / 召喚 / 造屍 / 召喚屬性精靈 / 召喚強力屬性精靈 同時只能開啟一個 =====
@@ -304,8 +305,8 @@ function onAwakenToggle(sid) {
 function endAutoBuffNow(sid) {
     let sk = DB.skills[sid]; if (!sk) return false;
     let ended = false;
-    if (sk.type === 'heal' && sk.autoBuff) {   // HoT 治癒（體力回復術/生命的祝福）：清掉持續回復
-        if (player.hot && (player.hot.skId === sid || player.hot.skId == null)) { player.hot = null; ended = true; }
+    if (sk.type === 'heal' && sk.autoBuff) {   // HoT 治癒（體力回復術/生命的祝福）：清掉該技能的團隊持續回復（全隊一併停止該 HoT）
+        if (player.hots && player.hots[sid]) { delete player.hots[sid]; ended = true; }
     } else {   // 一般 buff 技能（立方/火牢/冰雪颶風/日光/暗隱/力盔敏盔/覺醒…）：歸零該增益計時
         if ((player.buffs[sid] || 0) > 0) { player.buffs[sid] = 0; ended = true; }
     }
@@ -351,8 +352,8 @@ function renderSkillSelects() {
         let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;   // 屬性限制已解除
-        //if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;             // 屬性限制已解除
+        if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
+        if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
@@ -493,7 +494,7 @@ function buildItemDescHTML(item) {
         if(d.dmgBonus !== undefined) desc += ` / ${dmgLabel}: ${formatBonus(d.dmgBonus)}`; // 加上 !== undefined 避免 0 被漏掉
         
         if(d.mdmg) desc += ` / 魔法傷害: ${formatBonus(d.mdmg)}`;
-        if((item.en || 0) >= 1) desc += `<br><span class="text-amber-300">強化最終傷害 ×${enhanceWpnFinalMult(item.en).toFixed(2)}</span>`;   // 🔧 武器強化最終傷害倍率（+1 起·×1.02~×2.50）
+        if((item.en || 0) >= 1) desc += `<br><span class="text-amber-300">強化最終傷害 ×${enhanceWpnFinalMult(item.en, d).toFixed(2)}</span>`;   // 🔧 武器強化最終傷害倍率（+1 起·依潘朵拉權重分級·最高 ×1.02~×2.50）
 
         // 瑪那魔杖等「命中恢復MP」武器：依此物品的強化等級(+N)動態顯示恢復量
         if(d.eff === 'mp_drain' || d.mpOnHit) {
@@ -1324,27 +1325,33 @@ function sortInventory() {
 }
 
 // 一鍵賣出所有已勾為廢品的武器/防具/飾品（鎖定者不會被賣，因鎖定時已自動取消勾選）
-// ⏲️ 自動賣出廢品：由主迴圈 tick（每 60 秒）呼叫；賣掉所有標示為廢品(且非鎖定/可販售)的物品。無廢品→靜默不洗版。
-function autoSellJunk(manual) {   // manual=true → 玩家按「一鍵賣出」立即賣（無廢品時給提示）；不帶參數＝主迴圈自動賣(靜默)
+// ⏲️ 自動賣出廢品：由主迴圈 tick（每 10 秒·JUNK_AUTOSELL_TICKS）呼叫；賣掉所有標示為廢品(且非鎖定/可販售)的物品。無廢品→靜默不洗版。
+//    ⚡ 2026-07-01 效能：自動路徑（manual 未帶）賣出後「不 saveGame」——避免每 10 秒都壓縮整包存檔；賣掉的廢品/金幣靠其他既有存檔點(頭目擊殺/換地圖/裝備/操作/手動存檔)落地，崩潰重載最多回到未賣狀態(廢品仍在→下輪重標再賣·自癒)。手動「一鍵賣出」仍立即 saveGame。
+function autoSellJunk(manual) {   // manual=true → 玩家按「一鍵賣出」立即賣(並存檔)；不帶參數＝主迴圈自動賣(靜默·不存檔)
     if (!player || !Array.isArray(player.inv)) return;
+    if (!manual && typeof applyAutoSellRules === 'function') applyAutoSellRules();
+    let _delayMs = manual ? 0 : ((typeof getAutoSellRules === 'function' ? getAutoSellRules().delaySec : 10) * 1000);
+    let _now = Date.now();
     let toSell = player.inv.filter(i => {
         let d = DB.items[i.id];
-        return i.junk && !i.lock && d && !d.noSell;   // 🏅 不可販售物（精通之證）排除
+        if (i.junk && !i.junkSince) i.junkSince = _now;
+        return i.junk && !i.lock && d && !d.noSell && (manual || (_now - i.junkSince >= _delayMs));
     });
     if (toSell.length === 0) { if (manual) logSys('<span class="text-slate-400">目前沒有標記為廢品的物品可賣出（請先在 武器／防具／道具 分頁用「🗑️ 快速廢品」標記）。</span>'); return; }   // 無廢品→自動靜默、手動給提示
     let totalGold = 0, totalCount = 0;
-    toSell.forEach(i => { totalGold += getSellPrice(i) * i.cnt; totalCount += i.cnt; });
+    toSell.forEach(i => { let q = Math.min(i.cnt, i._autoSellQty || i.cnt); totalGold += getSellPrice(i) * q; totalCount += q; });
     let _grantSold = toSell.some(i => DB.items[i.id] && DB.items[i.id].grantSkills);
-    player.inv = player.inv.filter(i => !toSell.includes(i));
+    toSell.forEach(i => { let q = Math.min(i.cnt, i._autoSellQty || i.cnt); i.cnt -= q; delete i._autoSellQty; if (i.cnt > 0) { i.junk = false; delete i.junkSince; } });
+    player.inv = player.inv.filter(i => i.cnt > 0);
     player.gold += totalGold;
     logSys(`<span class="text-amber-300">${manual ? '一鍵賣出' : '系統自動賣出'} ${toSell.length} 件(共 ${totalCount} 個)廢品，獲得 <span class="text-yellow-400 font-bold">${totalGold}</span> 金幣。</span>`);
     renderTabs();
     updateUI();
     if(_grantSold) { calcStats(); renderSkillSelects(); }
-    saveGame();
+    if(manual) saveGame();   // ⚡ 只有手動「一鍵賣出」才立即存檔；自動賣出不 saveGame（避免每 10 秒壓縮整包存檔·靠其他存檔點落地）
 }
 
-// 🗑️ 自動賣出開關（右上角按鈕）：點亮＝開啟自動賣出(每 3 分鐘)；點一下變暗、文字「停止賣出」並暫停。狀態存 player.autoSellOn(預設開·undefined 視為開)，隨存檔持久化。
+// 🗑️ 自動賣出開關（右上角按鈕）：點亮＝開啟自動賣出(每 10 秒)；點一下變暗、文字「停止賣出」並暫停。狀態存 player.autoSellOn(預設開·undefined 視為開)，隨存檔持久化。
 function toggleAutoSell() {
     if (!player) return;
     player.autoSellOn = (player.autoSellOn === false);   // false→true(開)；true/undefined→false(停)
@@ -1357,8 +1364,112 @@ function _renderAutoSellBtn() {
     b.textContent = on ? '自動賣出' : '停止賣出';
     b.style.opacity = on ? '' : '0.4';            // 變暗＝停止
     b.style.filter = on ? '' : 'grayscale(0.85)';
-    b.title = on ? '自動賣出已開啟（每 3 分鐘賣出標記為廢品的物品）。點一下暫停。' : '自動賣出已停止。點一下重新開啟。';
+    b.title = on ? '自動賣出已開啟（每 10 秒賣出標記為廢品的物品）。點一下暫停。' : '自動賣出已停止。點一下重新開啟。';
 }
+
+// ===== 自動販賣規則（初版） =====
+function getAutoSellRules() {
+    if (!player.autoSellRules) player.autoSellRules = {
+        delaySec: 60,
+        protectBless: true, protectAnc: true, protectAttr: true, protectSet: true,
+        equip: { wpn: { on:false, max:0 }, arm: { on:false, max:0 }, acc: { on:false, max:0 } },
+        misc: {}, overrides: {}
+    };
+    let r = player.autoSellRules;
+    if (!r.equip) r.equip = {};
+    ['wpn','arm','acc'].forEach(k => { if (!r.equip[k]) r.equip[k] = { on:false, max:0 }; });
+    if (!r.misc) r.misc = {};
+    if (!r.overrides) r.overrides = {};
+    if (r.delaySec == null) r.delaySec = 60;
+    ['protectBless','protectAnc','protectAttr','protectSet'].forEach(k => { if (r[k] == null) r[k] = true; });
+    return r;
+}
+function _asTypeLabel(t) {
+    return ({pot:'藥水',scroll:'卷軸',book:'魔法書／技能書',mat:'材料',gem:'寶石',etc:'製作材料',misc:'特殊道具',quest:'任務道具',wpn:'武器',arm:'防具',acc:'飾品'})[t] || t;
+}
+function _asEquipType(d) {
+    if (!d) return null;
+    if (d.type === 'wpn' && !d.isArrow) return 'wpn';
+    if (d.type === 'arm') return 'arm';
+    if (d.type === 'acc') return 'acc';
+    return null;
+}
+function _autoSellDecision(i) {
+    let r = getAutoSellRules(), d = DB.items[i.id];
+    if (!d || i.lock || d.noSell || d.noJunk) return { sell:false };
+    let ov = r.overrides[i.id];
+    if (ov === 'keep') return { sell:false };
+    if (ov === 'sell') return { sell:true, qty:i.cnt };
+    let et = _asEquipType(d);
+    if (et) {
+        let er = r.equip[et];
+        if (!er || !er.on || (i.en || 0) > Number(er.max || 0)) return { sell:false };
+        if ((r.protectBless && i.bless) || (r.protectAnc && i.anc) || (r.protectAttr && i.attr) || (r.protectSet && i.seteff)) return { sell:false };
+        return { sell:true, qty:i.cnt };
+    }
+    let mr = r.misc[d.type];
+    if (!mr || !mr.on) return { sell:false };
+    let keep = Math.max(0, Number(mr.keep || 0));
+    return { sell:i.cnt > keep, qty:Math.max(0, i.cnt - keep) };
+}
+function applyAutoSellRules() {
+    if (!player || !Array.isArray(player.inv)) return;
+    let now = Date.now();
+    player.inv.forEach(i => {
+        let x = _autoSellDecision(i);
+        if (x.sell) {
+            if (!i.junk) i.junkSince = now;
+            i.junk = true; i._autoSellQty = x.qty;
+        } else if (i._ruleJunk) {
+            i.junk = false; delete i.junkSince; delete i._autoSellQty;
+        }
+        i._ruleJunk = !!x.sell;
+    });
+}
+function openAutoSellRules() {
+    let r = getAutoSellRules();
+    let old = document.getElementById('autosell-rule-modal'); if (old) old.remove();
+    let miscTypes = [...new Set(Object.values(DB.items).filter(d => d && !_asEquipType(d)).map(d => d.type).filter(Boolean))].sort();
+    let ids = Object.keys(DB.items).filter(id => DB.items[id]).sort((a,b) => (DB.items[a]?.n || a).localeCompare(DB.items[b]?.n || b, 'zh-Hant'));
+    let exceptionTypes = [...new Set(ids.map(id => _asEquipType(DB.items[id]) || DB.items[id].type).filter(Boolean))].sort();
+    let equipRows = [['wpn','武器'],['arm','防具'],['acc','飾品']].map(([k,n]) => `<label class="as-row"><input id="as-e-${k}" type="checkbox" ${r.equip[k].on?'checked':''}> ${n}，強化值 ≤ <input id="as-em-${k}" type="number" min="0" max="99" value="${r.equip[k].max}"> 自動販賣</label>`).join('');
+    let miscRows = miscTypes.map(t => { let x=r.misc[t]||{on:false,keep:0}; return `<label class="as-row"><input class="as-misc" data-type="${t}" type="checkbox" ${x.on?'checked':''}> ${_asTypeLabel(t)}：每種保留 <input class="as-keep" data-type="${t}" type="number" min="0" value="${x.keep}"> 個，多餘販賣</label>`; }).join('');
+    let itemRows = ids.map(id => `<option value="${id}">${DB.items[id]?.n || id}</option>`).join('');
+    let exceptionTypeRows = exceptionTypes.map(t => `<option value="${t}">${_asTypeLabel(t)}</option>`).join('');
+    let rules = Object.entries(r.overrides).map(([id,v]) => `<div class="as-ex"><span>${DB.items[id]?.n || id}</span><b>${v==='keep'?'永遠保留':'全部販賣'}</b><button onclick="deleteAutoSellOverride('${id}')">刪除</button></div>`).join('') || '<div class="as-muted">目前沒有個別例外</div>';
+    let el=document.createElement('div'); el.id='autosell-rule-modal'; el.innerHTML=`<style>
+      #autosell-rule-modal{position:fixed;inset:0;background:#020617aa;z-index:10050;display:flex;align-items:center;justify-content:center;color:#e2e8f0}
+      .as-box{width:min(720px,92vw);max-height:88vh;overflow:auto;background:#172033;border:2px solid #b7791f;border-radius:14px;padding:18px;box-shadow:0 18px 60px #000}
+      .as-head{display:flex;justify-content:space-between;align-items:center;font-size:23px;font-weight:bold;color:#fde68a}.as-sec{background:#0f172acc;border:1px solid #475569;border-radius:10px;padding:12px;margin-top:12px}.as-title{font-weight:bold;color:#fbbf24;margin-bottom:7px}.as-row{display:block;padding:5px 0}.as-row input[type=number]{width:72px;background:#020617;border:1px solid #64748b;border-radius:5px;padding:3px;text-align:center}.as-row input[type=checkbox]{width:18px;height:18px;vertical-align:middle}.as-help,.as-muted{font-size:13px;color:#94a3b8}.as-actions{display:flex;gap:8px;margin-top:12px}.as-actions button,.as-head button,.as-ex button,.as-ex-tools button{background:#334155;border:1px solid #64748b;border-radius:6px;padding:6px 12px}.as-actions .primary{background:#92400e;border-color:#f59e0b}.as-ex{display:flex;gap:10px;align-items:center;padding:5px;border-bottom:1px solid #334155}.as-ex span{flex:1}.as-ex b{color:#fcd34d}.as-ex-tools{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.as-ex-tools input,.as-ex-tools select,select{background:#020617;border:1px solid #64748b;padding:6px;border-radius:6px}.as-ex-tools input{min-width:180px;flex:1}#as-item{width:min(100%,390px);margin-bottom:7px}
+    </style><div class="as-box"><div class="as-head"><span>自動販賣規則</span><button onclick="closeAutoSellRules()">Close</button></div>
+      <div class="as-sec"><label class="as-row"><input id="as-on" type="checkbox" ${player.autoSellOn!==false?'checked':''}> 啟用自動販賣</label><label class="as-row">物品取得／符合規則後，等待 <input id="as-delay" type="number" min="10" max="86400" value="${r.delaySec}"> 秒才販賣</label><div class="as-help">等待期間可取消廢品標記或鎖定物品。手動「一鍵賣出」不受等待時間限制。</div></div>
+      <div class="as-sec"><div class="as-title">裝備條件</div>${equipRows}<label class="as-row"><input id="as-pb" type="checkbox" ${r.protectBless?'checked':''}> 保護祝福裝備</label><label class="as-row"><input id="as-pa" type="checkbox" ${r.protectAnc?'checked':''}> 保護古代裝備</label><label class="as-row"><input id="as-pt" type="checkbox" ${r.protectAttr?'checked':''}> 保護屬性裝備</label><label class="as-row"><input id="as-ps" type="checkbox" ${r.protectSet?'checked':''}> 保護套裝詞綴裝備</label></div>
+      <div class="as-sec"><div class="as-title">材料與一般物品</div>${miscRows}<div class="as-help">任務物品、不可販賣物品與系統保護物品不會被處理。</div></div>
+      <div class="as-sec"><div class="as-title">個別例外（全遊戲物品）</div><div class="as-ex-tools"><input id="as-item-search" type="search" placeholder="輸入物品名稱搜尋" oninput="refreshAutoSellItemOptions()"><select id="as-item-type" onchange="refreshAutoSellItemOptions()"><option value="all">全部分類</option>${exceptionTypeRows}</select><select id="as-item-scope" onchange="refreshAutoSellItemOptions()"><option value="all">全部物品</option><option value="held">目前持有</option></select></div><div><select id="as-item">${itemRows}</select> <button onclick="setAutoSellOverride('keep')">永遠保留</button> <button onclick="setAutoSellOverride('sell')">全部販賣</button></div><div class="as-help">例外依物品本體全局套用，包含未取得物品及其所有強化、祝福、屬性與套裝版本。</div><div id="as-overrides">${rules}</div></div>
+      <div class="as-actions"><button onclick="previewAutoSellRules()">預覽符合物品</button><button class="primary" onclick="saveAutoSellRules()">儲存規則</button></div></div>`;
+    document.body.appendChild(el);
+}
+function closeAutoSellRules(){ let e=document.getElementById('autosell-rule-modal'); if(e)e.remove(); }
+function _readAutoSellForm(){
+    let r=getAutoSellRules(); r.delaySec=Math.max(10,Number(document.getElementById('as-delay').value)||60); player.autoSellOn=document.getElementById('as-on').checked;
+    ['wpn','arm','acc'].forEach(k=>{r.equip[k].on=document.getElementById('as-e-'+k).checked;r.equip[k].max=Math.max(0,Number(document.getElementById('as-em-'+k).value)||0)});
+    r.protectBless=document.getElementById('as-pb').checked;r.protectAnc=document.getElementById('as-pa').checked;r.protectAttr=document.getElementById('as-pt').checked;r.protectSet=document.getElementById('as-ps').checked;
+    document.querySelectorAll('.as-misc').forEach(x=>{let t=x.dataset.type,k=document.querySelector(`.as-keep[data-type="${t}"]`);r.misc[t]={on:x.checked,keep:Math.max(0,Number(k.value)||0)}}); return r;
+}
+function saveAutoSellRules(){_readAutoSellForm();applyAutoSellRules();_renderAutoSellBtn();saveGame();renderTabs();closeAutoSellRules();logSys('<span class="text-amber-300">已儲存自動販賣規則；符合的物品會先進入防呆等待期。</span>')}
+function previewAutoSellRules(){_readAutoSellForm();let a=(player.inv||[]).map(i=>({i,x:_autoSellDecision(i)})).filter(o=>o.x.sell);alert(a.length?`目前符合 ${a.length} 種：\n`+a.slice(0,30).map(o=>`${getItemFullName(o.i)} × ${o.x.qty}`).join('\n')+(a.length>30?'\n……':''):'目前沒有符合規則的物品。')}
+function refreshAutoSellItemOptions(){
+    let select=document.getElementById('as-item'); if(!select)return;
+    let q=(document.getElementById('as-item-search')?.value||'').trim().toLowerCase();
+    let type=document.getElementById('as-item-type')?.value||'all';
+    let scope=document.getElementById('as-item-scope')?.value||'all';
+    let held=new Set((player.inv||[]).map(i=>i.id));
+    let ids=Object.keys(DB.items).filter(id=>{let d=DB.items[id];if(!d)return false;let cat=_asEquipType(d)||d.type;if(type!=='all'&&cat!==type)return false;if(scope==='held'&&!held.has(id))return false;return !q||((d.n||id)+' '+id).toLowerCase().includes(q)}).sort((a,b)=>(DB.items[a]?.n||a).localeCompare(DB.items[b]?.n||b,'zh-Hant'));
+    select.innerHTML=ids.map(id=>`<option value="${id}">${DB.items[id]?.n||id}${DB.items[id]?.noSell?'（不可販賣）':''}</option>`).join('');
+    if(!ids.length)select.innerHTML='<option value="">沒有符合的物品</option>';
+}
+function setAutoSellOverride(v){let id=document.getElementById('as-item').value;if(!id)return;_readAutoSellForm();getAutoSellRules().overrides[id]=v;openAutoSellRules()}
+function deleteAutoSellOverride(id){_readAutoSellForm();delete getAutoSellRules().overrides[id];openAutoSellRules()}
 function toggleLock(uid) {
     let item = player.inv.find(i => i.uid === uid);
     if (item) {
@@ -1416,6 +1527,8 @@ function _allySkillOptions(ally, kind, cur) {
         // ⚠️ ally.skills 皆為「該傭兵已學會」的技能→一律可選；不可用 skillReqLv/reqEle 判可用性（那會依『目前玩家』職業誤判，使跨職業傭兵如幻術士的攻擊技全被 disabled）
         let match = (kind === 'atk')
             ? (sk.type === 'atk' && !sk.healSlot)
+            : (kind === 'convert')
+            ? (sk.type === 'convert' || sid === 'sk_illu_cube_harmony')   // 🔄 轉換技能欄：type:'convert'（魂體/心靈/魔力奪取）＋ 立方和諧
             : ((sk.type === 'heal' && !sk.autoBuff && !['sk_antidote', 'sk_holy_light', 'sk_cancel'].includes(sid)) || (sk.type === 'atk' && sk.healSlot));
         if (!match) return;
         opts += `<option value="${sid}"${cur === sid ? ' selected' : ''}>${sk.n}</option>`;
@@ -1435,12 +1548,12 @@ function renderSquadPanel() {
         _squadSig = sig;
         document.getElementById('squad-tab-team').innerHTML = allies.map(a => {
             let s = a._slot;
-            if (a._downed) {   // 🤝 Phase 3：倒地→灰顯卡片＋兩種復活鈕（返生術：消耗MP·無冷卻立即；復活卷軸：死亡15秒後。鈕文字/可用狀態每幀更新）
+            if (a._downed) {   // 🤝 Phase 3：倒地→灰顯卡片。返生術＝手動鈕（消耗MP·無冷卻立即）；復活卷軸＝v2.6.6 改自動（15秒冷卻結束身上有卷軸即自動使用），此處只顯示狀態文字（不可點）。每幀更新。
                 return `<div class="bg-slate-900/70 border border-red-900 rounded p-2 flex items-center justify-between gap-2" style="opacity:0.85;">
                     <div class="text-sm"><span class="font-bold text-slate-400">${a._allyName}</span> <span class="text-slate-600 text-xs">Lv.${a.lv || 1}</span> <span class="text-red-400 font-bold">【倒地】</span></div>
-                    <div class="flex gap-1 shrink-0">
+                    <div class="flex items-center gap-1 shrink-0">
                         <button id="squad-rez-${s}" class="py-1 px-2 text-xs font-bold rounded border whitespace-nowrap" style="background:#1e3a8a;border-color:#3b82f6;color:#bfdbfe;" onclick="reviveMercenary('${s}','rez')">返生術</button>
-                        <button id="squad-revive-${s}" class="py-1 px-2 text-xs font-bold rounded border whitespace-nowrap" style="background:#7f1d1d;border-color:#b91c1c;color:#fecaca;" onclick="reviveMercenary('${s}','scroll')">卷軸</button>
+                        <span id="squad-revive-${s}" class="py-1 px-2 text-xs font-bold rounded border whitespace-nowrap" style="background:#3f1d1d;border-color:#7f1d1d;color:#fca5a5;cursor:default;" title="倒地 15 秒後，若身上有復活卷軸將自動使用。">卷軸</span>
                     </div>
                 </div>`;
             }
@@ -1455,13 +1568,18 @@ function renderSquadPanel() {
         document.getElementById('squad-tab-skill').innerHTML = allies.map(a => {
             let s = a._slot;
             let hpPct = (a._healHpPct != null) ? a._healHpPct : 70;
-            let safePct = (a._hpSafePct != null) ? a._hpSafePct : 0;
+            let potPct = (a._potHpPct != null) ? a._potHpPct : ((a._hpSafePct != null) ? a._hpSafePct : 0);
+            let skillPct = (a._hpSkillPct != null) ? a._hpSkillPct : ((a._hpSafePct != null) ? a._hpSafePct : 0);
+            let mpPct = (a._castMpPct != null) ? a._castMpPct : 0;   // 🆕 v2.6.27 施法MP門檻
             return `<div class="bg-slate-800/60 border border-slate-600 rounded p-2 flex flex-col gap-1">
                 <div class="text-sm font-bold text-amber-200">${a._allyName} <span class="text-slate-500 text-xs">Lv.${a.lv || 1}</span></div>
-                <div class="flex items-center gap-1 text-xs"><span class="text-cyan-400 font-bold shrink-0" style="width:3rem;">攻擊技能</span><select class="flex-1 bg-slate-900 border border-slate-600 text-cyan-300 px-1 py-1 rounded text-xs outline-none" onchange="setAllyAtkSkill('${s}', this.value)">${_allySkillOptions(a, 'atk', a._atkSkill || '')}</select></div>
-                <div class="flex items-center gap-1 text-xs"><span class="text-green-400 font-bold shrink-0" style="width:3rem;">治癒魔法</span><select class="flex-1 bg-slate-900 border border-slate-600 text-green-300 px-1 py-1 rounded text-xs outline-none" onchange="setAllyHealSkill('${s}', this.value)">${_allySkillOptions(a, 'heal', a._healSkill || '')}</select></div>
-                <div class="flex items-center justify-end gap-1 text-xs text-slate-400">HP &lt; <input type="number" min="0" max="100" value="${hpPct}" class="w-12 bg-slate-900 border border-slate-600 text-center text-white rounded" onchange="setAllyHealHp('${s}', this.value)">% 施放治癒</div>
-                <div class="flex items-center justify-end gap-1 text-xs text-amber-400" title="HP 安全線：低於此％時，喝隊長設定的藥水回血，並暫停施放消耗 HP 的技能（退回普攻）。0 = 關閉。">HP &lt; <input type="number" min="0" max="100" value="${safePct}" class="w-12 bg-slate-900 border border-amber-700 text-center text-white rounded" onchange="setAllyHpSafe('${s}', this.value)">% 喝藥水/停耗HP技</div>
+                <div class="flex items-center gap-1 text-xs"><span class="text-cyan-400 font-bold shrink-0" style="width:3rem;">攻擊技能</span><select class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-cyan-300 px-1 py-1 rounded text-xs outline-none" onchange="setAllyAtkSkill('${s}', this.value)">${_allySkillOptions(a, 'atk', a._atkSkill || '')}</select><span class="shrink-0 flex items-center text-blue-300 whitespace-nowrap" title="MP％ 高於此值才施放攻擊技（0 = 不限）。">MP&gt;<input type="number" min="0" max="100" value="${mpPct}" class="w-10 bg-slate-900 border border-blue-700 text-center text-white rounded" onchange="setAllyCastMp('${s}', this.value)">%</span></div>
+                <div class="flex items-center gap-1 text-xs"><span class="text-green-400 font-bold shrink-0" style="width:3rem;">治癒魔法</span><select class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-green-300 px-1 py-1 rounded text-xs outline-none" onchange="setAllyHealSkill('${s}', this.value)">${_allySkillOptions(a, 'heal', a._healSkill || '')}</select><span class="shrink-0 flex items-center text-green-300 whitespace-nowrap" title="HP％ 低於此值才施放治癒。">HP&lt;<input type="number" min="0" max="100" value="${hpPct}" class="w-10 bg-slate-900 border border-green-700 text-center text-white rounded" onchange="setAllyHealHp('${s}', this.value)">%</span></div>
+                <div class="flex items-center gap-1 text-xs"><span class="text-purple-400 font-bold shrink-0" style="width:3rem;">轉換技能</span><select class="flex-1 min-w-0 bg-slate-900 border border-slate-600 text-purple-300 px-1 py-1 rounded text-xs outline-none" onchange="setAllyConvertSkill('${s}', this.value)">${_allySkillOptions(a, 'convert', a._convertSkill || '')}</select></div>
+                <div class="flex items-stretch gap-1 text-xs">
+                    <span class="flex-1 flex items-center justify-center gap-0.5 text-amber-400 bg-slate-900/40 border border-amber-800 rounded py-0.5" title="低於此％時，喝隊長設定的藥水回血。0 = 關閉。">HP&lt;<input type="number" min="0" max="100" value="${potPct}" class="w-10 bg-slate-900 border border-amber-700 text-center text-white rounded" onchange="setAllyPotHp('${s}', this.value)">%喝水</span>
+                    <span class="flex-1 flex items-center justify-center gap-0.5 text-rose-400 bg-slate-900/40 border border-rose-800 rounded py-0.5" title="低於此％時，暫停施放消耗 HP 的技能（龍騎士 HP 技／轉換技能／立方和諧），退回普攻。0 = 關閉。">HP&lt;<input type="number" min="0" max="100" value="${skillPct}" class="w-10 bg-slate-900 border border-rose-700 text-center text-white rounded" onchange="setAllyHpSkill('${s}', this.value)">%停技</span>
+                </div>
             </div>`;
         }).join('');
         switchSquadTab(_squadTab);   // 重建後還原目前分頁與按鈕高亮
@@ -1481,10 +1599,10 @@ function renderSquadPanel() {
                 rb.title = !learned ? '尚未學會返生術' : (player.dead ? '你已死亡' : ((player.mp || 0) >= cost ? ('立即復活（消耗 ' + cost + ' MP·無冷卻）') : ('MP 不足（需 ' + cost + '）')));
             }
             let b = document.getElementById('squad-revive-' + s);
-            if (b) {
+            if (b) {   // 🎫 v2.6.6：卷軸改自動（狀態顯示·不可點）。倒數中→顯示自動復活秒數；冷卻結束無卷軸→提示補卷軸即自動復活（返生術可手動立即）。
                 let cd = a._reviveCd || 0;
-                if (cd > 0) { b.textContent = '卷軸 ' + Math.ceil(cd / 10) + 's'; b.style.opacity = '0.45'; b.title = '復活卷軸須死亡 15 秒後才能使用'; }
-                else { let sc = player.inv && player.inv.find(i => i.id === 'scroll_revive'); let n = sc ? (sc.cnt || 0) : 0; b.textContent = n > 0 ? ('卷軸×' + n) : '無卷軸'; b.style.opacity = n > 0 ? '1' : '0.6'; b.title = n > 0 ? '使用復活卷軸復活' : '沒有復活卷軸'; }
+                if (cd > 0) { b.textContent = '自動 ' + Math.ceil(cd / 10) + 's'; b.style.opacity = '0.7'; b.title = '倒地 15 秒後，若身上有復活卷軸將自動使用（返生術可手動立即復活）。'; }
+                else { let sc = player.inv && player.inv.find(i => i.id === 'scroll_revive'); let n = sc ? (sc.cnt || 0) : 0; b.textContent = n > 0 ? ('卷軸×' + n) : '無卷軸'; b.style.opacity = n > 0 ? '1' : '0.6'; b.title = n > 0 ? '冷卻結束，將自動使用復活卷軸復活。' : '身上無復活卷軸；補充後將自動復活（或用返生術立即復活）。'; }
             }
             return;   // 倒地卡無血條，跳過下面 hp/mp/exp 更新
         }
@@ -1529,8 +1647,11 @@ function switchSquadTab(t) {
 function _findAlly(slot) { return (player.allies || []).find(a => a && String(a._slot) === String(slot)); }
 function setAllyAtkSkill(slot, val) { let a = _findAlly(slot); if (a) { a._atkSkill = val || ''; saveGame(); } }   // _atkSkill 即時生效（傭兵攻擊路徑直接讀 ally._atkSkill）
 function setAllyHealSkill(slot, val) { let a = _findAlly(slot); if (a) { a._healSkill = val || ''; saveGame(); } }   // _healSkill 儲存待 Phase 3 傭兵自動補血讀取
+function setAllyConvertSkill(slot, val) { let a = _findAlly(slot); if (a) { a._convertSkill = val || ''; saveGame(); } }   // 🔄 v2.6.4 轉換技能（type:'convert'／立方和諧）：即時生效（allyCubeTick/轉換施放路徑直接讀 ally._convertSkill）
 function setAllyHealHp(slot, val) { let a = _findAlly(slot); if (a) { a._healHpPct = Math.max(0, Math.min(100, parseInt(val) || 0)); saveGame(); } }
-function setAllyHpSafe(slot, val) { let a = _findAlly(slot); if (a) { a._hpSafePct = Math.max(0, Math.min(100, parseInt(val) || 0)); saveGame(); } }   // 🍶🛡️ HP 安全線：低於此%→喝隊長藥水＋暫停耗HP技能；0=關閉
+function setAllyPotHp(slot, val) { let a = _findAlly(slot); if (a) { a._potHpPct = Math.max(0, Math.min(100, parseInt(val) || 0)); saveGame(); } }   // 🍶 v2.6.4 喝藥水門檻（獨立·低於此%→喝隊長藥水；0=關閉）
+function setAllyHpSkill(slot, val) { let a = _findAlly(slot); if (a) { a._hpSkillPct = Math.max(0, Math.min(100, parseInt(val) || 0)); saveGame(); } }   // 🛡️ v2.6.4 停耗HP技門檻（獨立·低於此%→暫停龍騎HP技/轉換技/立方和諧；0=關閉）
+function setAllyCastMp(slot, val) { let a = _findAlly(slot); if (a) { a._castMpPct = Math.max(0, Math.min(100, parseInt(val) || 0)); saveGame(); } }   // 🆕 v2.6.27 施法MP門檻（MP% 高於此才施放攻擊技·0=不限·allyActWithSkillGate 讀 allyCastMpPct）
 
 // 自動化設定面板收合（只留標題）：收合時去掉 flex-1 改 0 0 auto，body 隱藏
 function _applyAutomationCollapse(collapsed) {

@@ -405,3 +405,14 @@
 #battle-view { flex: 1 1 auto; min-height: 0; }
 #battle-view:not(.area-fit):not(.hidden) { display: flex; align-items: center; justify-content: center; }
 #battle-view.area-fit .mob-img-wrap img { object-fit: contain; object-position: center bottom; }
+
+/* 🎴 卡片收集系統：卡片名稱色（普卡灰白／銀卡亮銀白／金卡亮金）＋未收集剪影 */
+.c-card-common { color: #d4d4d8; }
+.c-card-silver { color: #f8fafc; text-shadow: 0 0 5px #cbd5e1; }
+.c-card-gold   { color: #fcd34d; text-shadow: 0 0 7px #f59e0b; }
+.card-silhouette { filter: brightness(0) saturate(0); opacity: .55; }
+
+/* 桌面高解析度清晰度 */
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+img { image-rendering: -webkit-optimize-contrast; }
+#game-screen img, #creation-screen img, #battle-view img { filter: contrast(1.06) saturate(1.05); }

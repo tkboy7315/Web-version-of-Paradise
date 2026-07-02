@@ -290,11 +290,10 @@ function playMobKill(mob) {
     if (!_sfxPlayPool(key, 0.60)) playSfx('kill');   // 缺檔(null)→退回通用擊殺音
 }
 
-// ===== 🎵 背景音樂（自製系統 v2 · v2.5.8 場景偵測＋交叉淡入引擎，播 assets/Sound/music<id>.mp3）=====
-//   場景 title(登入)/create(創角)/town(共通安全區)/battle(野外戰鬥)/boss(頭目戰)＋專屬城鎮＋非城鎮區域（見 BGM_SCENE_MAP）。
-//   music 檔 assets/Sound/music<id>.mp3（id 對應 BGM_SCENE_MAP）。交叉淡入 1 秒（雙 Audio 元素）。
+// ===== 🎵 背景音樂（自製系統v2 · v2.5.8 場景偵測＋交叉淡入淡出·音檔 assets/Sound/music<id>.mp3）=====
+//   場景 title(登入)/create(創角)/town(共通安全區)/battle(野外戰鬥)/boss(頭目)＋專屬地圖區域（見 BGM_SCENE_MAP）。//   music → assets/Sound/music<id>.mp3（id 對應 BGM_SCENE_MAP）。交叉淡入淡出 1 秒（2 個 HTMLAudio 元素）。
 var _bgmCfg = { on: true, vol: 35 };
-// 場景 → music ID 映射（依 BGM設定紀錄.md）；無對應→回退對應（如 boss 暫用 battle 曲）
+// 🎵 場景 → music ID 對照表（見 BGM 設定記錄.md），不含戰鬥對應（例 boss 沿用 battle）
 var BGM_SCENE_MAP = {
     title: 0, create: 0, town: 0, battle: 6, boss: 6,
     // 專屬城鎮
@@ -303,11 +302,11 @@ var BGM_SCENE_MAP = {
     town_oren: 54, town_aden: 41, town_gludio: 55,
     town_silver_knight: 57, town_pride: 62,
     town_kent_castle: 0, town_windwood_castle: 0, town_silent: 0,
-    // 非城鎮區域專屬
-    zone_01: 16, zone_15: 16, zone_16: 16, zone_17: 16,   // 妖精森林周邊
+    // 野外區域
+    zone_01: 16, zone_15: 16, zone_16: 16, zone_17: 16,   // 妖精森林週邊
     zone_02: 29,                                           // 歐瑞周邊
     zone_06: 32, zone_07: 32, zone_08: 32, zone_09: 32, zone_10: 32, zone_11: 32, zone_12: 32,  // 古魯丁地監
-    zone_34: 24, zone_35: 24, zone_36: 24,                 // 地下通道
+    zone_34: 24, zone_35: 24, zone_36: 24,                 // 風木周邊
     zone_37: 11, zone_38: 11, zone_39: 11, zone_40: 11, zone_41: 11,  // 象牙塔
     talking_island: 12, talking_island_port: 12, zone_13: 12, zone_14: 12,
     gludio: 18,
@@ -324,7 +323,7 @@ var BGM_SCENE_MAP = {
     thebes_desert: 94, thebes_pyramid: 95, thebes_temple: 103, thebes: 103,
     giant_tomb: 48,
     eva_kingdom: 36, fafurion_lair: 36,
-    pride: 62,                                             // 傲慢之塔所有樓層（pride_f1~f100、pride_2_10~91_100）
+    pride: 62,                                             // 傲慢之塔全部樓層（pride_f1~f100、pride_2_10~91_100）
 };
 var _TOWN_BGM = {}; Object.keys(BGM_SCENE_MAP).forEach(function (s) { if (s.indexOf('town_') === 0) _TOWN_BGM[s] = 1; });
 var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
@@ -353,8 +352,8 @@ function _bgmDetectScene() {
     var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
     if (cur && cur.indexOf('town_') === 0) return _TOWN_BGM[cur] ? cur : 'town';
     if (typeof mapState !== 'undefined' && mapState && mapState.mobs && mapState.mobs.some(function (m) { return m && m.boss && m.curHp > 0; })) return 'boss';
-    if (cur && BGM_SCENE_MAP[cur] != null) return cur;     // 非城鎮區域專屬（底比斯/龍之谷等）
-    if (cur && cur.indexOf('pride_') === 0) return 'pride'; // 傲慢之塔各樓層（統一 music62）
+    if (cur && BGM_SCENE_MAP[cur] != null) return cur;     // 野外專屬地底湖/龍之谷等
+    if (cur && cur.indexOf('pride_') === 0) return 'pride'; // 傲慢之塔全部樓層統一 music62
     return 'battle';
 }
 

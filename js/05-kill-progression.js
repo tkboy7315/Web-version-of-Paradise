@@ -771,7 +771,7 @@ function applySherineBuff(idx) {
     if (sherineWorldActive() && !isSiegeArea(mapState.current) && _m.race !== '血盟') {
         let _mad = sherineMadActive();   // 🔮 瘋狂的席琳世界：更高倍率（值＝[一般/瘋狂]）
         _m.hp = Math.floor(_m.hp * (_mad ? 5 : 3)); _m.curHp = _m.hp;   // HP×[3/5]
-        _m.ac = Math.floor((_m.ac || 0) * (_mad ? 1.75 : 1.5));         // AC×[1.5/1.75]
+        _m.ac = (_m.ac || 0) - (_m.boss ? 20 : 10);                    // 🔮 席琳 AC：頭目 −20、一般怪 −10（2026-07 用戶改：原 ×1.5/1.75 把近戰命中壓到 ~10%·改固定值·瘋狂與一般同值）
         _m.mr = Math.floor((_m.mr || 0) * (_mad ? 3 : 1.5));            // MR×[1.5/3]
         _m.exp = Math.floor((_m.exp || 0) * (_mad ? 10 : 5));           // 經驗×[5/10]
         _m.goldMin = Math.floor((_m.goldMin || 0) * (_mad ? 10 : 5));   // 金錢×[5/10]
@@ -891,7 +891,7 @@ function checkLvUp() {
 function revive() {
     player.dead = false;
     player.statuses = { stun: 0, freeze: 0, stone: 0, poison: 0, poisonDmg: 0, poisonTick: 0, burn: 0, burnDmg: 0, burnTick: 0, scald: 0, scaldDmg: 0, scaldTick: 0, bleed: 0, bleedDmg: 0, bleedTick: 0, sleep: 0, silence: 0, paralyze: 0, magicseal: 0 };  // 復活清除所有異常(含中毒/灼燒/燙傷)，避免復活後立即被持續傷害再次擊殺
-    player.summon = null; player.charmed = null; player.manualCd = {}; player.hot = null; player.buffs.sk_charm = 0;
+    player.summon = null; player.charmed = null; player.manualCd = {}; player.hot = null; player.hots = {}; player.buffs.sk_charm = 0;
     if (player.allies && player.allies.length) logSys('<span class="text-emerald-300">回城復活，協力傭兵仍在你身邊。</span>');   // 🔧 玩家死亡/復活不再解散傭兵，只有在傭兵公會選「解散」才會解除
     player.skills.forEach(s => { if(DB.skills[s] && DB.skills[s].summon) player.buffs[s] = 0; });   // 清除召喚 buff，避免復活後召喚消失卻長時間不自動重新召喚
     document.getElementById('btn-revive').classList.add('hidden');
@@ -945,7 +945,7 @@ function reviveInPlace() {
     player.dead = false;
     player.statuses = { stun: 0, freeze: 0, stone: 0, poison: 0, poisonDmg: 0, poisonTick: 0, burn: 0, burnDmg: 0, burnTick: 0, scald: 0, scaldDmg: 0, scaldTick: 0, bleed: 0, bleedDmg: 0, bleedTick: 0, sleep: 0, silence: 0, paralyze: 0, magicseal: 0 };  // 復活清除所有異常(含中毒/灼燒/燙傷)，避免死亡迴圈
     player.hp = Math.min(player.mhp, roll(1, 200));   // 返生術/復活卷軸相同：1~200 隨機 HP、不恢復 MP
-    player.summon = null; player.charmed = null; player.manualCd = {}; player.hot = null; player.buffs.sk_charm = 0;
+    player.summon = null; player.charmed = null; player.manualCd = {}; player.hot = null; player.hots = {}; player.buffs.sk_charm = 0;
     player.skills.forEach(s => { if(DB.skills[s] && DB.skills[s].summon) player.buffs[s] = 0; });   // 清除召喚 buff，避免復活後召喚消失卻長時間不自動重新召喚
     document.getElementById('btn-revive').classList.add('hidden');
     { let ip = document.getElementById('btn-revive-inplace'); if(ip) ip.classList.add('hidden'); }

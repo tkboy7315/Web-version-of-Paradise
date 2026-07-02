@@ -29,6 +29,7 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">   <!-- 🖼️ 瀏覽器分頁圖示(favicon)：把你的圖放到 assets/favicon.png 即生效；可改 href 路徑或副檔名(.ico/.svg) -->
 
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/floating-ui.css">
     <link rel="stylesheet" href="css/tailwind-built.css"><!-- 🔧 預編譯 Tailwind（取代執行期 JIT tailwind.js）：只含實際用到的 class，省 407KB runtime + 移除持續掃描 DOM 的成本。置於 style.css 之後以保留原 cascade（utility 平手時勝過自訂 class，與舊 JIT 注入順序一致） -->
 </head>
 <body class="h-screen w-screen overflow-hidden">
@@ -125,6 +126,8 @@
 
         <!-- 🏷️ 版本號（由 js/14 window.onload 依 GAME_VERSION 填入；此處 v2.4.0 僅為 JS 失效時的後備文字） -->
         <div id="login-version" class="text-center text-sm text-slate-300 font-medium tracking-wide select-none mt-1">v2.4.0</div>
+        <!-- ⚖️ 免責聲明（版號下方·非官方同人作品·無營利意圖） -->
+        <div id="login-disclaimer" class="text-center text-xs text-slate-500 leading-relaxed mx-auto px-4 mt-2" style="max-width:28rem;">本遊戲為非官方免費同人作品，絕無營利意圖；遊戲內圖片與音樂版權歸原權利方 NCSOFT 所有，其餘程式為獨立開發，嚴禁商業販售。</div>
     </div>
 
     <!-- 遊戲主畫面 -->
@@ -140,13 +143,14 @@
 
 <!-- 左側：狀態與自動化 -->
         <div id="col-left" class="w-[340px] flex flex-col gap-4">
-            <div id="status-panel" class="panel bg-cover bg-top bg-no-repeat" style="background-blend-mode: multiply; background-color: rgba(30, 41, 59, 0.85);">
+            <!-- 新增了 id="status-panel"，並加入去底色與加深背景的樣式確保文字可讀 -->
+            <div id="status-panel" class="panel bg-cover bg-top bg-no-repeat" style="background-blend-mode: normal; background-color: rgba(0, 0, 0, 0.2);">
                 <div class="panel-header text-center flex justify-between bg-transparent border-b border-slate-700"><span class="flex items-center shrink-0"><span id="st-classname">職業</span><span id="classic-badge" class="hidden font-bold ml-1" style="color:#fbbf24;text-shadow:0 0 5px rgba(251,191,36,0.7);font-size:0.85rem;line-height:1;" title="經典模式（硬核）：物品掉落 ×1/10、經驗減半、金幣剩一般模式的 1/2、死亡損失該等級 10% 最大經驗（不降等）">⚔經典</span><span id="traditional-badge" class="hidden font-bold ml-1" style="color:#c4b5fd;text-shadow:0 0 5px rgba(196,181,253,0.7);font-size:0.85rem;line-height:1;" title="傳統模式（經典之上）：所有裝備無強化、改由掉落自帶強化值、怪物/黑市無施法卷軸、倉庫與角色獨立">🏛️傳統</span></span><span id="victory-badge" class="hidden font-bold" style="color:#fde68a;text-shadow:0 0 6px rgba(253,230,138,0.85);font-size:1.4rem;line-height:1;align-items:center;gap:0.15rem;" title="攻城獲勝期間：全商店8折、開放獲勝城池"><span style="font-size:1.05em;line-height:1;position:relative;top:-0.08em;">👑</span><span style="line-height:1;">攻城獲勝</span></span><span id="st-class" class="text-white text-lg font-bold cursor-pointer hover:bg-slate-700/50 rounded px-2 inline-block min-w-[2.5rem] text-right" title="點擊此處修改名稱" onclick="startEditName()"></span></div>
                 <div class="p-4 space-y-3 text-base">
-                    <div class="flex justify-between text-slate-400 border-b border-slate-700 pb-2"><span>等級</span> <span class="text-white font-bold text-xl" id="st-lv">1</span></div>
-                    <div class="flex justify-between text-slate-400"><span>防禦 (AC)</span> <span class="text-white font-bold" id="st-ac">10</span></div>
-                    <div class="flex justify-between text-slate-400"><span>魔防 (MR)</span> <span class="text-white font-bold" id="st-mr">0</span></div>
-                    <div class="flex justify-between text-slate-400"><span>金幣</span> <span class="text-yellow-400 font-bold" id="st-gold">0</span></div>
+                    <div class="flex justify-between text-red-400 border-b border-slate-700 pb-2"><span>等級</span> <span class="text-red-400 font-bold text-xl" id="st-lv">1</span></div>
+                    <div class="flex justify-between text-red-400"><span>防禦 (AC)</span> <span class="text-red-400 font-bold" id="st-ac">10</span></div>
+                    <div class="flex justify-between text-red-400"><span>魔防 (MR)</span> <span class="text-red-400 font-bold" id="st-mr">0</span></div>
+                    <div class="flex justify-between text-red-400"><span>金幣</span> <span class="text-red-400 font-bold" id="st-gold">0</span></div>
                 </div>
                 <div class="p-4 pt-0 flex flex-col gap-3">
                     <div class="flex items-center gap-3"><span class="text-red-400 font-bold w-10 text-right text-base">HP</span><div class="bar-bg flex-1 !h-6"><div id="bar-hp" class="bar-fill bg-red-600" style="width:100%"></div><div id="txt-hp" class="bar-text text-white !text-sm !line-height-[24px]">16/16</div></div></div>
@@ -311,7 +315,7 @@
         <div id="col-right" class="w-[380px] flex flex-col gap-3">
             <div class="panel p-2 grid grid-cols-3 gap-2 bg-slate-800 tab-bar">
                 <button class="btn active text-base py-2 font-bold px-0" onclick="switchTab('stats', this)">能力</button>
-                <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('equip', this)">裝備</button>
+                <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('equip', this); toggleEquipmentWindow()" title="單擊開啟或關閉裝備視窗">裝備</button>
                 <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('skill', this)">技能</button>
                 <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('weapons', this)">武器</button>
                 <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('armors', this)">防具</button>
@@ -405,8 +409,8 @@
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
                             <span>武器：固定傷</span><span class="text-white text-right">T1:+1 / T3:+3 / T5:+5</span>
                             <span>武器：剋屬追加</span><span class="text-white text-right">T1:+6 / T3:+9 / T5:+12（弱點怪物）</span>
-                            <span>防具：屬抗</span><span class="text-white text-right">T1:1% / T3:2% / T5:3%</span>
-                            <span>防具：MR</span><span class="text-white text-right">T1:+1 / T3:+2 / T5:+3</span>
+                            <span>防具：屬抗</span><span class="text-white text-right">T1:1% / T2:2% / T3:3%</span>
+                            <span>防具：MR</span><span class="text-white text-right">T1:+1 / T2:+2 / T3:+3</span>
                             <span>屬性相剋</span><span class="text-white text-right">火→地→風→水→火，剋屬傷害 ×1.4，被剋 ×0.6</span>
                         </div>
                     </div>
@@ -529,6 +533,9 @@
         </div>
     </div>
 
+    <section id="equipment-window" class="equipment-window hidden" aria-label="角色裝備" aria-hidden="true"><div id="equipment-window-frame" class="equipment-window-frame"><img class="equipment-window-bg" src="assets/equipment-window-bg.png" alt="" draggable="false"><div id="equipment-window-drag" class="equipment-window-drag"></div><button id="equipment-window-close" class="equipment-window-close" type="button" aria-label="關閉裝備視窗"></button><button id="equipment-window-next" class="equipment-window-arrow equipment-window-next" type="button" aria-label="下一頁"></button><button id="equipment-window-prev" class="equipment-window-arrow equipment-window-prev" type="button" aria-label="上一頁"></button><div id="equipment-window-stats" class="equipment-window-stats"></div><div id="equipment-window-slots" class="equipment-window-slots"></div><div id="equipment-morph-snapshot" class="equipment-morph-snapshot hidden" aria-live="polite"><div id="equipment-morph-name" class="equipment-morph-name"></div><img id="equipment-morph-image" class="equipment-morph-image" alt="" draggable="false"><div id="equipment-morph-bonus" class="equipment-morph-bonus"></div></div><aside id="equipment-side-panel" class="equipment-side-panel hidden"><header class="equipment-side-header"><div><strong id="equipment-side-title">武器</strong><small>單擊查看・雙擊直接裝備</small></div><button id="equipment-side-close" type="button">✕</button></header><div id="equipment-side-list" class="equipment-side-list"></div></aside></div></section>
+    <section id="warehouse-window" class="warehouse-window hidden" aria-label="共用倉庫" aria-hidden="true"><div id="warehouse-window-frame" class="warehouse-window-frame"><header id="warehouse-window-drag" class="warehouse-window-header"><div><h2>共用倉庫</h2><span>背包與倉庫之間存入／取出物品</span></div><button id="warehouse-window-close" type="button">Close</button></header><div id="warehouse-window-content" class="warehouse-window-content"></div></div></section>
+
     <!-- 物品操作 Modal -->
     <div id="item-modal" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 flex gap-4 items-start">
         <div id="modal-compare" class="hidden panel border-slate-600 p-5 min-w-[280px] max-w-[340px] max-h-[80vh] overflow-y-auto shadow-[0_0_40px_rgba(0,0,0,0.8)]" style="background:#1e293b"></div>
@@ -627,9 +634,12 @@
 <script src="js/16-equip-book.js"></script>
 <script src="js/18-misc-book.js"></script>
 <script src="js/17-audio.js"></script>
+<script src="js/19-equipment-window.js"></script>
+<script src="js/20-warehouse-window.js"></script>
 <script src="plugins/afk-extradata.js"></script>
 <script src="plugins/afk-wiki.js"></script>
 <script src="plugins/afk-statpts.js"></script>
 <script src="offline/afk-offline.js"></script>
+<script src="offline/afk-history.js"></script>
 </body>
 </html>
