@@ -290,44 +290,50 @@ function playMobKill(mob) {
     if (!_sfxPlayPool(key, 0.60)) playSfx('kill');   // 缺檔(null)→退回通用擊殺音
 }
 
-// ===== 🎵 背景音樂（自製系統v2 · v2.5.8 場景偵測＋交叉淡入淡出·音檔 assets/Sound/music<id>.mp3）=====
-//   場景 title(登入)/create(創角)/town(共通安全區)/battle(野外戰鬥)/boss(頭目)＋專屬地圖區域（見 BGM_SCENE_MAP）。//   music → assets/Sound/music<id>.mp3（id 對應 BGM_SCENE_MAP）。交叉淡入淡出 1 秒（2 個 HTMLAudio 元素）。
+// ===== 🎵 背景音樂（自製 BGM_SCENE_MAP 版 · assets/Sound/music<id>.mp3）=====
 var _bgmCfg = { on: true, vol: 35 };
-// 🎵 場景 → music ID 對照表（見 BGM 設定記錄.md），不含戰鬥對應（例 boss 沿用 battle）
-var BGM_SCENE_MAP = {
-    title: 0, create: 0, town: 0, battle: 6, boss: 6,
-    // 專屬城鎮
-    town_talking: 12, town_elf: 13, town_ivory_tower: 11,
-    town_giran: 20, town_heine: 23, town_witon: 28,
-    town_oren: 54, town_aden: 41, town_gludio: 55,
-    town_silver_knight: 57, town_pride: 62,
-    town_kent_castle: 0, town_windwood_castle: 0, town_silent: 0,
-    // 野外區域
-    zone_01: 16, zone_15: 16, zone_16: 16, zone_17: 16,   // 妖精森林週邊
-    zone_02: 29,                                           // 歐瑞周邊
-    zone_06: 32, zone_07: 32, zone_08: 32, zone_09: 32, zone_10: 32, zone_11: 32, zone_12: 32,  // 古魯丁地監
-    zone_34: 24, zone_35: 24, zone_36: 24,                 // 風木周邊
-    zone_37: 11, zone_38: 11, zone_39: 11, zone_40: 11, zone_41: 11,  // 象牙塔
-    talking_island: 12, talking_island_port: 12, zone_13: 12, zone_14: 12,
-    gludio: 18,
-    dragon_valley: 19, zone_26: 19, zone_27: 19, zone_28: 19, zone_29: 19, zone_30: 19, zone_31: 19,
-    antaras_lair: 19, silent_outer: 19,
-    heine: 27, mirror_forest: 27,
-    kent: 14, windwood: 52,
-    silver_knight: 82, training: 82,
-    shadow_temple: 60,
-    rastabad_cave1: 61, rastabad_cave2: 61, rastabad_cave3: 61, rastabad_gate: 61,
-    dark_magic_lab: 61, necro_training: 61, elder_room: 61, demon_temple: 61,
-    king_baranka_room: 61, law_king_room: 61, necro_king_room: 61, assassin_king_room: 61,
-    town_rift: 92,
-    thebes_desert: 94, thebes_pyramid: 95, thebes_temple: 103, thebes: 103,
-    giant_tomb: 48,
-    eva_kingdom: 36, fafurion_lair: 36,
-    pride: 62,                                             // 傲慢之塔全部樓層（pride_f1~f100、pride_2_10~91_100）
-};
-var _TOWN_BGM = {}; Object.keys(BGM_SCENE_MAP).forEach(function (s) { if (s.indexOf('town_') === 0) _TOWN_BGM[s] = 1; });
 var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
-
+var BGM_SCENE_MAP = {
+    town_talking:12, talking_island_port:12, talking_island:12,
+    town_elf:13, zone_01:16,
+    town_ivory_tower:11, zone_37:11, zone_38:11, zone_39:11, zone_40:11, zone_41:11,
+    gludio:18, dragon_valley:19,
+    town_giran:20,
+    town_heine:23, heine:27,
+    town_witon:28,
+    town_oren:54, zone_02:29,
+    town_aden:41,
+    kent:14, windwood:52,
+    town_gludio:55,
+    town_silver_knight:57, silver_knight:82, training:82,
+    shadow_temple:60,
+    rastabad_cave1:61, rastabad_cave2:61, rastabad_cave3:61, rastabad_gate:61, rastabad_beast:61, dark_magic_lab:61, necro_training:61, elder_room:61, demon_temple:61,
+    town_pride:62, pride_2_10:62, pride_11_20:62, pride_21_30:62, pride_31_40:62, pride_41_50:62, pride_51_60:62, pride_61_70:62, pride_71_80:62, pride_81_90:62, pride_91_100:62,
+    zone_06:32, zone_07:32, zone_08:32, zone_09:32, zone_10:32, zone_11:32, zone_12:32,
+    zone_34:24, zone_35:24, zone_36:24,
+    eva_kingdom:36,
+    town_rift:92,
+    thebes_desert:94, thebes_pyramid:95, thebes_temple:103,
+    giant_tomb:48,
+    zone_03:6, zone_13:6, zone_14:6, zone_15:6, zone_16:6, zone_17:6, zone_18:6,
+    zone_19:6, zone_20:6, zone_21:6, zone_22:6, zone_23:6, zone_24:6, zone_25:6,
+    zone_26:6, zone_27:6, zone_28:6, zone_29:6, zone_30:6, zone_31:6, zone_32:6,
+    zone_33:6, zone_42:6, zone_43:6, zone_44:6, zone_45:6,
+    ant_tunnel:6, sea_of_dust:6, forgotten_island:6,
+    ancient_giant_tomb:48, hidden_valley:6, elven_tomb:6,
+    hidden_dungeon:6, devourer:6,
+    dark_elf_forest:6, dark_elf_dungeon:6, dark_elf_citadel:6,
+    lizardman_village:6, lizardman_temple:6,
+    silent_cavern:60, forgotten_temple:60,
+    pirate_isle:6, pirate_cave:6, pirate_ship:6,
+    slave_quarters:6, torture_chamber:6, orc_stronghold:6,
+    golem_workshop:6, war_workshop:6,
+    training_grounds:6, arena:6, colosseum:6,
+    hell_battlefield:6, abyss:6,
+    rift:6, rift_boss:6,
+    ancient_temple:6, dark_temple:60,
+    dragon_valley_cave:19, dragon_valley_entrance:19
+};
 function _bgmLoadCfg() {
     try {
         var s = (typeof _lsGet === 'function') ? _lsGet('fb5_bgm') : null;
@@ -336,27 +342,15 @@ function _bgmLoadCfg() {
 }
 function _bgmSaveCfg() { try { if (typeof _lsSet === 'function') _lsSet('fb5_bgm', JSON.stringify(_bgmCfg)); } catch (e) {} }
 function _bgmTargetVol() { return Math.max(0, Math.min(1, _bgmCfg.vol / 100)); }
-
-function _bgmResolve(scene) {
-    var id = BGM_SCENE_MAP[scene];
-    _bgmUrl[scene] = (id != null) ? 'assets/Sound/music' + id + '.mp3' : null;
-}
-
-function _bgmIsCreateScreen() {
-    if (typeof document === 'undefined') return false;
-    var p = document.getElementById('creation-panel');
-    return !!(p && p.classList && !p.classList.contains('hidden'));
-}
-function _bgmDetectScene() {
-    if (typeof player === 'undefined' || !player || !player.cls) return _bgmIsCreateScreen() ? 'create' : 'title';
+function _bgmGetMusicId() {
+    if (typeof player === 'undefined' || !player || !player.cls) return -1;
     var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
-    if (cur && cur.indexOf('town_') === 0) return _TOWN_BGM[cur] ? cur : 'town';
-    if (typeof mapState !== 'undefined' && mapState && mapState.mobs && mapState.mobs.some(function (m) { return m && m.boss && m.curHp > 0; })) return 'boss';
-    if (cur && BGM_SCENE_MAP[cur] != null) return cur;     // 野外專屬地底湖/龍之谷等
-    if (cur && cur.indexOf('pride_') === 0) return 'pride'; // 傲慢之塔全部樓層統一 music62
-    return 'battle';
+    if (!cur) return -1;
+    var id = BGM_SCENE_MAP[cur];
+    if (id !== undefined) return id;
+    if (cur.indexOf('town_') === 0) return 0;
+    return 6;
 }
-
 function _bgmCrossfade(oldEl, newEl) {
     if (_bgmFadeTimer) clearInterval(_bgmFadeTimer);
     var target = _bgmTargetVol(), steps = 20, n = 0;
@@ -367,13 +361,13 @@ function _bgmCrossfade(oldEl, newEl) {
         if (n >= steps) { clearInterval(_bgmFadeTimer); _bgmFadeTimer = null; if (oldEl) { try { oldEl.pause(); } catch (e) {} } }
     }, 50);
 }
-
-function _bgmSwitch(scene) {
-    if (!_bgmCfg.on) return;
-    if (scene === _bgmScene) return;
-    var url = _bgmUrl[scene];
+function _bgmSwitch(musicId) {
+    if (!_bgmCfg.on || musicId < 0) return;
+    var sceneKey = 'music' + musicId;
+    if (sceneKey === _bgmScene) return;
+    var url = _bgmUrl[sceneKey];
     if (!url) return;
-    _bgmScene = scene;
+    _bgmScene = sceneKey;
     var newIdx = (_bgmActive === 0) ? 1 : 0;
     if (!_bgmEls[newIdx]) { var e0 = new Audio(); e0.loop = true; e0.preload = 'auto'; e0.volume = 0; _bgmEls[newIdx] = e0; }
     var nu = _bgmEls[newIdx], old = (_bgmActive >= 0) ? _bgmEls[_bgmActive] : null;
@@ -388,10 +382,9 @@ function _bgmStopAll() {
     for (var i = 0; i < 2; i++) { if (_bgmEls[i]) { try { _bgmEls[i].pause(); } catch (e) {} _bgmEls[i].volume = 0; } }
     _bgmActive = -1;
 }
-function _bgmTick() { if (_bgmInited) { try { _bgmSwitch(_bgmDetectScene()); } catch (e) {} } }
-
+function _bgmTick() { if (_bgmInited) { try { _bgmSwitch(_bgmGetMusicId()); } catch (e) {} } }
 function setBgmOn(on) { _bgmCfg.on = !!on; _bgmSaveCfg(); if (!on) { _bgmStopAll(); _bgmScene = null; } else { _bgmScene = null; _bgmTick(); } }
-function setBgmVol(v) { _bgmCfg.vol = Math.max(0, Math.min(100, parseInt(v, 10) || 0)); _bgmSaveCfg(); if (!_bgmFadeTimer && _bgmActive >= 0 && _bgmEls[_bgmActive]) _bgmEls[_bgmActive].volume = _bgmTargetVol(); }
+function setBgmVol(v) { var vol = parseInt(v, 10); if(isNaN(vol)) vol = 35; _bgmCfg.vol = Math.max(0, Math.min(100, vol)); _bgmSaveCfg(); if (!_bgmFadeTimer && _bgmActive >= 0 && _bgmEls[_bgmActive]) _bgmEls[_bgmActive].volume = _bgmTargetVol(); }
 function _bgmSyncUI() {
     var c = document.getElementById('set-bgm-on'); if (c) c.checked = !!_bgmCfg.on;
     var v = document.getElementById('set-bgm-vol'); if (v) v.value = _bgmCfg.vol;
@@ -399,12 +392,24 @@ function _bgmSyncUI() {
 function _bgmInit() {
     if (_bgmInited) return; _bgmInited = true;
     _bgmLoadCfg();
-    Object.keys(BGM_SCENE_MAP).forEach(function (s) { _bgmResolve(s); });
+    var seen = {};
+    for (var k in BGM_SCENE_MAP) { var mid = 'music' + BGM_SCENE_MAP[k]; if (!seen[mid]) { seen[mid] = 1; _bgmResolve(mid); } }
     _bgmSyncUI();
     setInterval(_bgmTick, 1000);
     var kick = function () { _bgmScene = null; _bgmTick(); };
     document.addEventListener('pointerdown', kick, { once: true });
     document.addEventListener('keydown', kick, { once: true });
+}
+function _bgmResolve(sceneKey) {
+    var exts = ['mp3'], i = 0;
+    (function tryNext() {
+        if (i >= exts.length) { _bgmUrl[sceneKey] = null; return; }
+        var url = 'assets/Sound/' + sceneKey + '.' + exts[i++];
+        var probe = new Audio(); probe.preload = 'metadata';
+        probe.addEventListener('canplay', function () { _bgmUrl[sceneKey] = url; }, { once: true });
+        probe.addEventListener('error', function () { tryNext(); }, { once: true });
+        probe.src = url; try { probe.load(); } catch (e) {}
+    })();
 }
 
 if (typeof document !== 'undefined') {

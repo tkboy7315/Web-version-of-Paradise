@@ -29,7 +29,7 @@
     <link rel="icon" type="image/png" href="assets/favicon.png">   <!-- 🖼️ 瀏覽器分頁圖示(favicon)：把你的圖放到 assets/favicon.png 即生效；可改 href 路徑或副檔名(.ico/.svg) -->
 
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/floating-ui.css">
+    <link rel="stylesheet" href="css/floating-ui.css?v=20260702g">
     <link rel="stylesheet" href="css/tailwind-built.css"><!-- 🔧 預編譯 Tailwind（取代執行期 JIT tailwind.js）：只含實際用到的 class，省 407KB runtime + 移除持續掃描 DOM 的成本。置於 style.css 之後以保留原 cascade（utility 平手時勝過自訂 class，與舊 JIT 注入順序一致） -->
 </head>
 <body class="h-screen w-screen overflow-hidden">
@@ -162,7 +162,7 @@
 
             <!-- 🤝 協力傭兵隊伍面板（Phase 1：隊伍/技能設定分頁；無傭兵時自動隱藏，不佔版面） -->
             <div id="squad-panel" class="panel" style="display:none;">
-                <div class="panel-header flex items-center justify-between" style="cursor:pointer;user-select:none;" onclick="toggleSquadCollapse()"><span class="flex-1 text-center">協力傭兵隊伍</span><span id="squad-collapse-arrow" class="text-sm" style="padding:0 0.25rem;">▼</span></div>
+                <div class="panel-header flex items-center justify-center" style="user-select:none;"><span class="text-center">協力傭兵隊伍</span></div><!-- 🔧 v2.6.76 取消收合按鈕·面板恆展開（用戶要求） -->
                 <div id="squad-body" class="p-3 flex flex-col gap-2">
                     <div class="flex gap-2">
                         <button id="squad-tab-btn-team" class="flex-1 py-1 text-sm font-bold rounded border" style="background:#334155;border-color:#475569;color:#cbd5e1;" onclick="switchSquadTab('team')">隊伍</button>
@@ -173,64 +173,6 @@
                 </div>
             </div>
 
-            <div id="automation-panel" class="panel flex-1 overflow-hidden flex flex-col">
-                <div class="panel-header flex items-center justify-between" style="cursor:pointer;user-select:none;" onclick="toggleAutomationCollapse()"><span class="flex-1 text-center">自動化設定</span><span id="automation-collapse-arrow" class="text-sm" style="padding:0 0.25rem;">▼</span></div>
-                <div class="px-4 py-3 border-b border-slate-700 bg-slate-900/50 shrink-0">
-                    <div class="flex flex-col gap-2">
-                        <div class="flex items-center justify-between gap-3">
-                            <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-sfx-on" class="w-4 h-4" onchange="try{setSfxOn(this.checked)}catch(e){}"><span class="text-sm text-amber-200 font-bold">🔊 戰鬥音效</span></label>
-                            <input type="range" id="set-sfx-vol" min="0" max="100" value="50" step="5" class="flex-1 max-w-[150px]" oninput="try{setSfxVol(this.value)}catch(e){}" title="音效音量">
-                        </div>
-                        <div class="flex items-center justify-between gap-3 border-t border-slate-700 pt-2">
-                            <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-bgm-on" class="w-4 h-4" onchange="try{setBgmOn(this.checked)}catch(e){}"><span class="text-sm text-sky-200 font-bold">🎵 背景音樂</span></label>
-                            <input type="range" id="set-bgm-vol" min="0" max="100" value="35" step="5" class="flex-1 max-w-[150px]" oninput="try{setBgmVol(this.value)}catch(e){}" title="音樂音量">
-                        </div>
-                    </div>
-                </div>
-                <div id="automation-body" class="p-4 text-base flex flex-col gap-4 overflow-y-auto">
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
-                        <div class="flex flex-col gap-2">
-                            <div class="flex justify-between items-center">
-                            <select id="set-pot" class="bg-slate-900 border border-slate-600 text-red-300 px-2 py-1 rounded text-sm w-28 outline-none" onchange="this.classList.remove('text-red-300', 'text-orange-300', 'text-white'); this.classList.add(this.value === 'potion_heal' ? 'text-red-300' : (this.value === 'potion_strong' ? 'text-orange-300' : 'text-white'));">
-                            <option value="potion_heal" class="text-red-300">紅色藥水</option>
-                            <option value="potion_strong" class="text-orange-300">橙色藥水</option>
-                            <option value="potion_ult" class="text-white">白色藥水</option>
-                        </select>
-                        <span class="text-sm">HP &lt; <input type="number" id="set-hp-pot" value="70" class="w-14 bg-slate-900 border border-slate-600 text-center text-white rounded">%</span>
-                    </div>
-                            <label class="cursor-pointer flex items-center gap-2 mt-1 border-t border-slate-700 pt-2"><input type="checkbox" id="set-auto-buy-pot" class="w-4 h-4"><span class="text-sm text-slate-300">藥水不足自動買至100</span></label>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
-                        <div class="text-sm text-slate-400 mb-3 border-b border-slate-700 pb-1">自動施放設定</div>
-                        <div class="flex justify-between items-center mb-2 text-sm"><span class="text-cyan-400 font-bold">攻擊技能</span><span>MP &gt; <input type="number" id="set-mp-atk" value="50" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
-                        <select id="sel-atk-skill" class="w-full bg-slate-900 border text-cyan-300 px-2 py-2 mb-3 rounded text-sm"><option value="">無</option></select>
-                        <div class="flex justify-between items-center mb-2 text-sm"><span class="text-green-400 font-bold">治癒魔法</span><span>HP &lt; <input type="number" id="set-mp-heal" value="50" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
-                        <select id="sel-heal-skill" class="w-full bg-slate-900 border text-green-300 px-2 py-2 rounded text-sm"><option value="">無</option></select>
-                        <div class="flex justify-between items-center mb-1 mt-3 text-sm border-t border-slate-700 pt-2"><span class="text-rose-400 font-bold">消耗HP技能</span><span>HP &gt; <input type="number" id="set-hp-skill" value="0" min="0" max="100" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
-                        <div class="text-[11px] text-slate-500 mb-1 leading-tight">HP 低於此比例時，暫停自動施放「消耗HP的技能」（龍騎士龍魔法／屠宰者／覺醒、冥想術、堅固防護等）。0＝不限制。</div>
-                        <div id="ui-convert-row" class="hidden">
-                            <div class="flex justify-between items-center mb-2 mt-3 text-sm"><span class="text-cyan-400 font-bold">轉換魔法</span><span>HP &gt; <input type="number" id="set-hp-convert" value="50" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
-                            <select id="sel-convert-skill" class="w-full bg-slate-900 border text-cyan-300 px-2 py-2 rounded text-sm"><option value="">無</option></select>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 grid grid-cols-2 gap-3 text-sm">
-                        <div class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-haste" class="w-4 h-4"> <span class="text-green-300">自我加速藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-haste" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div id="ui-brave-row" class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-brave" class="w-4 h-4"> <span class="text-purple-300">勇敢藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-brave" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-blue" class="w-4 h-4"> <span class="text-blue-300">藍色藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-blue" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div id="ui-cautious-row" class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-cautious" class="w-4 h-4"> <span class="text-purple-300">慎重藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-cautious" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div id="ui-elfcookie-row" class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-elfcookie" class="w-4 h-4"> <span class="text-yellow-200">精靈餅乾</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-elfcookie" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-poly" class="w-4 h-4"> <span class="text-gray-300">變形卷軸</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-poly" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-magicbarrier" class="w-4 h-4"> <span class="text-cyan-300">魔法卷軸(魔法屏障)</span></label><span class="text-xs text-slate-500">無自動購買</span></div>
-                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-teleport" class="w-4 h-4"> <span class="text-sky-300">瞬間移動卷軸(遇BOSS)</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-teleport" class="w-3 h-3"> <span>自動購買</span></label></div>
-                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-auto-buy-arrow" class="w-4 h-4" checked> <span class="text-orange-300">弓箭耗盡時自動購買 1000 銀箭</span></label></div>
-						<div id="auto-buff-skills" class="col-span-2 grid grid-cols-2 gap-1 mt-1 border-t border-slate-600 pt-2"></div>
-                    </div>
-                    <!-- 匯出/存檔 已移至右上角按鈕區（3×4） -->
-                </div>
-            </div>
         </div>
 
         <!-- 中間：地圖與日誌 -->
@@ -256,7 +198,7 @@
                 </div>
             </div> <!-- 👈 就是少了這個標籤！它是用來把 panel-header 關閉的 -->
             
-            <div id="battle-view" class="p-4"><div id="mob-list" class="flex gap-4 w-full"></div></div>
+            <div id="battle-view" class="p-4"><div id="status-icon-bar" aria-label="角色狀態圖示"></div><div id="mob-list" class="flex gap-4 w-full"></div></div>
                 
                 <div id="town-view" class="hidden p-6 flex-col items-center gap-4 flex-1 h-full min-h-0">
                     <h2 class="text-3xl font-bold text-emerald-400 drop-shadow-md shrink-0" id="town-name">銀騎士村</h2>
@@ -314,8 +256,8 @@
         <!-- 右側：清單面板 -->
         <div id="col-right" class="w-[380px] flex flex-col gap-3">
             <div class="panel p-2 grid grid-cols-3 gap-2 bg-slate-800 tab-bar">
-                <button class="btn active text-base py-2 font-bold px-0" onclick="switchTab('stats', this)">能力</button>
-                <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('equip', this); toggleEquipmentWindow()" title="單擊開啟或關閉裝備視窗">裝備</button>
+                <button class="btn active text-base py-2 font-bold px-0" onclick="switchTab('stats', this); toggleEquipmentWindow()" title="單擊開啟或關閉裝備視窗">能力</button>
+                <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('equip', this)">裝備</button>
                 <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('skill', this)">技能</button>
                 <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('weapons', this)">武器</button>
                 <button class="btn text-base py-2 font-bold px-0" onclick="switchTab('armors', this)">防具</button>
@@ -323,14 +265,14 @@
                 <!-- 第三排：統計 / 收藏 / 一鍵賣出 -->
                 <button class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #565d68 0%, #6b7280 26%, #3f4651 48%, #5a6270 72%, #313740 100%); color: #f1f5f9; border-color: #6b7280;" onclick="switchTab('audit', this)">統計</button>
                 <button id="btn-collection" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #4a2f0c 0%, #b3850e 28%, #3f2a0c 52%, #9a720c 76%, #2e2008 100%); color: #fde68a; border-color: #d4a017;" onclick="openCollectionPanel()">收藏</button>
-                <button id="btn-autosell" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #4a2c0a 0%, #c2620e 28%, #3f2608 52%, #a8550c 76%, #2e1c06 100%); color: #fed7aa; border-color: #ea580c;" onclick="toggleAutoSell()">自動賣出</button>
-                <!-- 第四排：匯出 / 存檔 / 一鍵排列 -->
+                <button id="btn-autosell" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #4a2c0a 0%, #c2620e 28%, #3f2608 52%, #a8550c 76%, #2e1c06 100%); color: #fed7aa; border-color: #ea580c;" onclick="openAutoSellRules()">自動販賣</button>
+                <!-- 第四排：匯出 / 存檔 / 自動化設定（🔧 v2.6.73 一鍵排列改獲得物品自動觸發·此鈕改開自動化設定浮動視窗） -->
                 <button class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #312e81 0%, #4f46e5 28%, #28236b 52%, #4338ca 76%, #1e1b4b 100%); color: #c7d2fe; border-color: #6366f1;" onclick="exportSave()">匯出</button>
                 <button class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #064e3b 0%, #059669 28%, #053f30 52%, #047857 76%, #042f24 100%); color: #a7f3d0; border-color: #10b981;" onclick="saveGame()">存檔</button>
-                <button id="btn-sort-inv" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #0c4a5e 0%, #0e7490 28%, #0a3d4d 52%, #11657e 76%, #093440 100%); color: #a5f3fc; border-color: #0891b2;" onclick="sortInventory()">一鍵排列</button>
+                <button id="btn-automation" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #0c4a5e 0%, #0e7490 28%, #0a3d4d 52%, #11657e 76%, #093440 100%); color: #a5f3fc; border-color: #0891b2;" onclick="switchTab('automation', this)" title="自動化設定（獲得物品時自動排列背包·每10秒最多一次·與自動販賣同一開關）">自動化設定</button>
                 <!-- 第五排：裝備說明 + 查詢 -->
-                <button class="btn text-base py-2 font-bold px-0 col-span-1" style="background: linear-gradient(135deg, #3b1f4a 0%, #7c2d8a 28%, #321a3d 52%, #6a2878 76%, #261430 100%); color: #e9d5ff; border-color: #9333ea;" onclick="switchTab('attrd', this)">📖 裝備說明</button>
-                <button class="btn text-base py-2 font-bold px-0 col-span-2" style="background: linear-gradient(135deg, #1a3a4a 0%, #1e6a8a 28%, #162e3d 52%, #1a5a78 76%, #102230 100%); color: #a5f3fc; border-color: #06b6d4;" onclick="switchTab('search', this)">🔍 查詢</button>
+                <button class="btn text-base py-2 font-bold col-span-1" style="background: linear-gradient(135deg, #3b0764 0%, #7e22ce 28%, #2e0652 52%, #6b21a8 76%, #1f033f 100%); color: #e9d5ff; border-color: #9333ea;" onclick="switchTab('attrd', this)">📖 裝備說明</button>
+                <button class="btn text-base py-2 font-bold col-span-2" style="background: linear-gradient(135deg, #164e63 0%, #0891b2 28%, #0f3d4d 52%, #0e7490 76%, #0a2e3a 100%); color: #a5f3fc; border-color: #06b6d4;" onclick="switchTab('search', this)">🔍 查詢</button>
             </div>
 
             <div id="tab-content-panel" class="panel flex-1 flex flex-col overflow-hidden relative">
@@ -388,146 +330,193 @@
                 <div id="tab-weapons" class="p-3 overflow-y-auto h-full hidden flex-col gap-2"></div>
                 <div id="tab-armors" class="p-3 overflow-y-auto h-full hidden flex-col gap-2"></div>
                 <div id="tab-audit" class="p-3 overflow-y-auto h-full hidden flex-col gap-2"></div>
-                <div id="tab-attrd" class="p-4 overflow-y-auto h-full hidden flex-col gap-3 text-sm">
-                    <div class="border-b border-slate-700 pb-2 mb-1">
-                        <span class="text-yellow-400 font-bold text-base">📖 裝備系統說明</span>
-                        <span class="text-slate-400 ml-2 text-xs">附加屬性・祝福/詛咒・遠古系列・套裝・收藏</span>
-                    </div>
-
-                    <!-- 屬性附加 -->
-                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
-                        <div class="text-cyan-300 font-bold text-base mb-1">⚡ 屬性附加（火/水/風/地）</div>
-                        <div class="text-slate-400 text-xs mb-2">出現率：T1 60% / T3 30% / T5 10%，四元素均分</div>
-                        <div class="grid grid-cols-4 gap-1 text-xs font-bold text-center mb-1">
-                            <span class="text-red-300">火</span><span class="text-blue-300">水</span><span class="text-green-300">風</span><span class="text-amber-300">地</span>
+                <!-- 🔧 v2.6.74 自動化設定改「分頁內嵌」（原 v2.6.73 浮動視窗取消）：與 能力/技能 同框架，switchTab(automation) 切換；set-* 控制項恆在 DOM 供 saveGame/自動化讀取 -->
+                <div id="tab-automation" class="p-4 text-base overflow-y-auto h-full hidden">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 flex flex-col gap-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-sfx-on" class="w-4 h-4" onchange="try{setSfxOn(this.checked)}catch(e){}"><span class="text-sm text-amber-200 font-bold">🔊 戰鬥音效</span></label>
+                            <input type="range" id="set-sfx-vol" min="0" max="100" value="50" step="5" class="flex-1 max-w-[150px]" oninput="try{setSfxVol(this.value)}catch(e){}" title="音效音量">
                         </div>
-                        <div class="grid grid-cols-4 gap-1 text-xs text-center text-slate-300 mb-1 border-b border-slate-700 pb-1">
-                            <span>T1 火之</span><span>T1 水之</span><span>T1 風之</span><span>T1 地之</span>
-                            <span>T3 爆炎</span><span>T3 海嘯</span><span>T3 暴風</span><span>T3 崩裂</span>
-                            <span>T5 火靈</span><span>T5 水靈</span><span>T5 風靈</span><span>T5 地靈</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
-                            <span>武器：固定傷</span><span class="text-white text-right">T1:+1 / T3:+3 / T5:+5</span>
-                            <span>武器：剋屬追加</span><span class="text-white text-right">T1:+6 / T3:+9 / T5:+12（弱點怪物）</span>
-                            <span>防具：屬抗</span><span class="text-white text-right">T1:1% / T2:2% / T3:3%</span>
-                            <span>防具：MR</span><span class="text-white text-right">T1:+1 / T2:+2 / T3:+3</span>
-                            <span>屬性相剋</span><span class="text-white text-right">火→地→風→水→火，剋屬傷害 ×1.4，被剋 ×0.6</span>
+                        <div class="flex items-center justify-between gap-3 border-t border-slate-700 pt-2">
+                            <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-bgm-on" class="w-4 h-4" onchange="try{setBgmOn(this.checked)}catch(e){}"><span class="text-sm text-sky-200 font-bold">🎵 背景音樂</span></label>
+                            <input type="range" id="set-bgm-vol" min="0" max="100" value="35" step="5" class="flex-1 max-w-[150px]" oninput="try{setBgmVol(this.value)}catch(e){}" title="音樂音量">
                         </div>
                     </div>
-
-                    <!-- 祝福/詛咒 -->
-                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
-                        <div class="text-amber-300 font-bold text-base mb-1">✨ 祝福 / 💀 詛咒</div>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
-                            <span>武器祝福</span><span class="text-white text-right">額外傷+1、命中+1、MP+2</span>
-                            <span>武器詛咒</span><span class="text-red-400 text-right">額外傷-1、命中-1、MP-2</span>
-                            <span>防具祝福</span><span class="text-white text-right">AC-1、DR+1</span>
-                            <span>防具詛咒</span><span class="text-red-400 text-right">AC+1、DR-1</span>
-                            <span>飾品祝福</span><span class="text-white text-right">AC-1、MR+1</span>
-                            <span>飾品詛咒</span><span class="text-red-400 text-right">AC+1、MR-1</span>
-                        </div>
-                        <div class="text-slate-500 text-xs mt-1">詛咒裝備無法卸下，需「解除詛咒卷軸」（象牙塔碧恩）</div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-center">
+                            <select id="set-pot" class="bg-slate-900 border border-slate-600 text-red-300 px-2 py-1 rounded text-sm w-28 outline-none" onchange="this.classList.remove('text-red-300', 'text-orange-300', 'text-white'); this.classList.add(this.value === 'potion_heal' ? 'text-red-300' : (this.value === 'potion_strong' ? 'text-orange-300' : 'text-white'));">
+                            <option value="potion_heal" class="text-red-300">紅色藥水</option>
+                            <option value="potion_strong" class="text-orange-300">橙色藥水</option>
+                            <option value="potion_ult" class="text-white">白色藥水</option>
+                        </select>
+                        <span class="text-sm">HP &lt; <input type="number" id="set-hp-pot" value="70" class="w-14 bg-slate-900 border border-slate-600 text-center text-white rounded">%</span>
                     </div>
-
-                    <!-- 遠古系列 -->
-                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
-                        <div class="font-bold text-base mb-1"><span class="text-purple-400">遠</span><span class="text-red-400">古</span><span class="text-green-400">系</span><span class="text-blue-400">列</span></div>
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-300">
-                            <span><span class="text-purple-400">遠古</span> 武器</span><span class="text-white text-right">額外傷+2、魔法傷+1</span>
-                            <span><span class="text-purple-400">遠古</span> 防具</span><span class="text-white text-right">DR+2</span>
-                            <span><span class="text-purple-400">遠古</span> 飾品</span><span class="text-white text-right">DR+1、MR+1</span>
-                            <span class="border-t border-slate-700 pt-1"><span class="text-red-400">永恆</span></span><span class="text-white text-right border-t border-slate-700 pt-1">武器額外傷+4／防具AC-2／飾品額外傷+1 AC-1</span>
-                            <span><span class="text-green-400">不朽</span></span><span class="text-white text-right">武器命中+4／防具ER+2／飾品額外傷+1 命中+1</span>
-                            <span><span class="text-blue-400">太初</span></span><span class="text-white text-right">武器魔法傷+2／防具MR+4／飾品MR+2 MP+2</span>
+                            <label class="cursor-pointer flex items-center gap-2 mt-1 border-t border-slate-700 pt-2"><input type="checkbox" id="set-auto-buy-pot" class="w-4 h-4"><span class="text-sm text-slate-300">藥水不足自動買至100</span></label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <div class="text-sm text-slate-400 mb-3 border-b border-slate-700 pb-1">自動施放設定</div>
+                        <div class="flex justify-between items-center mb-2 text-sm"><span class="text-cyan-400 font-bold">攻擊技能</span><span>MP &gt; <input type="number" id="set-mp-atk" value="50" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
+                        <select id="sel-atk-skill" class="w-full bg-slate-900 border text-cyan-300 px-2 py-2 mb-3 rounded text-sm"><option value="">無</option></select>
+                        <div class="flex justify-between items-center mb-2 text-sm"><span class="text-green-400 font-bold">治癒魔法</span><span>HP &lt; <input type="number" id="set-mp-heal" value="50" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
+                        <select id="sel-heal-skill" class="w-full bg-slate-900 border text-green-300 px-2 py-2 rounded text-sm"><option value="">無</option></select>
+                        <div class="flex justify-between items-center mb-1 mt-3 text-sm border-t border-slate-700 pt-2"><span class="text-rose-400 font-bold">消耗HP技能</span><span>HP &gt; <input type="number" id="set-hp-skill" value="0" min="0" max="100" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
+                        <div class="text-[11px] text-slate-500 mb-1 leading-tight">HP 低於此比例時，暫停自動施放「消耗HP的技能」（龍騎士龍魔法／屠宰者／覺醒、冥想術、堅固防護等）。0＝不限制。</div>
+                        <div id="ui-convert-row" class="hidden">
+                            <div class="flex justify-between items-center mb-2 mt-3 text-sm"><span class="text-cyan-400 font-bold">轉換魔法</span><span>HP &gt; <input type="number" id="set-hp-convert" value="50" class="w-12 bg-slate-900 border text-center text-white rounded">%</span></div>
+                            <select id="sel-convert-skill" class="w-full bg-slate-900 border text-cyan-300 px-2 py-2 rounded text-sm"><option value="">無</option></select>
                         </div>
                     </div>
 
-                    <!-- 席琳套裝 -->
-                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
-                        <div class="text-pink-300 font-bold text-base mb-1">👑 席琳套裝（12 組，2/3/5 件效果）</div>
-                        <div class="text-slate-500 text-xs mb-2">僅「席琳的世界」掉落：一般怪 0.1%／BOSS 5%</div>
-                        <div class="space-y-1 text-xs">
-                            <div class="flex justify-between"><span class="text-red-300">紅獅</span><span class="text-slate-300 text-right">2:額外傷+5 MP+3 / 3:DR+10 / 5:最終傷+20%</span></div>
-                            <div class="flex justify-between"><span class="text-blue-200">白鳥</span><span class="text-slate-300 text-right">2:命中+5 / 3:CHA+10 / 5:普攻脆弱3秒+20%傷</span></div>
-                            <div class="flex justify-between"><span class="text-slate-300">鐵衛</span><span class="text-slate-300 text-right">2:AC-3 DR+5 / 3:受傷-20% / 5:挨打反擊全敵</span></div>
-                            <div class="flex justify-between"><span class="text-pink-200">麗人</span><span class="text-slate-300 text-right">2:近傷+3 近命+3 / 3:近爆+3% / 5:連續miss加命中</span></div>
-                            <div class="flex justify-between"><span class="text-green-200">疾風</span><span class="text-slate-300 text-right">2:遠傷+3 遠命+3 / 3:遠爆+3% / 5:彈幕傷30%→80%</span></div>
-                            <div class="flex justify-between"><span class="text-yellow-200">月光</span><span class="text-slate-300 text-right">2:額外傷+2 命中+3 / 3:ER+5 MR+10 / 5:ER對魔法生效</span></div>
-                            <div class="flex justify-between"><span class="text-sky-200">學徒</span><span class="text-slate-300 text-right">2:MPR+5 MP+6 / 3:魔爆+3% / 5:MP<30%耗魔減半</span></div>
-                            <div class="flex justify-between"><span class="text-purple-200">魔女</span><span class="text-slate-300 text-right">2:魔法傷+3 / 3:水抗+10 MP+5 / 5:5共振→免費冰雪暴</span></div>
-                            <div class="flex justify-between"><span class="text-gray-300">暗影</span><span class="text-slate-300 text-right">2:額外傷+7 / 3:閃避回2%HP / 5:雙擊傷×2</span></div>
-                            <div class="flex justify-between"><span class="text-indigo-200">幻覺</span><span class="text-slate-300 text-right">2:魔傷回LV/10 MP / 3:輔助技MP-50% / 5:魔法附加等傷</span></div>
-                            <div class="flex justify-between"><span class="text-red-400">龍血</span><span class="text-slate-300 text-right">2:物傷回1%HP / 3:耗HP技龍鱗10s減傷15% / 5:耗HP技傷+20%</span></div>
-                            <div class="flex justify-between"><span class="text-orange-300">狂怒</span><span class="text-slate-300 text-right">2:負重+500 / 3:HP+20% / 5:每少10%HP ±4%傷(±20%極限)</span></div>
-                        </div>
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 grid grid-cols-2 gap-3 text-sm">
+                        <div class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-haste" class="w-4 h-4"> <span class="text-green-300">自我加速藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-haste" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div id="ui-brave-row" class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-brave" class="w-4 h-4"> <span class="text-purple-300">勇敢藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-brave" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-blue" class="w-4 h-4"> <span class="text-blue-300">藍色藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-blue" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div id="ui-cautious-row" class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-cautious" class="w-4 h-4"> <span class="text-purple-300">慎重藥水</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-cautious" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div id="ui-elfcookie-row" class="col-span-2 flex justify-between items-center"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-elfcookie" class="w-4 h-4"> <span class="text-yellow-200">精靈餅乾</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-elfcookie" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-poly" class="w-4 h-4"> <span class="text-gray-300">變形卷軸</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-poly" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-magicbarrier" class="w-4 h-4"> <span class="text-cyan-300">魔法卷軸(魔法屏障)</span></label><span class="text-xs text-slate-500">無自動購買</span></div>
+                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-teleport" class="w-4 h-4"> <span class="text-sky-300">瞬間移動卷軸(遇BOSS)</span></label><label class="cursor-pointer flex items-center gap-1 text-xs text-slate-400"><input type="checkbox" id="set-auto-buy-teleport" class="w-3 h-3"> <span>自動購買</span></label></div>
+                        <div class="col-span-2 flex justify-between items-center border-t border-slate-700 pt-2 mt-1"><label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-auto-buy-arrow" class="w-4 h-4" checked> <span class="text-orange-300">弓箭耗盡時自動購買 1000 銀箭</span></label></div>
+						<div id="auto-buff-skills" class="col-span-2 grid grid-cols-2 gap-1 mt-1 border-t border-slate-600 pt-2"></div>
                     </div>
-
-                    <!-- 傳統套裝 -->
-                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
-                        <div class="text-emerald-300 font-bold text-base mb-1">🛡️ 傳統套裝</div>
-                        <div class="space-y-1 text-xs">
-                            <div class="flex justify-between"><span>皮套裝</span><span class="text-slate-300">4件 AC-3</span></div>
-                            <div class="flex justify-between"><span>歐西斯套裝</span><span class="text-slate-300">4件 AC-3</span></div>
-                            <div class="flex justify-between"><span>侏儒套裝</span><span class="text-slate-300">3件 AC-1 HP+5</span></div>
-                            <div class="flex justify-between"><span>銀釘套裝</span><span class="text-slate-300">4件 AC-3</span></div>
-                            <div class="flex justify-between"><span>骷髏套裝</span><span class="text-slate-300">3件 AC-2 HP+10</span></div>
-                            <div class="flex justify-between"><span>鋼鐵套裝</span><span class="text-slate-300">5件 AC-2 DR+2</span></div>
-                            <div class="flex justify-between"><span>法師套裝</span><span class="text-slate-300">2件 MP+50</span></div>
-                            <div class="flex justify-between"><span>死亡騎士套裝</span><span class="text-slate-300">4件 AC-4 變身真死騎(傷+6 命+6 攻速+35%)</span></div>
-                            <div class="flex justify-between"><span>克特套裝</span><span class="text-slate-300">4件 AC-4 變身真克特(傷+4 命+8 攻速+35%)</span></div>
-                            <div class="flex justify-between"><span>抗魔套裝</span><span class="text-slate-300">3件 MR+5</span></div>
-                            <div class="flex justify-between"><span>守護套裝</span><span class="text-slate-300">3件 AC-1</span></div>
-                            <div class="flex justify-between"><span>四大軍王套裝</span><span class="text-slate-300">4件 HP+30 MP+30 HPR+10 MPR+10 CHA+3</span></div>
-                            <div class="flex justify-between"><span>惡魔套裝</span><span class="text-slate-300">4件 AC-2 HPR+5 變身惡魔(多種加成可堆疊)</span></div>
-                            <div class="flex justify-between"><span>黑暗妖精套裝</span><span class="text-slate-300">3件 AC-3 STR-2 DEX+2 變身高精(遠傷+5 遠命+5 攻速+30%)</span></div>
+                    <!-- 匯出/存檔 已移至右上角按鈕區（3×4） -->
+                </div>
+                <!-- 📖 裝備系統說明 -->
+                <div id="tab-attrd" class="p-4 text-base overflow-y-auto h-full hidden">
+                    <div class="space-y-4">
+                        <!-- ===== 一、屬性附加 ===== -->
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h3 class="text-yellow-400 font-bold text-lg mb-2">一、屬性附加</h3>
+                            <div class="text-slate-300 space-y-1 text-sm">
+                                <p>武器可附加火／水／風／地屬性，分 <span class="text-amber-300">T1(之)</span>／<span class="text-amber-300">T3(中階)</span>／<span class="text-amber-300">T5(靈)</span> 三階。</p>
+                                <p class="font-bold mt-2">階級機率：T1 60%／T3 30%／T5 10%（四元素均分）</p>
+                                <div class="grid grid-cols-4 gap-2 mt-2">
+                                    <div><span class="text-red-300">火之</span><br>固定+1<br>剋地+6</div>
+                                    <div><span class="text-blue-300">水之</span><br>固定+1<br>剋火+6</div>
+                                    <div><span class="text-green-300">風之</span><br>固定+1<br>剋水+6</div>
+                                    <div><span class="text-amber-300">地之</span><br>固定+1<br>剋風+6</div>
+                                    <div><span class="text-red-300">爆炎</span><br>固定+3<br>剋地+9</div>
+                                    <div><span class="text-blue-300">海嘯</span><br>固定+3<br>剋火+9</div>
+                                    <div><span class="text-green-300">暴風</span><br>固定+3<br>剋水+9</div>
+                                    <div><span class="text-amber-300">崩裂</span><br>固定+3<br>剋風+9</div>
+                                    <div><span class="text-red-300">火靈</span><br>固定+5<br>剋地+12</div>
+                                    <div><span class="text-blue-300">水靈</span><br>固定+5<br>剋火+12</div>
+                                    <div><span class="text-green-300">風靈</span><br>固定+5<br>剋水+12</div>
+                                    <div><span class="text-amber-300">地靈</span><br>固定+5<br>剋風+12</div>
+                                </div>
+                                <p class="font-bold mt-2">屬性相剋循環</p>
+                                <p class="text-center text-lg my-1"><span class="text-red-300">火</span> → <span class="text-amber-300">地</span> → <span class="text-green-300">風</span> → <span class="text-blue-300">水</span> → <span class="text-red-300">火</span></p>
+                                <p>剋制時傷害 <span class="text-green-300">×1.4</span>，被剋時 <span class="text-red-300">×0.6</span></p>
+                                <p class="mt-2">防具／飾品附加屬性：對應屬性抗性 +1~3、MR +1~3（T1→T3→T5 遞增）</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- 裝備收藏 -->
-                    <div class="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
-                        <div class="text-yellow-400 font-bold text-base mb-1">📚 裝備收藏（29 類）</div>
-                        <div class="text-slate-500 text-xs mb-2">收集全類別物品 → 永久加成（帳號共通）</div>
-                        <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
-                            <span class="text-slate-300">匕首</span><span class="text-white text-right">MP+5</span>
-                            <span class="text-slate-300">單手劍</span><span class="text-white text-right">DR+1</span>
-                            <span class="text-slate-300">雙手劍</span><span class="text-white text-right">HP+10</span>
-                            <span class="text-slate-300">武士刀</span><span class="text-white text-right">HP+5</span>
-                            <span class="text-slate-300">單/雙手鈍器</span><span class="text-white text-right">負重+10 各</span>
-                            <span class="text-slate-300">矛</span><span class="text-white text-right">MR+1</span>
-                            <span class="text-slate-300">鋼爪</span><span class="text-white text-right">HPR+1</span>
-                            <span class="text-slate-300">雙刀</span><span class="text-white text-right">DR+1</span>
-                            <span class="text-slate-300">鎖鏈劍</span><span class="text-white text-right">HP+5</span>
-                            <span class="text-slate-300">弓</span><span class="text-white text-right">ER+1</span>
-                            <span class="text-slate-300">十字弓</span><span class="text-white text-right">MR+1</span>
-                            <span class="text-slate-300">魔杖</span><span class="text-white text-right">MPR+1</span>
-                            <span class="text-slate-300">奇古獸</span><span class="text-white text-right">MP+5</span>
-                            <span class="text-slate-300 border-t border-slate-700 pt-0.5">頭盔</span><span class="text-white text-right border-t border-slate-700 pt-0.5">DR+1</span>
-                            <span class="text-slate-300">盔甲</span><span class="text-white text-right">AC-1</span>
-                            <span class="text-slate-300">斗篷</span><span class="text-white text-right">MR+1</span>
-                            <span class="text-slate-300">長靴</span><span class="text-white text-right">ER+1</span>
-                            <span class="text-slate-300">手套</span><span class="text-white text-right">DR+1</span>
-                            <span class="text-slate-300">盾牌</span><span class="text-white text-right">HP+10</span>
-                            <span class="text-slate-300">臂甲</span><span class="text-white text-right">負重+10</span>
-                            <span class="text-slate-300 border-t border-slate-700 pt-0.5">項鍊</span><span class="text-white text-right border-t border-slate-700 pt-0.5">HPR+1</span>
-                            <span class="text-slate-300">戒指</span><span class="text-white text-right">MPR+1</span>
-                            <span class="text-slate-300">腰帶</span><span class="text-white text-right">負重+20</span>
-                            <span class="text-slate-300">耳環</span><span class="text-white text-right">MPR+1</span>
-                            <span class="text-slate-300 border-t border-slate-700 pt-0.5">寵物裝備</span><span class="text-white text-right border-t border-slate-700 pt-0.5">寵物命中+1</span>
-                            <span class="text-slate-300">魔法娃娃</span><span class="text-white text-right">全屬性+1</span>
+                        <!-- ===== 二、祝福／詛咒 ===== -->
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h3 class="text-yellow-400 font-bold text-lg mb-2">二、祝福／詛咒</h3>
+                            <div class="text-slate-300 space-y-1 text-sm">
+                                <p><span class="text-yellow-300 font-bold">祝福的</span>：消耗 1 張祝福卷軸隨機附加／取代</p>
+                                <div class="pl-4 text-xs space-y-0.5">
+                                    <p>武器：額外傷害+1、額外命中+1、額外魔法點數+2</p>
+                                    <p>防具：AC-1、傷害減免+1</p>
+                                    <p>飾品：AC-1、MR+1</p>
+                                </div>
+                                <p><span class="text-red-300 font-bold mt-1">詛咒的</span>：效果為祝福的反向（武器傷害/命中-1，防具AC+1 等）</p>
+                                <p class="mt-2">取得方式：象牙塔 NPC <span class="text-cyan-300">碧恩</span> — 用「賦予祝福卷軸」為裝備隨機改變詞綴</p>
+                                <p>解除詛咒：象牙塔 NPC <span class="text-cyan-300">碧恩</span> — 用「解除詛咒的卷軸」移除詛咒</p>
+                            </div>
+                        </div>
+                        <!-- ===== 三、遠古系列 ===== -->
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h3 class="text-yellow-400 font-bold text-lg mb-2">三、遠古系列（四階遞進）</h3>
+                            <div class="text-slate-300 space-y-1 text-sm">
+                                <p>遠古 <span class="text-slate-500">→</span> <span class="c-eternal">永恆</span> <span class="text-slate-500">→</span> <span class="c-immortal">不朽</span> <span class="text-slate-500">→</span> <span class="c-primordial">太初</span></p>
+                                <div class="grid grid-cols-4 gap-2 mt-2">
+                                    <div><span class="c-ancient">遠古</span><br>武器：額外傷害+2、魔法傷害+1<br>防具：傷害減免+2<br>飾品：傷害減免+1、MR+1</div>
+                                    <div><span class="c-eternal">永恆</span><br>武器：額外傷害+4<br>防具：AC-2<br>飾品：額外傷害+1、AC-1</div>
+                                    <div><span class="c-immortal">不朽</span><br>武器：額外命中+4<br>防具：ER+2<br>飾品：額外傷害+1、額外命中+1</div>
+                                    <div><span class="c-primordial">太初</span><br>武器：魔法傷害+2<br>防具：MR+4<br>飾品：MR+2、額外魔法點數+2</div>
+                                </div>
+                                <p class="mt-2">取得方式：象牙塔 NPC <span class="text-cyan-300">碧恩</span> — 用「賦予祝福卷軸」隨機獲得</p>
+                                <p>隨機結果：屬性／遠古系／祝福 三者平均抽一（附加、取代或消除）</p>
+                            </div>
+                        </div>
+                        <!-- ===== 四、席琳套裝（12 組） ===== -->
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h3 class="text-yellow-400 font-bold text-lg mb-2">四、席琳套裝（12 組）</h3>
+                            <div class="text-slate-300 text-sm space-y-2">
+                                <p>2/3/5 件獲得套裝效果。可附加部位：武器、頭盔、盔甲、手套、長靴、斗篷、盾牌／臂甲、腰帶</p>
+                                <p>席琳的世界擊殺掉落：一般怪 0.1%／恩賜怪 0.5%／頭目 5%（12 組均勻抽一）</p>
+                                <div class="grid grid-cols-2 gap-x-3 gap-y-2 mt-2">
+                                    <div><span class="text-red-300 font-bold">紅獅</span><br>2件：額外傷害+5、額外魔法點數+3<br>3件：傷害減免+10<br>5件：最終傷害+20%</div>
+                                    <div><span class="text-sky-300 font-bold">白鳥</span><br>2件：額外命中+5<br>3件：魅力+10<br>5件：攻擊使目標脆弱，受傷害+20%</div>
+                                    <div><span class="text-slate-300 font-bold">鐵衛</span><br>2件：AC-3、傷害減免+5<br>3件：受到傷害-20%<br>5件：受傷時反擊全體敵人</div>
+                                    <div><span class="text-pink-300 font-bold">麗人</span><br>2件：近距離傷害+3、命中+3<br>3件：近距離爆擊率+3%<br>5件：未命中堆疊額外命中</div>
+                                    <div><span class="text-green-300 font-bold">疾風</span><br>2件：遠距離傷害+3、命中+3<br>3件：遠距離爆擊率+3%<br>5件：連射傷害30%→80%</div>
+                                    <div><span class="text-amber-300 font-bold">月光</span><br>2件：額外傷害+2、額外命中+3<br>3件：ER+5、MR+10<br>5件：ER可迴避魔法攻擊</div>
+                                    <div><span class="text-blue-300 font-bold">學徒</span><br>2件：MP恢復+5、額外魔法點數+6<br>3件：魔法爆擊率+3%<br>5件：MP<30%時技能耗魔減半</div>
+                                    <div><span class="text-purple-300 font-bold">魔女</span><br>2件：魔法傷害+3<br>3件：水抗+10、額外魔法點數+5<br>5件：5次共鳴→免費冰雪暴</div>
+                                    <div><span class="text-red-400 font-bold">暗影</span><br>2件：額外傷害+7<br>3件：迴避時恢復2%HP<br>5件：雙擊額外攻擊傷害×2</div>
+                                    <div><span class="text-indigo-300 font-bold">幻覺</span><br>2件：魔法傷害命中回MP<br>3件：輔助技能耗MP-50%<br>5件：魔傷追加一次相同傷害</div>
+                                    <div><span class="text-red-500 font-bold">龍血</span><br>2件：物理傷害吸血1%(HP<50%→5%)<br>3件：HP消耗技得龍裔，受傷-15%<br>5件：HP消耗技傷害+20%</div>
+                                    <div><span class="text-orange-400 font-bold">狂怒</span><br>2件：負重+500<br>3件：最大HP+20%<br>5件：HP每少10%，造傷+4%/受傷-4%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ===== 五、傳統套裝 ===== -->
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h3 class="text-yellow-400 font-bold text-lg mb-2">五、傳統套裝</h3>
+                            <div class="text-slate-300 text-sm">
+                                <div class="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                                    <div>皮套裝 4件：AC-3</div>
+                                    <div>歐西斯套裝 4件：AC-3</div>
+                                    <div>侏儒套裝 3件：AC-1、HP+5</div>
+                                    <div>銀釘套裝 4件：AC-3</div>
+                                    <div>骷髏套裝 3件：AC-2、HP+10</div>
+                                    <div>鋼鐵套裝 5件：AC-2、DR+2</div>
+                                    <div>法師套裝 2件：MP+50</div>
+                                    <div>抗魔套裝 2件：MR+5</div>
+                                    <div>守護套裝 3件：AC-1</div>
+                                    <div class="text-yellow-300">死亡騎士 4件：AC-4、變身真‧死騎</div>
+                                    <div class="text-yellow-300">克特套裝 4件：AC-4、變身真‧克特</div>
+                                    <div>四大軍王 4件：HP/MP+30、恢復+10、魅力+3</div>
+                                    <div class="text-red-300">惡魔套裝 4件：AC-2、HP恢復+5、變身惡魔</div>
+                                    <div class="text-violet-300">黑暗妖精 3件：AC-3、力-2敏+2、變身高精</div>
+                                </div>
+                                <div class="mt-2 border-t border-slate-700 pt-2">
+                                    <p class="font-bold">特殊套裝</p>
+                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
+                                        <div>歐林西瑪 2件：全屬性+1、AC-5、HP+50</div>
+                                        <div>冰之女王魅力 3件：力+2魅+2、AC-5、HP+100、MP恢復+4、水抗+20</div>
+                                        <div>寒冰套裝 3件：體+3、AC-5、HP+100、HP/MP恢復+4/+8、MR+15、水抗+20</div>
+                                        <div>藍海賊 4件：智+1、AC-1、HP+10</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- ===== 六、裝備收藏 ===== -->
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                            <h3 class="text-yellow-400 font-bold text-lg mb-2">六、裝備收藏（29 類別）</h3>
+                            <div class="text-slate-300 text-sm">
+                                <p>收集完整類別內所有裝備，獲得永久屬性加成</p>
+                                <div class="grid grid-cols-3 gap-x-3 gap-y-1 mt-2">
+                                    <div><span class="text-sky-300">武器</span><br>匕首：MP+5<br>單手劍：DR+1<br>雙手劍：HP+10<br>武士刀：HP+5<br>單手鈍器：負重+10<br>雙手鈍器：負重+10<br>矛：MR+1<br>鋼爪：HP恢復+1<br>雙刀：DR+1<br>鎖鏈劍：HP+5<br>弓：ER+1<br>十字弓：MR+1<br>魔杖：MP恢復+1<br>奇古獸：MP+5</div>
+                                    <div><span class="text-sky-300">防具</span><br>頭盔：DR+1<br>盔甲：AC-1<br>斗篷：MR+1<br>長靴：ER+1<br>手套：DR+1<br>盾牌：HP+10<br>臂甲：負重+10</div>
+                                    <div><span class="text-sky-300">飾品</span><br>項鍊：HP恢復+1<br>戒指：MP恢復+1<br>腰帶：負重+20<br>耳環：MP恢復+1<br>寵物裝備：夥伴命中+1<br>魔法娃娃：全屬性+1</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div id="tab-search" class="p-4 overflow-y-auto h-full hidden flex-col gap-3 text-sm">
-                    <div class="border-b border-slate-700 pb-2 mb-1">
-                        <span class="text-yellow-400 font-bold text-base">🔍 物品掉落查詢</span>
-                        <span class="text-slate-400 ml-2 text-xs">輸入物品名稱，查詢哪些怪物會掉落；點擊怪物名稱查看出沒區域</span>
+                <!-- 🔍 物品掉落查詢 -->
+                <div id="tab-search" class="p-4 text-base overflow-y-auto h-full hidden">
+                    <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 mb-3">
+                        <label class="text-slate-300 text-sm font-bold">輸入物品名稱關鍵字：</label>
+                        <input type="text" id="search-item-input" class="w-full bg-slate-900 border border-slate-600 text-white px-3 py-2 rounded mt-1 text-base outline-none" placeholder="例如：武士刀、保斗、T恤…" oninput="onSearchInput()">
                     </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="search-input" class="flex-1 bg-slate-900 border border-slate-600 text-white px-3 py-2 rounded text-base outline-none focus:border-cyan-500" placeholder="輸入物品名稱…" oninput="onSearchInput()">
-                        <button class="btn px-4 py-2 bg-cyan-800 hover:bg-cyan-700 border-cyan-600 text-white font-bold" onclick="onSearchInput()">查詢</button>
-                    </div>
-                    <div id="search-stats" class="text-slate-500 text-xs"></div>
-                    <div id="search-results" class="flex flex-col gap-2"></div>
+                    <div id="search-results" class="text-slate-300 text-sm space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -634,8 +623,8 @@
 <script src="js/16-equip-book.js"></script>
 <script src="js/18-misc-book.js"></script>
 <script src="js/17-audio.js"></script>
-<script src="js/19-equipment-window.js"></script>
-<script src="js/20-warehouse-window.js"></script>
+<script src="js/19-equipment-window.js?v=20260702c"></script>
+<script src="js/20-warehouse-window.js?v=20260702a"></script>
 <script src="plugins/afk-extradata.js"></script>
 <script src="plugins/afk-wiki.js"></script>
 <script src="plugins/afk-statpts.js"></script>

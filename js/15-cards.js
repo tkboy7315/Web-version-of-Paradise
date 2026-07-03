@@ -122,9 +122,9 @@ function ensureCardBook() {
 function rollCardDrops(mob) {
     if (!mob || mob.race === '血盟' || mob.race === '建築') return;
     if (!CARD_MOB_INFO[mob.n]) return;
-    _cardDropRoll(mob.n, 3, 0.005);      // 金卡 0.5%
-    _cardDropRoll(mob.n, 2, 0.01);       // 銀卡 1%
-    _cardDropRoll(mob.n, 1, 0.05);       // 普卡 5%
+    _cardDropRoll(mob.n, 3, 0.005);     // 金卡 0.5%
+    _cardDropRoll(mob.n, 2, 0.01);      // 銀卡 1%
+    _cardDropRoll(mob.n, 1, 0.05);      // 普卡 5%
 }
 // 🎴 加分登錄 + 開通溢出退費（普/銀/金共用·useCardItem 與 acquireCard 單一真相）。回傳 {useN, overflow}。
 function _cardRegister(name, tier, count) {
@@ -339,37 +339,59 @@ function openDollBox(item, all) {
 }
 // 多餘卡片＝背包內該階卡片 且 該怪圖鑑「已開金階」(score>=100)：⚠️維持「需圖鑑開通金卡」才可兌換（銀卡/金卡皆 gate on 金階·只動用已收滿該怪的重複卡）
 function dollExcessSilverCards() { return player.inv.filter(it => { let d = DB.items[it.id]; return d && d.eff === 'card' && d.cardTier === 2 && cardDexTier(d.cardMob) >= 3; }); }
-function dollExcessSilverCount() { return dollExcessSilverCards().reduce((s, it) => s + (it.cnt || 1), 0); }
+function dollExcessSilverCount() { return dollExcessSilverCards().reduce((s, it) => s + (it.cnt || 1), 0) + _dollWhExcessCount(2); }   // 🔧 含倉庫多餘銀卡
 function dollExcessGoldCards() { return player.inv.filter(it => { let d = DB.items[it.id]; return d && d.eff === 'card' && d.cardTier === 3 && cardDexTier(d.cardMob) >= 3; }); }
-function dollExcessGoldCount() { return dollExcessGoldCards().reduce((s, it) => s + (it.cnt || 1), 0); }
+function dollExcessGoldCount() { return dollExcessGoldCards().reduce((s, it) => s + (it.cnt || 1), 0) + _dollWhExcessCount(3); }   // 🔧 含倉庫多餘金卡
+// 🔧 倉庫「多餘卡片」支援（僅圖鑑已開金階的重複卡）：兌換娃娃袋子/盒子時，背包不足自動動用倉庫存量（背包優先）。走 load→save 成對、吃倉庫安全網（拒寫失敗檔＋多分頁 uid 合併）。⚠️ 僅「兌換」用；卡片/娃娃「合成」仍只讀背包（見 magicDollSynth／dollSynth 不變量）。
+function _dollWhExcessCount(tier) {
+    try { return loadWarehouse().items.filter(it => { let d = DB.items[it.id]; return d && d.eff === 'card' && d.cardTier === tier && cardDexTier(d.cardMob) >= 3; }).reduce((s, it) => s + (it.cnt || 1), 0); } catch (e) { return 0; }
+}
+function _dollWhExcessConsume(tier, n) {   // 自倉庫扣除最多 n 張符合條件的卡；回傳實扣數（只動被消耗的堆疊、不碰其餘，避免誤刪無 cnt 項）
+    if (n <= 0) return 0;
+    try {
+        let w = loadWarehouse(), need = n, changed = false;
+        for (let i = w.items.length - 1; i >= 0 && need > 0; i--) {
+            let it = w.items[i], d = DB.items[it.id];
+            if (!(d && d.eff === 'card' && d.cardTier === tier && cardDexTier(d.cardMob) >= 3)) continue;
+            let c = it.cnt || 1, take = Math.min(c, need);
+            if (take >= c) w.items.splice(i, 1); else it.cnt = c - take;
+            need -= take; changed = true;
+        }
+        if (changed) saveWarehouse(w);
+        return n - need;
+    } catch (e) { return 0; }
+}
 // 通用兌換：把多餘卡片(pool)依數量扣除 n 張，發 n 個 rewardId（不足整疊則部分扣）
-function _dollCardExchange(pool, n, rewardId) {
+function _dollCardExchange(pool, n, rewardId, whTier) {
     let need = n, rm = [];
     for (let it of pool) { if (need <= 0) break; let c = it.cnt || 1; if (c <= need) { need -= c; rm.push(it.uid); } else { it.cnt = c - need; need = 0; } }
     if (rm.length) player.inv = player.inv.filter(i => rm.indexOf(i.uid) === -1);
-    gainItem(rewardId, n, true, true);
+    let got = (n - need) + ((need > 0 && whTier) ? _dollWhExcessConsume(whTier, need) : 0);   // 🔧 背包優先，不足再扣倉庫；只發「實際消耗」的張數（多分頁下倉庫可能已變動→不超發）
+    if (got <= 0) return 0;
+    gainItem(rewardId, got, true, true);
     if (typeof renderTabs === 'function') renderTabs(true);
     if (typeof updateUI === 'function') updateUI();
     if (typeof saveGame === 'function') saveGame();
     let _c = document.getElementById('interaction-content'); if (_c) renderCardSynth(_c);
+    return got;
 }
 // 用多餘銀卡兌換娃娃袋子（1 銀卡 = 1 袋；all=true 全換）
 function exchangeSilverForBags(all) {
     let pool = dollExcessSilverCards();
-    let total = pool.reduce((s, it) => s + (it.cnt || 1), 0);
+    let total = pool.reduce((s, it) => s + (it.cnt || 1), 0) + _dollWhExcessCount(2);   // 🔧 含倉庫多餘銀卡
     if (total <= 0) { logSys('<span class="text-slate-400">沒有可兌換的多餘銀卡（需「圖鑑已開金階」的重複銀卡）。</span>'); return; }
     let n = all ? total : 1;
-    _dollCardExchange(pool, n, 'doll_bag');
-    logSys(`🎴 → 🪆 用 <span class="c-card-silver font-bold">${n} 張多餘銀卡</span> 兌換了 <span class="text-pink-300 font-bold">${n} 個魔法娃娃的袋子</span>。`);
+    let got = _dollCardExchange(pool, n, 'doll_bag', 2);
+    if (got > 0) logSys(`🎴 → 🪆 用 <span class="c-card-silver font-bold">${got} 張多餘銀卡</span> 兌換了 <span class="text-pink-300 font-bold">${got} 個魔法娃娃的袋子</span>。`);
 }
 // 用多餘金卡兌換高級魔法娃娃的盒子（1 金卡 = 1 盒；all=true 全換）
 function exchangeGoldForBoxes(all) {
     let pool = dollExcessGoldCards();
-    let total = pool.reduce((s, it) => s + (it.cnt || 1), 0);
+    let total = pool.reduce((s, it) => s + (it.cnt || 1), 0) + _dollWhExcessCount(3);   // 🔧 含倉庫多餘金卡
     if (total <= 0) { logSys('<span class="text-slate-400">沒有可兌換的多餘金卡（需「圖鑑已開金階」的重複金卡）。</span>'); return; }
     let n = all ? total : 1;
-    _dollCardExchange(pool, n, 'doll_box_high');
-    logSys(`🎴 → 🎁 用 <span class="c-card-gold font-bold">${n} 張多餘金卡</span> 兌換了 <span class="text-amber-300 font-bold">${n} 個高級魔法娃娃的盒子</span>。`);
+    let got = _dollCardExchange(pool, n, 'doll_box_high', 3);
+    if (got > 0) logSys(`🎴 → 🎁 用 <span class="c-card-gold font-bold">${got} 張多餘金卡</span> 兌換了 <span class="text-amber-300 font-bold">${got} 個高級魔法娃娃的盒子</span>。`);
 }
 
 // 背包內某階娃娃總數
@@ -464,7 +486,7 @@ function renderCardSynth(div) {
     // 🪆 多餘卡片兌換（維持需「圖鑑已開金階」的重複卡片）：銀卡→娃娃袋子；金卡→高級盒子
     let _sc = dollExcessSilverCount(), _gc = dollExcessGoldCount();
     h += `<div class="px-4 pb-2 pt-2 border-t border-slate-700/60 space-y-2">
-        <div class="text-sm text-slate-300">🎴 <b>多餘卡片兌換</b> <span class="text-xs text-slate-400">（圖鑑已開金階的重複卡片）</span></div>
+        <div class="text-sm text-slate-300">🎴 <b>多餘卡片兌換</b> <span class="text-xs text-slate-400">（圖鑑已開金階的重複卡片・<b>含倉庫</b>存量，背包優先）</span></div>
         <div class="flex items-center justify-between bg-slate-900/50 border border-slate-700 rounded px-3 py-2">
             <span class="text-sm">🪆 <span class="c-card-silver font-bold">銀卡</span> → 娃娃袋子（1:1）　可兌換：<span class="${_sc ? 'c-card-silver' : 'text-slate-500'} font-bold">${_sc} 張</span></span>
             <button class="btn px-3 py-1 text-xs font-bold ${_sc ? 'bg-slate-600 hover:bg-slate-500 border-slate-400' : 'bg-slate-700 border-slate-600 opacity-50 cursor-not-allowed'}" ${_sc ? '' : 'disabled'} onclick="exchangeSilverForBags(true)">全部兌換</button>
@@ -589,7 +611,7 @@ function renderCardBook() {
     let cards = names.map(nm => {
         let info = CARD_MOB_INFO[nm]; let mob = info.mob;
         let tier = cardDexTier(nm);
-        let imgUrl = _cardMobImg(mob, nm);
+        let _mi = (typeof mobStillImg === 'function') ? mobStillImg(nm, mob.img, false) : { src: _cardMobImg(mob, nm), fb: [] };   // 🎬 圖鑑縮圖：有動畫→idle_0（退舊靜態）；無動畫→舊靜態
         let silh = tier <= 0 ? ' card-silhouette' : '';
         let nameHtml = tier >= 1
             ? `<div class="text-sm font-bold text-white truncate" title="${nm}">${nm}</div><div class="text-[11px] text-slate-500">Lv ${mob.lv || '?'}</div>`
@@ -609,7 +631,7 @@ function renderCardBook() {
         let tierBadge = tier > 0 ? `<span class="absolute top-1 right-1 text-[10px] px-1 rounded ${CARD_TIERS[tier - 1].col} bg-black/50 font-bold">${CARD_TIERS[tier - 1].sfx}</span>` : '';
         return `<div class="relative bg-slate-800/70 border ${tier > 0 ? 'border-slate-600' : 'border-slate-700/60'} rounded-lg p-2 flex flex-col items-center gap-1 w-[136px]">
             ${tierBadge}
-            <img src="${imgUrl}" alt="${nm}" class="w-16 h-16 object-contain${silh}" onerror="this.onerror=null;this.src='https://placehold.co/64x64/1e293b/334155?text=%3F';">
+            <img src="${_mi.src}" data-fb="${_mi.fb.concat(['https://placehold.co/64x64/1e293b/334155?text=%3F']).join('|')}" alt="${nm}" class="w-16 h-16 object-contain${silh}" onerror="_mobImgErr(this)">
             <div class="text-center w-full">${nameHtml}${info2}</div>
         </div>`;
     }).join('');

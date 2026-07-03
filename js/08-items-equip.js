@@ -72,6 +72,7 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     
     if(typeof auditTrackGain === 'function') auditTrackGain(itemInfo);   // 統計：掉落計數
     try { if (_vfxLootCtx && d && d.gachaWeight === 1 && typeof vfxRareDrop === 'function') vfxRareDrop(d.n); } catch(e){}   // ✨ VFX：潘朵拉權重=1 的稀有掉落金色閃光
+    try { if (typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {}   // 🔧 v2.6.73 獲得物品時自動排列背包（每 10 秒最多 1 次·節流在函式內）
     return itemInfo; // 👈 讓拉霸機可以讀取最終產生的物品
 }
 
@@ -462,8 +463,8 @@ function useItem(u, silent = false) {
         if(player.lv < reqLv) { logSys(`等級不足，需要等級 ${reqLv} 才能學習「${sd.n}」。`); return; }
         
         // 👇 補上這兩行：確保屬性相符才能吃水晶！
-        //if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }   // 屬性限制已解除
-        //if(sd.reqEleAny && !player.elfEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }           // 屬性限制已解除
+        //if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }
+        //if(sd.reqEleAny && !player.elfEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }
 
         if(!player.skills.includes(d.sk)) {
             player.skills.push(d.sk);
@@ -973,22 +974,75 @@ function getBuffColor(k, def) {
     return 'text-amber-300';                          // 其他 (琥珀黃)
 }
 
+// 戰鬥畫面右上狀態 ICON（原版天堂風格）。只列出 assets/state-icons 目前已有圖片的持續效果；召喚、瞬發與缺圖技能不顯示。
+const STATUS_ICON_SKILLS = {
+    'sk_sunlight':'日光術','sk_shield':'保護罩','sk_holy_wpn':'神聖武器','sk_ench_wpn':'擬似魔法武器','sk_reveal':'無所遁形術','sk_load_up':'負重強化','sk_shield2':'鎧甲護持',
+    'sk_dex_up':'通暢氣脈術','sk_magic_shield':'魔法屏障','sk_meditation':'冥想術','sk_haste_spell':'加速術','sk_str_up':'體魄強健術',
+    'sk_bless_wpn':'祝福魔法武器','sk_greater_haste':'強力加速術','sk_berserk':'狂暴術','sk_holy_dash':'神聖疾走','sk_blizzard_storm':'冰雪颶風','sk_fire_prison':'火牢','sk_invisible':'隱身術',
+    'sk_holy_barrier':'聖結界','sk_soul_up':'靈魂昇華','sk_solid_shield':'堅固防護','sk_reduction_armor':'增幅防禦','sk_spike_armor':'尖刺盔甲',
+    'sk_counter_barrier':'反擊屏障','sk_elf_mr':'魔法防禦','sk_elf_purify':'淨化精神','sk_elf_eleres':'屬性防禦','sk_elf_singleres':'單屬性防禦',
+    'sk_elf_firewpn':'火焰武器','sk_elf_windshot':'風之神射','sk_elf_winddash':'風之疾走','sk_elf_earthguard':'大地防護','sk_elf_watervital':'水之元氣',
+    'sk_elf_dancefire':'舞躍之火','sk_elf_stormeye':'暴風之眼','sk_elf_earthshield':'大地屏障','sk_elf_earthbless':'大地的祝福','sk_elf_blazewpn':'烈炎武器',
+    'sk_elf_flamesoul':'烈焰之魂','sk_elf_stormshot':'暴風神射','sk_elf_preciseshot':'精準射擊','sk_elf_steelguard':'鋼鐵防護','sk_elf_attrfire':'屬性之火',
+    'sk_elf_physboost':'體能激發','sk_elf_energyboost':'能量激發','sk_elf_mirror':'鏡反射','sk_dark_str':'力量提升','sk_dark_mrup':'影之防護',
+    'sk_dark_stealth':'暗隱術','sk_dark_poison':'附加劇毒','sk_dark_dex':'敏捷提升','sk_dark_poisonres':'毒性抵抗','sk_dark_burn':'燃燒鬥志',
+    'sk_dark_walkhaste':'行走加速','sk_dark_fang':'暗影之牙','sk_dark_dodge':'暗影閃避','sk_dark_erup':'迴避提升','sk_dark_double':'雙重破壞',
+    'sk_illu_ogre':'幻覺：歐吉','sk_illu_cube_burn':'立方：燃燒','sk_illu_mirror':'鏡像','sk_illu_focus':'專注','sk_illu_lich':'幻覺：巫妖',
+    'sk_illu_cube_quake':'立方：地裂','sk_illu_golem':'幻覺：鑽石高崙','sk_illu_cube_shock':'立方：衝擊','sk_illu_endure':'耐力','sk_illu_avatar':'幻覺：化身',
+    'sk_illu_insight':'洞察','sk_illu_cube_harmony':'立方：和諧','sk_illu_pain':'疼痛的歡愉','sk_dragon_armor':'龍之護鎧','sk_dragon_flameslash':'燃燒擊砍','sk_dragon_awaken_antares':'覺醒：安塔瑞斯',
+    'sk_dragon_bloodlust':'血之渴望','sk_dragon_awaken_falion':'覺醒：法利昂','sk_dragon_deadlybody':'致命身軀','sk_dragon_awaken_baraka':'覺醒：巴拉卡斯','sk_royal_precise':'精準目標','sk_royal_burnweapon':'灼熱武器','sk_royal_bravewill':'勇猛意志','sk_royal_shield':'閃亮之盾',
+    'sk_warrior_throwaxe':'戰斧投擲','sk_warrior_endurance':'體能強化','sk_warrior_outlaw':'亡命之徒',
+    // 裝備法術沿用原法術圖示。
+    'sk_helm_dex1':'通暢氣脈術','sk_helm_dex2':'加速術','sk_helm_str1':'擬似魔法武器','sk_helm_str2':'無所遁形術','sk_helm_str3':'體魄強健術'
+};
+function renderStatusIconBar() {
+    let bar=document.getElementById('status-icon-bar'); if(!bar||!player||!player.buffs)return;
+    let rows=[],seen=new Set();
+    // player.buffs 的數值單位就是「秒」，主迴圈每 10 tick（1 秒）扣 1；不可再除以 10。
+    let add=(name,seconds,label)=>{if(!name||seen.has(name))return;seen.add(name);let sec=Math.max(0,Math.ceil(Number(seconds)||0));rows.push({name,ticks:Number(seconds)||0,label:label||name,sec});};
+    if(player.buffs.haste>0||player._equipHaste)add('加速術',player.buffs.haste||0,'加速');
+    if(player.buffs.brave>0)add('勇敢藥水',player.buffs.brave,'勇敢藥水');
+    if(player.buffs.blue>0)add('藍色藥水',player.buffs.blue,'藍色藥水');
+    if(player.buffs.cautious>0)add('慎重藥水',player.buffs.cautious,'慎重藥水');
+    if(player.buffs.elfcookie>0)add('精靈餅乾',player.buffs.elfcookie,'精靈餅乾');
+    if(player._setPoly||(player.buffs.poly>0&&player.poly))add('變形術',player.buffs.poly||0,'變身');
+    Object.keys(STATUS_ICON_SKILLS).forEach(id=>{if((player.buffs[id]||0)>0)add(STATUS_ICON_SKILLS[id],player.buffs[id],DB.skills[id]?DB.skills[id].n:STATUS_ICON_SKILLS[id]);});
+    // 持續治療不存於 player.buffs，而是以 0.1 秒 tick 記在 player.hots；換算成真正剩餘秒數後顯示。
+    [['sk_regen','體力回復術'],['sk_elf_lifebless','生命的祝福']].forEach(([id,name])=>{let h=player.hots&&player.hots[id];if(h&&h.ticksLeft>0){let remainTicks=Math.max(0,(h.ticksLeft-1)*(h.interval||0)+(h.cd||0));add(name,Math.ceil(remainTicks/10),DB.skills[id]?DB.skills[id].n:name);}});
+    // 🔧 v2.7.5 合併 2683「狀態圖示狂閃修正」：renderStatusEffects 每 tick(0.1秒) 呼叫本函式；原本每次都重建整排 innerHTML→所有 <img> 反覆重新解碼/重繪而狂閃。
+    //   改「簽章式重建」：sig 只含 狀態種類/順序，不含秒數→種類/順序不變時不重建 DOM，僅更新 title(圖片保持不動、不閃)。
+    // 🔧 v2.7.9 用戶要求：移除圖示上的動態倒數文字(.status-icon-time 不再產生)——剩餘秒數只留 hover title 提示；sig 隨之不需 T/P 位。
+    let sig=rows.map(x=>x.name+'|'+x.label).join('||');
+    if(bar.dataset.statusSig!==sig){
+        bar.dataset.statusSig=sig;
+        bar.innerHTML=rows.map((x,i)=>{let title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');return `<div class="status-icon" data-status-index="${i}" title="${title}"><img src="assets/state-icons/${encodeURIComponent(x.name)}.jpg" alt="${x.label}"></div>`;}).join('');
+    } else {
+        rows.forEach((x,i)=>{let icon=bar.querySelector(`[data-status-index="${i}"]`);if(!icon)return;icon.title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');});
+    }
+}
+
 // 統一渲染「狀態」欄：魔法/藥水增益(buff) + 受到的減益(debuff)
 function renderStatusEffects() {
     if(state.ff) return; // 補跑期間不刷新畫面
     let el = document.getElementById('dt-buffs');
     if(!el) return;
+    renderStatusIconBar();
 
     // ===== 增益 BUFF =====
+    // 🔧 v2.7.2 用戶要求「有圖示的狀態不用再於此文字欄重複」：戰鬥右上狀態圖示列(renderStatusIconBar)已顯示的增益，這裡略過文字。
+    //   但圖示列在 #battle-view 內→安全區(村莊)戰鬥區帶 .hidden 時圖示不可見，此時仍以文字顯示，避免完全看不到增益。
+    //   _skipIconized=true(戰鬥中·圖示可見)：藥水(加速/勇/藍/慎/精靈餅乾)、變身、及 STATUS_ICON_SKILLS 內的技能 皆略過文字（改看圖示）。
+    let _bv = document.getElementById('battle-view');
+    let _skipIconized = !!(_bv && !_bv.classList.contains('hidden'));
     let buffs = [];
-    if(player.buffs.haste>0 || player._equipHaste) buffs.push(`<span class="text-emerald-400 font-bold">加速</span>`);
-    if(player.buffs.brave>0) buffs.push(`<span class="text-fuchsia-400 font-bold">勇水</span>`);
-    if(player.buffs.blue>0) buffs.push(`<span class="text-blue-400 font-bold">藍水</span>`);
-    if(player.buffs.cautious>0) buffs.push(`<span class="text-violet-400 font-bold">慎水</span>`);
-    if(player.buffs.elfcookie>0) buffs.push(`<span class="text-yellow-300 font-bold">精靈餅乾</span>`);
+    if((player.buffs.haste>0 || player._equipHaste) && !_skipIconized) buffs.push(`<span class="text-emerald-400 font-bold">加速</span>`);
+    if(player.buffs.brave>0 && !_skipIconized) buffs.push(`<span class="text-fuchsia-400 font-bold">勇水</span>`);
+    if(player.buffs.blue>0 && !_skipIconized) buffs.push(`<span class="text-blue-400 font-bold">藍水</span>`);
+    if(player.buffs.cautious>0 && !_skipIconized) buffs.push(`<span class="text-violet-400 font-bold">慎水</span>`);
+    if(player.buffs.elfcookie>0 && !_skipIconized) buffs.push(`<span class="text-yellow-300 font-bold">精靈餅乾</span>`);
     // 變身顯示：套裝變身(_setPoly，僅穿著時生效)優先於藥水變身，與 recomputeStats 的數值優先序一致 → 穿上惡魔/死亡騎士/克特套裝會立即取代卷軸變身的名稱顯示
     { let _polyDisp = player._setPoly || ((player.buffs.poly>0 && player.poly) ? player.poly : null);
-      if(_polyDisp) buffs.push(`<span class="${_polyDisp.c} font-bold">變身:${_polyDisp.n}</span>`); }
+      if(_polyDisp && !_skipIconized) buffs.push(`<span class="${_polyDisp.c} font-bold">變身:${_polyDisp.n}</span>`); }
 
     // 🤝 協力傭兵已改由「協力傭兵隊伍」面板(#squad-panel)顯示 HP/MP/EXP/狀態，移除此處「狀態」欄的重複「協力：XX」條目
     // 👇 補上夥伴與誘捕狀態的顯示（可同時多種夥伴，數字=持有項圈數量，為1不顯示）
@@ -1028,6 +1082,7 @@ function renderStatusEffects() {
                 }
                 continue;
             }
+            if(_skipIconized && STATUS_ICON_SKILLS[k]) continue;   // 🔧 v2.7.2 有圖示的技能增益→戰鬥中略過文字(改看右上狀態圖示)；無圖示技能/村莊仍顯示
             buffs.push(`<span class="${getBuffColor(k, DB.skills[k])} font-bold">${DB.skills[k].n}</span>`);
         }
     }
