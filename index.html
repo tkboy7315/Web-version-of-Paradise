@@ -273,6 +273,8 @@
                 <!-- 第五排：裝備說明 + 查詢 -->
                 <button class="btn text-base py-2 font-bold col-span-1" style="background: linear-gradient(135deg, #3b0764 0%, #7e22ce 28%, #2e0652 52%, #6b21a8 76%, #1f033f 100%); color: #e9d5ff; border-color: #9333ea;" onclick="switchTab('attrd', this)">📖 裝備說明</button>
                 <button class="btn text-base py-2 font-bold col-span-2" style="background: linear-gradient(135deg, #164e63 0%, #0891b2 28%, #0f3d4d 52%, #0e7490 76%, #0a2e3a 100%); color: #a5f3fc; border-color: #06b6d4;" onclick="switchTab('search', this)">🔍 查詢</button>
+                <!-- 第六排：小百科 -->
+                <button class="btn text-base py-2 font-bold col-span-3" style="background: linear-gradient(135deg, #4c1d95 0%, #8b5cf6 28%, #3b0f7a 52%, #7c3aed 76%, #2c095e 100%); color: #e9d5ff; border-color: #a78bfa;" onclick="openWiki()">📚 小百科</button>
             </div>
 
             <div id="tab-content-panel" class="panel flex-1 flex flex-col overflow-hidden relative">
@@ -589,6 +591,9 @@
     </div><!-- /#app-stage -->
 
     <script>
+    /* 小百科：在遊戲主畫面直接打開 wiki 模態（無須退出遊戲） */
+    function openWiki() { if (window.AFK_WIKI_API && AFK_WIKI_API.goto) AFK_WIKI_API.goto(); else console.warn('小百科未載入'); }
+
     /* 🖥️ v2.5.8 流動式版面：移除固定 1920×1080 舞台與縮放，改由 CSS #app-stage{position:fixed;inset:0} 填滿視窗、三欄 flex 隨視窗自然伸縮。fitStage() 保留為 no-op（清掉任何殘留的 transform/left/top，相容舊存的 inline 樣式），仍掛在 resize/load 不報錯。 */
     (function () {
       function fitStage() {
