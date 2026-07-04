@@ -167,7 +167,7 @@ setInterval(() => { try { renderAuditTab(); } catch(e) {} }, 2000);   // 開著�
 // killMob() 只負責「標記死亡＋發放獎勵/掉落」；輸送帶遞補與目標重映射延後到 settleDeadMobs()。
 // tick 內的擊殺由 gameLoop 在 tick 結束後統一清算；手動操作（點技能/道具）觸發的擊殺立即清算。
 // 好處：怪物迭代過程中陣列不再位移，徹底杜絕「怪物被跳過回合 / 索引指到錯的怪」這類隱性錯誤。
-function classicDropMult() { return (player.classicMode ? 0.1 : 1) * (player.classicMode ? 1 : 10); }   // 🎮 經典模式：所有物品掉落機率 ×1/10；自訂掉落倍率：一般×10，經典×1
+function classicDropMult() { return (player.classicMode ? 0.1 : 1) * (player.classicMode ? 1 : RATE_PRESETS[(state.rateLv || 2)].drop); }   // 🎮 經典模式：所有物品掉落機率 ×1/10；自訂掉落倍率：一般×RATE_PRESETS[rateLv].drop，經典×1
 // 🎮 經典模式例外：職業專屬試煉道具（TRIAL_ITEM_CLASS 內者）不受 ×1/10 影響→照原機率掉落（避免 50 級試煉在經典模式難度暴增 10 倍）；非試煉道具仍套用 classicDropMult。用於 MOB_DROPS／DRAGON_DROPS 兩個含試煉道具的掉落表。
 function trialItemDropMult(id) { return (typeof TRIAL_ITEM_CLASS !== 'undefined' && TRIAL_ITEM_CLASS[id]) ? 1 : classicDropMult(); }
 function killMob(idx) {
@@ -187,7 +187,7 @@ function killMob(idx) {
     // 🔧 轉場建築（往上層的樓梯 / 遺忘之島傳送門）：擊敗即進入下一層/島，不顯示「擊敗了…」戰鬥訊息（race 建築且 noAutoTeleport，排除攻城塔/城門）
     let _hideKillMsg = (mob.race === '建築' && mob.noAutoTeleport);
     if(!_hideKillMsg) logCombat(`擊敗了 <span class="${getMobColor(mob.lv)}">${mob.n}</span>！`, 'player-heavy');  // 👈 新增
-    player.exp += Math.floor(mob.exp * getExpGainMult(player.lv) * (player.classicMode ? 0.5 : 1) * (1 + dollFieldVal('expBonus') / 100) * (player.classicMode ? 0.5 : 100));   // 🎮 經典模式：經驗值減半；🪆 魔法娃娃 expBonus%；自訂經驗倍率：一般×100，經典×0.5
+    player.exp += Math.floor(mob.exp * getExpGainMult(player.lv) * (player.classicMode ? 0.5 : 1) * (1 + dollFieldVal('expBonus') / 100) * (player.classicMode ? 0.5 : RATE_PRESETS[(state.rateLv || 2)].exp));   // 🎮 經典模式：經驗值減半；🪆 魔法娃娃 expBonus%；自訂經驗倍率：一般×RATE_PRESETS[rateLv].exp，經典×0.5
     checkLvUp();
     // 🤝 協力傭兵經驗平分：每名非倒地傭兵各得「以自身等級計算」的 MERC_EXP_SHARE（不減玩家）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。
     if (player.allies && player.allies.length && mob.exp) {
@@ -212,7 +212,7 @@ function killMob(idx) {
         let gMax = mob.goldMax || (mob.lv * 10);
         let g = gMin + Math.floor(Math.random() * (gMax - gMin + 1));
         if (player.classicMode) g = Math.floor(g / 2);   // 🎮 經典模式：怪物金幣僅剩一般模式的 1/2（歷次：×1/10 → ×1/3 → ×1/2）
-        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (player.classicMode ? 1 : 50));   // 🪆 魔法娃娃 goldBonus%（莫提斯）；自訂金幣倍率：一般×50，經典×1
+        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (player.classicMode ? 1 : RATE_PRESETS[(state.rateLv || 2)].gold));   // 🪆 魔法娃娃 goldBonus%（莫提斯）；自訂金幣倍率：一般×RATE_PRESETS[rateLv].gold，經典×1
         player.gold += g;
         // 🔧 金幣不再逐殺輸出於系統日誌；改由 gameLoop 累積、flushAwaySummary 以「掛機期間獲得總金幣」統一顯示。
 

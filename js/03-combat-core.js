@@ -40,7 +40,7 @@ function gameLoop() {
 
     if(elapsed < 0) elapsed = 0;
     if(elapsed > MAX_CATCHUP_MS) elapsed = MAX_CATCHUP_MS; // 上限保護
-    _tickDebt += elapsed;
+    _tickDebt += elapsed * state.spd;
 
     let n = Math.floor(_tickDebt / TICK_MS);
     _tickDebt -= n * TICK_MS;
@@ -55,7 +55,31 @@ function gameLoop() {
         return;
     }
 
-    // 需要補跑多個 tick：期間關閉逐 tick 的畫面刷新與戰鬥訊息，跑完再統一刷新一次
+    // 前景加速 / 背景補跑分流：
+    //   - 前景加速（文件可見且 spd>1）：不設 ff，保留戰鬥訊息與即時刷新
+    //   - 背景補跑（文件隱藏或 spd===1）：ff=true，關閉逐 tick 訊息，跑完彙總
+    const _isBg = !!(document.hidden) || state.spd === 1;
+
+    if (!_isBg) {
+        // 前景加速：多個 tick 一次跑，但保留 logCombat/logSys，每批結束刷新一次
+        flushAwaySummary();
+        state.inTick = true;
+        try {
+            for(let k=0; k<n; k++) {
+                if(!state.running || player.dead) break;
+                tick();
+                settleDeadMobs();
+            }
+        } finally {
+            state.inTick = false;
+            settleDeadMobs();
+        }
+        flushTickRender();
+        updateUI();
+        return;
+    }
+
+    // 背景補跑（n > 1）：期間關閉逐 tick 的畫面刷新與戰鬥訊息，跑完再統一刷新一次
     // 補跑期間 logSys 被靜音，先記錄背包與金幣，補跑後把增量「累積」起來（不立即輸出，
     // 避免計時抖動/背景降速造成每次小補跑都洗一行訊息）。達門檻並回到即時後由 flushAwaySummary 統一輸出。
     const _invBefore = {};

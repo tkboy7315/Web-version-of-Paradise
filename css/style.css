@@ -35,6 +35,7 @@
         .tab-bar .btn { background: linear-gradient(135deg, #594720 0%, #786030 26%, #4a3c1a 48%, #6b5628 72%, #413518 100%); border-color: #6e5824; color: #f1f5f9; text-shadow: 0.5px 0.5px 0 #000, -0.5px -0.5px 0 #000, 0.5px -0.5px 0 #000, -0.5px 0.5px 0 #000; }  /* 分頁鈕：最暗金褐不規則漸層 */
         .tab-bar .btn:hover:not(:disabled) { background: linear-gradient(135deg, #6e5828 0%, #927535 26%, #5f4d22 48%, #836a30 72%, #564621 100%); }
         .tab-bar .btn.active { background: linear-gradient(135deg, #9a7c38 0%, #c19a4a 50%, #856a30 100%); border-color: #d4b35e; }
+
         #btn-start { background: linear-gradient(135deg, #594720 0%, #786030 26%, #4a3c1a 48%, #6b5628 72%, #413518 100%); border-color: #6e5824; }  /* 開始冒險：金褐(同分頁鈕) */
         #btn-start:hover:not(:disabled) { background: linear-gradient(135deg, #6e5828 0%, #927535 26%, #5f4d22 48%, #836a30 72%, #564621 100%); }
         #tab-stats .text-slate-400:not(.text-red-400):not(.text-blue-300):not(.text-blue-300) { color: #e2e8f0; }  /* 能力分頁：非顏色屬性的灰字改亮便於閱讀(屬抗/HP/MP恢復量等有色者不受影響) */

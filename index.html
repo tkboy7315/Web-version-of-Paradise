@@ -187,7 +187,17 @@
         <button onclick="reviveInPlace()" id="btn-revive-inplace" class="hidden bg-yellow-700 hover:bg-yellow-600 px-6 py-1.5 text-white font-bold border border-yellow-500 rounded anim-flash text-base shadow-md">原地復活</button>
         <button onclick="playerTeleport()" id="btn-teleport" class="hidden bg-fuchsia-800 hover:bg-fuchsia-700 px-3 py-1 text-white font-bold border border-fuchsia-500 rounded text-sm shadow-md whitespace-nowrap min-w-[3.25rem] text-center" title="傳送術／瞬間移動卷軸（於對應地圖可進入隱藏狩獵區域）">瞬移</button>
         <button onclick="returnToTown()" id="btn-return-town" class="bg-emerald-800 hover:bg-emerald-700 px-3 py-1 text-white font-bold border border-emerald-500 rounded text-sm shadow-md whitespace-nowrap min-w-[3.25rem] text-center">回村</button>
-        <select id="map-category" class="bg-slate-800 border border-slate-600 text-white px-3 py-1.5 text-base rounded outline-none" onchange="onMapCategoryChange()">
+            <select id="speed-select" class="bg-slate-800 border border-slate-600 text-white px-2 py-1.5 text-base rounded outline-none cursor-pointer" onchange="setSpeed(Number(this.value))" title="遊戲加速">
+                <option value="1">加速 ×1</option>
+                <option value="2">加速 ×2</option>
+                <option value="3">加速 ×3</option>
+            </select>
+            <select id="rate-select" class="bg-slate-800 border border-slate-600 text-white px-2 py-1.5 text-base rounded outline-none cursor-pointer" onchange="setRate(Number(this.value))" title="掉落倍率">
+                <option value="1">倍率 ×1</option>
+                <option value="2" selected>倍率 ×2</option>
+                <option value="3">倍率 ×3</option>
+            </select>
+            <select id="map-category" class="bg-slate-800 border border-slate-600 text-white px-3 py-1.5 text-base rounded outline-none" onchange="onMapCategoryChange()">
             <option value="village">村莊</option>
             <option value="wild">野外</option>
             <option value="dungeon">地監</option>
@@ -592,6 +602,22 @@
     <script>
     /* 小百科：在遊戲主畫面直接打開 wiki 模態（無須退出遊戲） */
     function openWiki() { if (window.AFK_WIKI_API && AFK_WIKI_API.goto) AFK_WIKI_API.goto(); else console.warn('小百科未載入'); }
+
+    /* ⚡ 遊戲加速：打怪 tick 速度倍率 */
+    function setSpeed(v) {
+      if (typeof state === 'undefined') return;
+      state.spd = v;
+      var sel = document.getElementById('speed-select');
+      if (sel) sel.value = String(v);
+    }
+
+    /* ★ 掉落倍率：經驗／金幣／物品掉落倍率預設組 */
+    function setRate(v) {
+      if (typeof state === 'undefined') return;
+      state.rateLv = v;
+      var sel = document.getElementById('rate-select');
+      if (sel) sel.value = String(v);
+    }
 
     /* 🖥️ v2.5.8 流動式版面：移除固定 1920×1080 舞台與縮放，改由 CSS #app-stage{position:fixed;inset:0} 填滿視窗、三欄 flex 隨視窗自然伸縮。fitStage() 保留為 no-op（清掉任何殘留的 transform/left/top，相容舊存的 inline 樣式），仍掛在 resize/load 不報錯。 */
     (function () {
