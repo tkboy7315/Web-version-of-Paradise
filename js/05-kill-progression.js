@@ -195,7 +195,7 @@ function killMob(idx) {
         let _cm = player.classicMode ? _r.classicExp : _r.exp;
         player.allies.forEach(a => {
             if (!a || a._downed) return;
-            let _gain = Math.floor(mob.exp * getExpGainMult(a.lv || 1) * _cm * MERC_EXP_SHARE);
+            let _gain = Math.floor(mob.exp * getExpGainMult(a.lv || 1) * _cm);
             if (_gain <= 0) return;
             a.exp = (a.exp || 0) + _gain;
             a._expGained = (a._expGained || 0) + _gain;
