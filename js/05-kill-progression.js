@@ -191,7 +191,8 @@ function killMob(idx) {
     checkLvUp();
     // 🤝 協力傭兵經驗平分：每名非倒地傭兵各得「以自身等級計算」的 MERC_EXP_SHARE（不減玩家）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。
     if (player.allies && player.allies.length && mob.exp) {
-        let _cm = player.classicMode ? 0.5 : 1;
+        let _r = RATE_PRESETS[(state.rateLv || 2)];
+        let _cm = player.classicMode ? _r.classicExp : _r.exp;
         player.allies.forEach(a => {
             if (!a || a._downed) return;
             let _gain = Math.floor(mob.exp * getExpGainMult(a.lv || 1) * _cm * MERC_EXP_SHARE);
