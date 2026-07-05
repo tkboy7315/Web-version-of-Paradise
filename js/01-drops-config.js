@@ -823,7 +823,7 @@ let _echoFree = false;        // 🏅 迴響精通：免費連發旗標（連發
 let _royalFreeCast = false;   // 👑 魔法精通：一般攻擊命中 10% 免MP額外施放選定攻擊技的旗標
 
 let state = { running: false, ticks: 0, pDmgTick: 0, ff: false, inTick: false, spd: 1, rateLv: 2 };
-const RATE_PRESETS = { 1: { exp: 1, gold: 1, drop: 1 }, 2: { exp: 100, gold: 20, drop: 10 }, 3: { exp: 500, gold: 50, drop: 30 } };
+const RATE_PRESETS = { 1: { exp: 1, gold: 1, drop: 1, classicExp: 0.25, classicGold: 0.5, classicDrop: 0.1 }, 2: { exp: 100, gold: 20, drop: 10, classicExp: 5, classicGold: 2, classicDrop: 1 }, 3: { exp: 500, gold: 50, drop: 30, classicExp: 10, classicGold: 5, classicDrop: 2 } };
 // 主迴圈計時（依真實經過時間補跑 tick）
 const TICK_MS = 100;                 // 一個邏輯 tick 代表的真實時間
 const JUNK_AUTOSELL_TICKS = 100;    // 🗑️ 廢品自動賣出間隔：10 秒（100 tick × 100ms·2026-07-01 由 1800/3分鐘改快）；玩家手動標示廢品會把倒數重置為此值（標完 10 秒無新動作才賣）。⚠️自動賣出這條路徑不 saveGame(見 autoSellJunk)，靠其他既有存檔點落地
