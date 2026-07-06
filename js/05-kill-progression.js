@@ -164,10 +164,10 @@ function renderAuditDrops(el) {
 }
 setInterval(() => { try { renderAuditTab(); } catch(e) {} }, 2000);   // 開著統計分頁時每 2 秒刷新即時數字
 // 🔧 架構#2：死亡兩段式清算 ——
-// killMob() 只負責「標記死亡＋發放獎勵/掉落」；輸送帶遞補與目標重映射延後到 settleDeadMobs()。
+// killMob() 只負責「標記死亡＋發放獎勵/掉落」；原格清空與目標重鎖延後到 settleDeadMobs()（v2.7.47 起不再遞補壓實）。
 // tick 內的擊殺由 gameLoop 在 tick 結束後統一清算；手動操作（點技能/道具）觸發的擊殺立即清算。
 // 好處：怪物迭代過程中陣列不再位移，徹底杜絕「怪物被跳過回合 / 索引指到錯的怪」這類隱性錯誤。
-function classicDropMult() { var _r = RATE_PRESETS[(state.rateLv || 2)]; return player.classicMode ? _r.classicDrop : _r.drop; }   // 🎮 經典模式：掉落×RATE_PRESETS[rateLv].classicDrop；一般×RATE_PRESETS[rateLv].drop
+function classicDropMult() { var _r = RATE_PRESETS[(state.rateLv || 2)]; return player.classicMode ? _r.classicDrop : _r.drop; }   // 🎮 經典模式：所有物品掉落機率 ×1/10
 // 🎮 經典模式例外：職業專屬試煉道具（TRIAL_ITEM_CLASS 內者）不受 ×1/10 影響→照原機率掉落（避免 50 級試煉在經典模式難度暴增 10 倍）；非試煉道具仍套用 classicDropMult。用於 MOB_DROPS／DRAGON_DROPS 兩個含試煉道具的掉落表。
 function trialItemDropMult(id) { return (typeof TRIAL_ITEM_CLASS !== 'undefined' && TRIAL_ITEM_CLASS[id]) ? 1 : classicDropMult(); }
 function killMob(idx) {
@@ -187,7 +187,7 @@ function killMob(idx) {
     // 🔧 轉場建築（往上層的樓梯 / 遺忘之島傳送門）：擊敗即進入下一層/島，不顯示「擊敗了…」戰鬥訊息（race 建築且 noAutoTeleport，排除攻城塔/城門）
     let _hideKillMsg = (mob.race === '建築' && mob.noAutoTeleport);
     if(!_hideKillMsg) logCombat(`擊敗了 <span class="${getMobColor(mob.lv)}">${mob.n}</span>！`, 'player-heavy');  // 👈 新增
-    player.exp += Math.floor(mob.exp * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * (player.classicMode ? RATE_PRESETS[(state.rateLv || 2)].classicExp : RATE_PRESETS[(state.rateLv || 2)].exp));   // 🎮 經典模式：經驗×RATE_PRESETS[rateLv].classicExp；🪆 魔法娃娃 expBonus%；自訂經驗倍率：一般×RATE_PRESETS[rateLv].exp
+    player.exp += Math.floor(mob.exp * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * (player.classicMode ? RATE_PRESETS[(state.rateLv || 2)].classicExp : RATE_PRESETS[(state.rateLv || 2)].exp));
     checkLvUp();
     // 🤝 協力傭兵經驗平分：每名非倒地傭兵各得「以自身等級計算」的 MERC_EXP_SHARE（不減玩家）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。
     if (player.allies && player.allies.length && mob.exp) {
@@ -207,12 +207,16 @@ function killMob(idx) {
     }
     // 精神(WIS)：擊殺敵人時立即額外恢復 MP
     { let mpKill = getWisMpOnKill(player.d.wis); if (mpKill > 0 && player.mp < player.mmp) player.mp = Math.min(player.mmp, player.mp + mpKill); }
+    // 🔧 v2.7.28 傭兵 MP-on-kill 平價：擊殺一律歸主玩家(killMob)→傭兵原本領不到「擊殺回魔」，
+    //    而王族/龍騎士傭兵靠 MP 維持自我增益(灼熱武器/閃亮之盾/覺醒…)且精神低(mpR≈1)→MP 只出不進、持續歸零。
+    //    改為每名非倒地傭兵依「自身精神」各自回魔（等同該角色親自遊玩時的回魔），不受 mob.exp 閘限制。
+    if (player.allies && player.allies.length) player.allies.forEach(a => { if (!a || a._downed || !a.d) return; let _mk = getWisMpOnKill(a.d.wis || 0); if (_mk > 0 && (a.mp || 0) < (a.mmp || 0)) a.mp = Math.min(a.mmp, (a.mp || 0) + _mk); });
     
     if (!_kbNoReward && Math.random() < 0.8) {
         let gMin = mob.goldMin || (mob.lv * 5);
         let gMax = mob.goldMax || (mob.lv * 10);
         let g = gMin + Math.floor(Math.random() * (gMax - gMin + 1));
-        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (player.classicMode ? RATE_PRESETS[(state.rateLv || 2)].classicGold : RATE_PRESETS[(state.rateLv || 2)].gold));   // 🪆 魔法娃娃 goldBonus%（莫提斯）；自訂金幣倍率：一般×RATE_PRESETS[rateLv].gold，經典×RATE_PRESETS[rateLv].classicGold
+        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (player.classicMode ? RATE_PRESETS[(state.rateLv || 2)].classicGold : RATE_PRESETS[(state.rateLv || 2)].gold));   // 🪆 魔法娃娃 goldBonus%（莫提斯）
         player.gold += g;
         // 🔧 金幣不再逐殺輸出於系統日誌；改由 gameLoop 累積、flushAwaySummary 以「掛機期間獲得總金幣」統一顯示。
 
@@ -408,31 +412,17 @@ function killMob(idx) {
     if (state.oblivion === 'travel' && mob.boss && !player.dead) state._oblivionAdvance = true;   // 🏝️ 途中擊敗傳送門「遺忘之島」：清算時進入本島
 }
 
-// 🔧 架構#2：統一清算所有已標記死亡的怪 —— 5 格輸送帶遞補（中1→左0→右2→後3→後4）＋目標重映射。
-// 把前排(0,1,2)與後排(3,4)視為單一輸送帶：存活怪依優先序往前壓實，後排怪會遞補進空出的前排；
-// 常見情境(各格皆滿、單隻死)結果與原 3 格輸送帶一致；多隻同死於一次處理完成（不需迭代）。
+// 🔧 架構#2：統一清算所有已標記死亡的怪。⚠️v2.7.47 取消輸送帶遞補（用戶要求）：死亡怪原格清空、存活怪不移動位置（固定站位）；
+//    空格交回 tick 出怪迴圈依格序(0→4)重排程新怪。目標死亡→-1，由 getTarget 依 [0,1,2,3,4] 自動鎖定下一個活著的位置。
 function settleDeadMobs() {
     let changed = false;
-    const _ORDER = [1, 0, 2, 3, 4];   // 遞補/填補優先序：前排 中→左→右，再後排 左→右（與 getTarget 自動鎖定序一致）
-    if (_ORDER.some(i => mapState.mobs[i] && mapState.mobs[i]._dead)) {
-        changed = true;
-        let _tgtUid = (mapState.targetIdx >= 0 && mapState.mobs[mapState.targetIdx] && !mapState.mobs[mapState.targetIdx]._dead) ? mapState.mobs[mapState.targetIdx].uid : null;
-        let _alive = [], _pending = [];
-        for (let i of _ORDER) {
-            let m = mapState.mobs[i];
-            if (m && m._dead) continue;                                                                       // 死亡→移出輸送帶
-            if (m) _alive.push(m);
-            else if (mapState.spawnAt && mapState.spawnAt[i] != null) _pending.push(mapState.spawnAt[i]);     // 既有空格的「待出怪倒數」保留並順移
-        }
-        let _seq = _alive.map(m => ({ mob: m })).concat(_pending.map(sa => ({ sa: sa })));                    // 先怪、再待出怪倒數、最後空格
-        for (let k = 0; k < _ORDER.length; k++) {
-            let slot = _ORDER[k], it = _seq[k];
-            if (it && it.mob) { mapState.mobs[slot] = it.mob; if (mapState.spawnAt) mapState.spawnAt[slot] = null; }
-            else if (it && it.sa != null) { mapState.mobs[slot] = null; if (mapState.spawnAt) mapState.spawnAt[slot] = it.sa; }
-            else { mapState.mobs[slot] = null; if (mapState.spawnAt) mapState.spawnAt[slot] = null; }          // 其餘空格交回出怪迴圈重新排程
-        }
-        mapState.targetIdx = _tgtUid ? mapState.mobs.findIndex(m => m && m.uid === _tgtUid) : -1;             // 以 uid 重映射目標（目標死亡→-1）
+    // 🆕 v2.7.47 取消死亡遞補（輸送帶壓實）：怪物死亡→原格清空(null)、存活怪維持原位不移動；空格交回出怪迴圈依格序(0→4)重新排程新怪。
+    //    目標死亡→targetIdx=-1，下一 tick getTarget 自動鎖定「最早出生(_born 最小·場上存活最久)」的活怪（v3.0.11 由格位序改為出生序）。存活的目標位置不變（免 uid 重映射）。
+    let _tgtDied = mapState.targetIdx >= 0 && mapState.mobs[mapState.targetIdx] && mapState.mobs[mapState.targetIdx]._dead;
+    for (let i = 0; i < mapState.mobs.length; i++) {
+        if (mapState.mobs[i] && mapState.mobs[i]._dead) { mapState.mobs[i] = null; if (mapState.spawnAt) mapState.spawnAt[i] = null; changed = true; }
     }
+    if (_tgtDied) mapState.targetIdx = -1;
     if (changed) renderMobs();
     // 🔧 軍王之室：擊敗頭目（掉落已於 killMob 發放）後處理；補跑期間延後到回到即時再執行。
     //   身上仍有「軍王的鑰匙」→ 留在室內，清空全部怪物，5 秒後消耗 1 把鑰匙從頭復活軍王；
@@ -820,7 +810,7 @@ function spawnRiftMob(idx) {
     let mobId = pickRiftMob(isBoss, minLv, maxLv, elapsedSec) || pickRiftMob(!isBoss, minLv, maxLv, elapsedSec);
     if (!mobId) return;
     let base = DB.mobs[mobId];
-    mapState.mobs[idx] = { ...base, curHp: base.hp, uid: uid(), _magCd: {}, justHit: false, st: newMobStatus() };
+    mapState.mobs[idx] = { ...base, curHp: base.hp, uid: uid(), _born: ++_mobBornSeq, _magCd: {}, justHit: false, st: newMobStatus() };
     applySherineBuff(idx);   // 🔮 時空裂痕也吃席琳世界：怪物強化＋_sherine（詞綴／×3掉／×2傷由 _sherine 帶動）；須在 initHardSkin 前
     if (mapState.mobs[idx].hard) initHardSkin(mapState.mobs[idx]);
     applySherineGrace(idx);   // 🔮 席琳的恩賜（1% 機率）

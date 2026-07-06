@@ -35,7 +35,6 @@
         .tab-bar .btn { background: linear-gradient(135deg, #594720 0%, #786030 26%, #4a3c1a 48%, #6b5628 72%, #413518 100%); border-color: #6e5824; color: #f1f5f9; text-shadow: 0.5px 0.5px 0 #000, -0.5px -0.5px 0 #000, 0.5px -0.5px 0 #000, -0.5px 0.5px 0 #000; }  /* 分頁鈕：最暗金褐不規則漸層 */
         .tab-bar .btn:hover:not(:disabled) { background: linear-gradient(135deg, #6e5828 0%, #927535 26%, #5f4d22 48%, #836a30 72%, #564621 100%); }
         .tab-bar .btn.active { background: linear-gradient(135deg, #9a7c38 0%, #c19a4a 50%, #856a30 100%); border-color: #d4b35e; }
-
         #btn-start { background: linear-gradient(135deg, #594720 0%, #786030 26%, #4a3c1a 48%, #6b5628 72%, #413518 100%); border-color: #6e5824; }  /* 開始冒險：金褐(同分頁鈕) */
         #btn-start:hover:not(:disabled) { background: linear-gradient(135deg, #6e5828 0%, #927535 26%, #5f4d22 48%, #836a30 72%, #564621 100%); }
         #tab-stats .text-slate-400:not(.text-red-400):not(.text-blue-300):not(.text-blue-300) { color: #e2e8f0; }  /* 能力分頁：非顏色屬性的灰字改亮便於閱讀(屬抗/HP/MP恢復量等有色者不受影響) */
@@ -113,6 +112,7 @@
         #battle-view.has-bg .mob-target { background: transparent !important; border-color: transparent !important; box-shadow: none; text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.85); }   /* 🔧 狩獵區去框：怪物原圖直接呈現於背景，只保留名稱/血量/狀態(加字陰影保可讀) */
         #battle-view.has-bg .mob-target.active { background: transparent !important; border-color: transparent !important; }   /* 選取中：去框 */
         #battle-view.has-bg .mob-target.active .mob-img-inner { filter: drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 7px #ef4444); }   /* 🔴 紅色鎖定光暈只套在「怪物圖」上(沿輪廓)，不影響名字/徽章/狀態 */
+        #battle-view.has-bg .mob-target.active .mob-img-inner.mob-shadow-tint { filter: brightness(0) drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 7px #ef4444); }   /* 🌑 v3.0.39 剪影怪被鎖定時：filter 不跨規則疊加→上行鎖定光暈會「取代」brightness(0)＝影魔被攻擊瞬間變回灰白。合併寫法＝黑影+紅光暈並存 */
         #battle-view.has-bg .mob-target:hover:not(.active) { background: transparent !important; }
         /* 🏜️ 條狀比例背景(沙漠等·套 area-fit)：戰鬥框高度鎖定＝圖片比例(1920/580)，背景滿版貼齊、任何視窗寬度都無上下黑邊；省下的高度由下方戰鬥日誌(flex-1)自動吸收長高。 */
         /* ⚠️v2.6.37 用戶要求「狩獵區域改回 1920×580 比例」：戰鬥框本身鎖 aspect-ratio 1920/580(＝條狀·不再 flex:1 吃滿整個地圖面板成 16:9)；背景 cover 貼齊此條狀框。省下的高度由 #log-row(下方 :has 規則改 flex:1)吸收。安全區(town·無 area-fit)與攻城/裂痕(16:9·非 area-fit)不受影響。 */
@@ -129,6 +129,9 @@
         #battle-view.area-fit #mob-list:has(.mob-back) { display: flex; align-items: flex-end; height: 100%; }   /* 🎯 v2.7.1 五怪前後排：填滿固定框高(338)，同上（原 aspect-ratio 隨寬度改，固定框後不需要） */
         #battle-view.area-fit #mob-list:has(.mob-back) .mob-back .mob-img-inner { transform: translateY(-30px) scale(1.285); transform-origin: bottom center; }   /* 後排：上移 30px＋統一大小 1.285×→較高較遠(僅位置差·大小同前排) */
         #battle-view.area-fit #mob-list:has(.mob-back) .mob-front:not(.boss-zoom) .mob-img-inner { transform: translateY(2px) scale(1.285); transform-origin: bottom center; }   /* 前排：統一大小 1.285×＝原前1.55與後1.02平均(<頭目 1.78) */
+        /* 🆕 v2.7.47 動畫怪(.mob-anim)也套前後排「位置高低差」(translateY)但維持原生大小(不 scale)：覆蓋上方 .mob-anim{transform:none} → 動畫怪不再全部同一基線·後排較高前排較低·大小皆原始(含後排頭目) */
+        #battle-view.area-fit #mob-list:has(.mob-back) .mob-back .mob-img-inner.mob-anim { transform: translateY(-30px) !important; transform-origin: bottom center; }
+        #battle-view.area-fit #mob-list:has(.mob-back) .mob-front .mob-img-inner.mob-anim { transform: translateY(2px) !important; transform-origin: bottom center; }
         /* ⚠️v2.6.44：怪名列固定單行→前後排「保留名稱高度」一致，怪圖區(.mob-img-wrap flex:1)吸收的剩餘高度才會等高＝前後排怪圖 base 尺寸相同，配合上方統一 1.285× 即渲染同大小。
            不加此列時：後排欄較窄(flex0.8)使長名折成兩行、多吃 ~20px→怪圖區被壓縮→後排怪偏小(即使 scale 相同)。單行溢出由 .mob-target overflow:hidden 收邊、span 補 ellipsis。僅套 5 怪前後排版面。 */
         #battle-view.area-fit #mob-list:has(.mob-back) .mob-name { white-space: nowrap; overflow: hidden; }
@@ -142,10 +145,30 @@
         #battle-view.area-fit .mob-img-wrap img { height: 100%; width: auto; max-width: 100%; max-height: 100%; object-fit: contain; object-position: center bottom; position: relative; z-index: 1; }   /* 🖥️ object-fit:contain+底部對齊→戰鬥框加高後怪物圖維持原比例(不再被拉長)、且腳貼底(影子對齊) */
         /* 🎞️ v2.7.1 動畫怪像素幀專屬：小張像素圖被放大(5~6×)時用 pixelated 保持銳利邊緣(不糊)；一般高解析怪圖(非 .mob-anim)不受影響、維持平滑。 */
         #battle-view .mob-anim img { image-rendering: crisp-edges; image-rendering: pixelated; }
-        /* 🖼️ v2.7.3 用戶要求「怪物圖片不要縮放·維持原始尺寸比例」：動畫怪像素幀改「原生尺寸」顯示——不再 height:100% 撐滿、不套前後排/頭目 scale 放大，只以原生尺寸貼底置中，max 100% 僅防超大幀(如安塔瑞斯425×307)溢出框、比例不失真。
+        /* 🖼️ v2.7.3 用戶要求「怪物圖片不要縮放·維持原始尺寸比例」：動畫怪像素幀改「原生尺寸」顯示——不再 height:100% 撐滿、不套前後排/頭目 scale 放大，只以原生尺寸貼底置中、比例不失真。
+           🆕 v2.7.86 用戶要求「攻擊時不要變形與位移·維持怪物大小·大怪溢出沒關係」：移除 max-height/width:100% 縮放上限→動畫怪一律「原生像素 1:1·永不縮放」。原因：大型動畫怪(安塔瑞斯425×307/血色術士214)被 max 100% 縮到框內＝非整數倍縮放，配 image-rendering:pixelated 產生像素抖動→攻擊快速換幀時被看成「變形＋位移」。改 max:none 後零縮放＝零抖動·怪物真實大小；超出 800×242 的部分由戰鬥框 overflow:hidden 收邊(頭可能被框頂切·用戶接受)。腳仍貼底(align-items:flex-end)。
            ⚠️ 只套 .mob-anim(動畫像素怪)：一般靜態怪圖原生 600×600，若不縮放會爆框→維持上方 height:100% 縮放填滿。transform:none!important 蓋過所有前後排/頭目/jit scale(那些選擇器含 #mob-list 雙 id 特異性高，須 !important)。 */
         #battle-view .mob-img-inner.mob-anim { transform: none !important; }
-        #battle-view .mob-img-inner.mob-anim img { height: auto !important; width: auto !important; max-height: 100% !important; max-width: 100% !important; }
+        #battle-view .mob-img-inner.mob-anim img { height: auto !important; width: auto !important; max-height: none !important; max-width: none !important; }
+        /* 🖥️ v3.0.20 超大動畫怪高度上限：不死鳥(477)/幻象眼魔/古代巨人/水靈之主 等 15 隻原生高度 > 800×242 固定戰鬥框→爆框看不到＋死亡殘影(依 .mob-img-inner 方框 r.height 定尺寸)相對縮小。改：非龍窟頭目格(boss-slot)的動畫怪，本體+影子+武器層一律上限＝影像帶高(max-height:100%＝.mob-img-inner 高)→大怪縮到帶內(三層同畫布同比例→仍逐幀對齊)、死亡殘影方框≈本體不再縮小；小怪(<帶高)維持原生。boss-slot(龍窟大圖)不套維持巨大。 */
+        #battle-view.area-fit .mob-target:not(.boss-slot):not(.boss-zoom) .mob-img-inner.mob-anim img { max-height: 100% !important; }
+        /* 👑 v3.0.25 頭目(boss-zoom·非龍窟)動畫怪：放寬高度上限＝185px（＞一般怪帶高 ~134·<戰鬥框底到頂 194 不爆圖），修「大畫布飛行系頭目(不死鳥640×477/飛龍370×307/伊弗利特135×203)被 v3.0.20 帶高上限縮到比一般怪還小」。原因＝v2.7.86 的 transform:none!important 讓動畫頭目吃不到 .boss-zoom 的 scale(1.78)(避免非整數縮放像素抖動)→頭目大小全靠此 max-height 上限決定·故給頭目專屬較大上限。小畫布頭目(<185)維持原生不拉伸。 */
+        #battle-view.area-fit .mob-target.boss-zoom .mob-img-inner.mob-anim img { max-height: 185px !important; }
+        /* 🐉 v3.0.37 大畫布「非頭目」動畫怪(MOB_ANIM_BIG·js/09 加 .mob-anim-big)：同頭目 185px 上限——遺忘之島飛龍與飛龍同 370×307 大畫布，但非 boss 吃 v3.0.20 帶高上限被縮得比一般怪小。此規則在 v3.0.20 規則之後→同權重下 source order 勝出。 */
+        #battle-view.area-fit .mob-target:not(.boss-slot) .mob-img-inner.mob-anim.mob-anim-big img { max-height: 185px !important; }
+        /* 🧝 v3.0.46 玩家變身戰鬥 sprite（js/09 _playerMorphApply 懶建）：狩獵區最下方中間偏左·原生像素三層(影子 multiply/本體/武器 screen)。
+           ⚠️容器與各層皆不用 transform（隔離群組會使 _w 的 screen blend 失效＝黑框病根 v3.0.19）→ 置中由 js 以 left:calc(44% - 寬/2) 完成。 */
+        #player-morph-sprite { position: absolute; bottom: 4px; height: 1px; z-index: 2; pointer-events: none; overflow: visible; }
+        #player-morph-sprite img { position: absolute; left: 0; bottom: 0; image-rendering: crisp-edges; image-rendering: pixelated; }
+        #player-morph-sprite .pm-shadow { mix-blend-mode: multiply; }
+        #player-morph-sprite .pm-weapon { mix-blend-mode: screen; }
+        /* 🌑 v2.7.17 真實影子 sprite 圖層：絕對定位、底部置中、與本體同 native 尺寸(同世界錨定畫布)→像素級疊合。DOM 順序影子在前→本體(在後)自然疊於其上；影子沿用上方 .mob-anim img 的 native/pixelated 規則。 */
+        #battle-view .mob-img-inner.mob-anim .mob-anim-shadow { position: absolute !important; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; mix-blend-mode: multiply; }   /* 🌑 v2.7.43 影子灰階當「濃淡遮罩」multiply(白→透明/黑→濃/灰→淡)：修自帶光源怪(不死鳥/伊弗利特)淺灰影子顯示成一塊灰·改成淡影子·一般近黑怪→濃影子 */
+        /* ⚔️ v2.7.22 武器揮動特效層：與影子同定位(絕對·底部置中·native)但疊在本體「前」(DOM 順序在本體 img 之後)＋screen 加亮(金色刀光弧發光) */
+        #battle-view .mob-img-inner.mob-anim .mob-anim-weapon,
+        #battle-view .mob-img-inner.mob-anim .mob-anim-weapon2 { position: absolute !important; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; mix-blend-mode: screen; }
+        /* 🌑 v3.0.24 灰白剪影怪(影魔/象牙塔影魔·天堂 silhouette gfx1571)→半透明黑影：brightness(0) 把淺灰白 spr 全轉黑(保留 alpha 軟邊)、opacity 半透明煙感。掛父層→受擊 keyframe 的 brightness 亮度被此層歸零(不閃回灰)、img 的 translateX 晃動照常。 */
+        #battle-view .mob-img-inner.mob-shadow-tint { filter: brightness(0); opacity: .62; }
         /* 🙈 怪物名字預設隱藏，滑鼠游標移到「怪物圖片」上才顯示（:has 偵測圖片區 hover；img 為 pointer-events:none→hover 落在 .mob-img-wrap；保留名稱列空間避免版面跳動）。.name-show＝JS 依 _hoverMobUid 套用→跨重繪持續顯示(每 tick 換 innerHTML 時 :hover 會瞬失效，靠它穩住不閃) */
         #battle-view .mob-name { opacity: 0; transition: opacity 0.12s ease; }
         #battle-view .mob-target:has(.mob-img-wrap:hover) .mob-name,
@@ -153,8 +176,7 @@
         /* 🏷️ 怪物名字固定白色＋黑邊、永不因受擊/狀態變色或閃動（受擊特效只套在怪物圖片 img 上·名字是獨立元素不受影響）。!important 覆蓋任何等差色/脈動 */
         #battle-view .mob-name, #battle-view .mob-name span { color: #fff !important; text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000, 0 0 3px #000 !important; animation: none !important; }
         #battle-view .mob-name span.mob-name-boss { color: #ff2222 !important; }   /* 👑 頭目名稱固定鮮紅(非頭目維持白)；黑邊 text-shadow 與 animation:none 沿用上行白鎖規則→紅字黑邊、受擊不變色。優先序(1,0,2,1)>白鎖(1,0,1,1) */
-        #battle-view.area-fit .mob-img-inner::after { content: ''; position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); width: 70%; height: 16px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.28) 45%, rgba(0,0,0,0) 80%); filter: blur(2px); z-index: 0; pointer-events: none; }   /* 🌑 腳下橢圓接觸陰影：墊在圖後(z-index 0<1)、掛內層非img→固定在地上不隨受擊晃動。加高(16px)+上移(bottom4)+羽化(blur2)→往上擴散覆蓋腳離底5~10px的怪、更圓潤柔和 */
-        #battle-view.area-fit .mob-img-inner.mob-anim::after { display: none; }   /* 🌑 v2.6.96 動畫怪(spr 圖已自帶影子)→隱藏遊戲渲染的橢圓接觸陰影，避免雙重影子；靜態 PNG 怪(無自帶影子)不受影響照舊 */
+        /* 🚫 v2.7.49 移除腳下 CSS 橢圓接觸陰影（受擊/死亡/影子 CSS 特效一併移除）——只保留 sprite 影子層 .mob-anim-shadow(有 _s 圖的動畫怪) */
         /* 👑 方案B：純BOSS房專屬版面——boss 圖放大佔滿整格高度(約1.8×·寬型受框寬限制亦較大)，名字/徽章/狀態/血條改絕對定位疊在圖上(字陰影保可讀)、圖完全不被切(無transform·靠回收上下列空間放大) */
         #battle-view.area-fit:has(.boss-slot) { padding: 0; }   /* 🐉 龍窟：去除框內距(p-4)，怪卡填滿整個戰鬥框高度→約2× */
         #battle-view.area-fit .mob-target.boss-slot { position: relative; overflow: visible; }
@@ -178,7 +200,7 @@
         #battle-view.area-fit .mob-target { min-width: 0; }
         #battle-view.area-fit { min-height: 0; }
         #battle-view .mob-back .mob-img-inner { transform: translateY(-24px) scale(1.1); transform-origin: bottom center; }                      /* 後排：放大 1.1×＋上提→看起來在後方(影子＝::after 內層偽元素隨 scale 一起放大) */
-        #battle-view.area-fit .mob-back .mob-img-inner::after { bottom: 18px; }   /* 🦶 後排怪上提後，影子再往上移對齊後排腳底(原4px→18px·後排專屬·避免影子留在圖下方浮空·數值可調) */
+        /* 🚫 v2.7.49 後排 CSS 橢圓影子位置調整已移除（橢圓影子取消） */
         #battle-view .mob-front:not(.boss-zoom) .mob-img-inner { transform: translateY(6px) scale(1.3); transform-origin: bottom center; }   /* 前排：放大 1.3×、略下→看起來在前方(頭目除外·保留 1.78×；影子＝::after 內層偽元素隨 scale 一起放大) */
         #battle-view.area-fit .mob-back.boss-zoom .mob-img-inner { transform: translateY(-24px) scale(1.78); transform-origin: bottom center; }   /* 👑 後排頭目：保留後排上提(-24)＋頭目放大1.78× */
         #battle-view .mob-back.boss-zoom { z-index: 4; }                                                                                          /* 後排頭目提到前排(z2)之上，避免大圖被前排小怪遮住 */
@@ -217,55 +239,7 @@
         @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .anim-flash { animation: flash 1s infinite; }
         
-        /* --- 屬性受擊動畫系統 (高速打擊版) --- */
-        /* 1. 一般物理 */
-        /* 🔧 命中特效：恢復晃動，但只做左右(水平)位移、不做上下(垂直)，並保留依屬性的亮起＋光暈 */
-        @keyframes hitNormal {
-            0%, 100% { transform: translateX(0); filter: brightness(1); }
-            25%, 75% { transform: translateX(-4px); filter: brightness(1.5); }
-            50% { transform: translateX(4px); filter: brightness(1.5); }
-        }
-        .anim-hit-normal { animation: hitNormal 0.12s ease-out; }
-
-        /* 2. 無屬性魔法 */
-        @keyframes hitMagic {
-            0%, 100% { transform: translateX(0); filter: brightness(1); }
-            25%, 75% { transform: translateX(-5px); filter: brightness(1.7); }
-            50% { transform: translateX(5px); filter: brightness(1.7); }
-        }
-        .anim-hit-magic { animation: hitMagic 0.15s ease-out; }
-
-        /* 3. 火屬性 */
-        @keyframes hitFire {
-            0%, 100% { transform: translateX(0); filter: brightness(1); }
-            25%, 75% { transform: translateX(-5px); filter: brightness(1.7); }
-            50% { transform: translateX(5px); filter: brightness(1.7); }
-        }
-        .anim-hit-fire { animation: hitFire 0.15s ease-out; }
-
-        /* 4. 水屬性 */
-        @keyframes hitWater {
-            0%, 100% { transform: translateX(0); filter: brightness(1); }
-            25%, 75% { transform: translateX(-5px); filter: brightness(1.5); }
-            50% { transform: translateX(5px); filter: brightness(1.5); }
-        }
-        .anim-hit-water { animation: hitWater 0.15s ease-out; }
-
-        /* 5. 風屬性 */
-        @keyframes hitWind {
-            0%, 100% { transform: skewX(0deg) translateX(0); filter: brightness(1); }
-            25%, 75% { transform: skewX(-12deg) translateX(-5px); filter: brightness(1.7); }
-            50% { transform: skewX(12deg) translateX(5px); filter: brightness(1.7); }
-        }
-        .anim-hit-wind { animation: hitWind 0.15s ease-out; }
-
-        /* 6. 地屬性 */
-        @keyframes hitEarth {
-            0%, 100% { transform: translateX(0); filter: brightness(1); }
-            25%, 75% { transform: translateX(-5px); filter: brightness(1.4); }
-            50% { transform: translateX(5px); filter: brightness(1.4); }
-        }
-        .anim-hit-earth { animation: hitEarth 0.15s ease-out; }
+        /* 🚫 v2.7.49 移除「屬性受擊動畫系統」（CSS 晃動/亮起 hitNormal/Magic/Fire/Water/Wind/Earth + .anim-hit-* 類別）——怪物受擊改只靠 hurt 序列幀 anim 表現 */
 		
 		/* 祝福物品的螢光邊緣呼吸特效 */
         @keyframes blessGlow {
@@ -393,6 +367,10 @@
         /* ✨ 怪物死亡：衝擊波環 + 白閃殘影（vfxKill 以 element.animate 驅動·邊框色/尺寸由 JS 內聯指定） */
         .vfx-killring { position: absolute; border-radius: 50%; transform: translate(-50%,-50%); border: 4px solid #ff8a5c; pointer-events: none; will-change: transform,opacity; }
         .vfx-ghost { position: absolute; transform: translate(-50%,-50%); object-fit: contain; pointer-events: none; will-change: transform,opacity,filter; }
+        /* ⚡ v2.7.15 法術特效疊加圖層：定位由 JS 內聯(left/top/width/height/mix-blend-mode:screen)；left/top＝螢幕座標(相對 #vfx-layer position:fixed inset:0)；image-rendering 保持像素銳利與怪圖一致 */
+        .vfx-spell { position: absolute; pointer-events: none; image-rendering: pixelated; image-rendering: crisp-edges; will-change: opacity; }
+        .vfx-freeze { opacity: 0.9; }   /* ❄️ v2.7.20 冰凍狀態疊層：略透讓怪身透出·沿用 .vfx-spell 定位/pixelated */
+        .vfx-mobskill { mix-blend-mode: screen; }   /* 🔥 v2.7.22 怪物技能特效(死亡騎士火焰爆發)：screen 加亮·沿用 .vfx-spell 定位/pixelated */
         @keyframes vfxShake {
             0%,100% { transform: translate(0,0); }
             15% { transform: translate(-5px,3px); }   30% { transform: translate(5px,-3px); }
@@ -459,3 +437,76 @@
 /* 🔧 v2.6.74 自動化設定改「分頁內嵌」#tab-automation（v2.6.73 浮動視窗取消）：flex 直排＋卡片間距；.hidden 顯式覆蓋（ID 特異性高於 Tailwind .hidden） */
 #tab-automation { display: flex; flex-direction: column; gap: 1rem; }
 #tab-automation.hidden { display: none; }
+
+/* ===== 🎨 v3.0.40 1.8 風格物品清單（裝備／武器／防具／道具·移植自參考版 idle-lineage-class-main-test） ===== */
+.classic-inventory-tab { padding:0 !important; overflow:hidden !important; min-height:0; background:#0b0d12; }
+.classic-inventory-tab:not(.hidden) { display:flex !important; flex-direction:column; }
+.classic-list-toolbar { flex:0 0 auto; margin:0 !important; padding:6px 8px !important; top:0 !important; background:#111827 !important; border-bottom:1px solid #6b5426; z-index:20; }
+.classic-inventory-viewport { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; box-sizing:border-box; padding:3.4% 14.5% 8.2% 5.8%; background:#111 url('../assets/ui/inventory-1.8.png') center/100% 100% no-repeat; scrollbar-width:thin; scrollbar-color:#d6a638 #17191d; }
+.classic-inventory-viewport::-webkit-scrollbar { width:12px; }
+.classic-inventory-viewport::-webkit-scrollbar-track { background:rgba(13,15,18,.75); border-left:1px solid #76591d; }
+.classic-inventory-viewport::-webkit-scrollbar-thumb { background:linear-gradient(90deg,#69480e,#f1cd59 45%,#8d6519); border:1px solid #f7df86; border-radius:8px; box-shadow:0 0 4px #000; }
+.classic-inventory-viewport > .list-item { box-sizing:border-box; display:flex !important; align-items:center; width:100%; height:12.5%; min-height:58px; margin:0 !important; padding:3px 5px !important; border:0 !important; border-radius:5px !important; background:transparent !important; box-shadow:none !important; overflow:hidden; }
+.classic-inventory-viewport > .list-item:hover { background:rgba(180,139,58,.15) !important; filter:brightness(1.14); }
+.classic-item-main { display:grid; grid-template-columns:18% minmax(0,1fr); align-items:center; width:100%; height:100%; gap:4%; }
+.classic-icon-box { display:flex; align-items:center; justify-content:center; width:100%; height:100%; min-width:0; }
+.classic-icon-box img,.classic-item-main .classic-icon-box img { width:78% !important; height:78% !important; max-width:48px; max-height:48px; margin:0 !important; object-fit:contain; }
+.classic-name-box { display:flex; align-items:center; gap:5px; min-width:0; overflow:hidden; color:#e5e7eb; text-shadow:0 1px 2px #000; white-space:nowrap; }
+.classic-name-box > span:not(.classic-slot-name):first-of-type { overflow:hidden; text-overflow:ellipsis; }
+.classic-slot-name { color:#9ca3af; font-size:11px; flex:0 0 auto; }
+.classic-item-flags { display:inline-flex; gap:2px; flex:0 0 auto; font-size:10px; }
+.classic-inventory-viewport > .list-item > .classic-icon-box { flex:0 0 18%; margin-right:4%; }
+.classic-inventory-viewport > .list-item > .classic-name-box { flex:1 1 auto; }
+.classic-inventory-viewport input[type="checkbox"] { flex:0 0 auto; margin-right:3px; }
+.classic-inventory-viewport > .list-item > div { width:100%; min-width:0; }
+
+/* ===== 🎨 v3.0.55 1.8 原版風格技能魔法視窗（移植參考版）＋底部 S.power(魔法傷害)/M.resist(MR) 數值 ===== */
+#tab-skill { padding:0 !important; overflow:auto !important; align-items:center; justify-content:flex-start; background:#08090d; }
+.classic-skill-window {
+    position:relative; flex:0 0 auto; width:min(100%,510px); aspect-ratio:1023/1537;
+    margin:0 auto; overflow:hidden; user-select:none;
+    background:url('../assets/ui/skill-window-1.8.png') center/100% 100% no-repeat;
+}
+.classic-skill-heading { position:absolute; z-index:4; left:23.4%; top:2.2%; width:61.8%; height:2.6%; display:flex; align-items:center; justify-content:center; color:#f3df9d; font-weight:700; font-size:clamp(9px,1vw,14px); text-shadow:0 1px 3px #000,0 0 4px #000; }
+.classic-skill-grid-scroll { position:absolute; z-index:3; left:23.5%; top:5.35%; width:62.2%; height:81.65%; overflow-y:auto; overflow-x:hidden; scrollbar-width:none; overscroll-behavior:contain; }
+.classic-skill-grid-scroll::-webkit-scrollbar { width:0; height:0; }
+.classic-skill-grid { position:relative; width:100%; min-height:100%; display:grid; grid-template-columns:repeat(4,1fr); grid-auto-flow:row; align-content:start; }
+.classic-skill-cell { position:relative; display:flex; align-items:center; justify-content:center; padding:1.5%; aspect-ratio:1.015/1; border:0; border-radius:0; background:transparent; color:#fff; min-width:0; min-height:0; }
+button.classic-skill-cell { cursor:pointer; }
+.classic-skill-cell img { display:block; width:97%; height:97%; object-fit:contain; pointer-events:none; filter:drop-shadow(0 1px 2px #000); }
+.classic-skill-cell:hover:not(.classic-skill-empty) { background:rgba(231,190,89,.13); box-shadow:inset 0 0 8px rgba(255,214,102,.55); }
+.classic-skill-unlearned img { opacity:.30; filter:grayscale(1) brightness(.75); }
+.classic-skill-unavailable img { opacity:.42; filter:grayscale(.8) brightness(.7); }
+.classic-skill-lock { position:absolute; right:8%; bottom:5%; color:#796f61; font-size:clamp(6px,.7vw,10px); text-shadow:0 1px 2px #000; }
+.classic-skill-tier-strip { position:absolute; z-index:7; left:17.55%; top:5.2%; width:4.2%; height:82.1%; background-position:center; background-size:100% 100%; background-repeat:no-repeat; }
+.classic-skill-tier-hit { position:absolute; left:-110%; width:320%; height:10%; border:0; padding:0; background:transparent; }
+.classic-skill-tier-hit:not(.disabled) { cursor:pointer; }
+.classic-skill-tier-hit.disabled { cursor:not-allowed; opacity:.35; }
+.classic-skill-tier-hit.tier-1{top:0}.classic-skill-tier-hit.tier-2{top:10%}.classic-skill-tier-hit.tier-3{top:20%}.classic-skill-tier-hit.tier-4{top:30%}.classic-skill-tier-hit.tier-5{top:40%}
+.classic-skill-tier-hit.tier-6{top:50%}.classic-skill-tier-hit.tier-7{top:60%}.classic-skill-tier-hit.tier-8{top:70%}.classic-skill-tier-hit.tier-9{top:80%}.classic-skill-tier-hit.tier-10{top:90%}
+.classic-skill-mode { position:absolute; z-index:6; left:2.1%; top:28%; width:13.8%; display:flex; flex-direction:column; gap:6px; }
+.classic-skill-mode button { border:1px solid #6c5529; border-radius:3px; padding:3px 1px; background:rgba(10,10,13,.82); color:#a99d83; font-size:clamp(7px,.78vw,11px); font-weight:700; text-shadow:0 1px 2px #000; }
+.classic-skill-mode button:hover,.classic-skill-mode button.active { color:#ffe29a; border-color:#d8a94b; background:rgba(90,57,16,.82); box-shadow:0 0 6px rgba(238,183,73,.55); }
+.classic-skill-stat { position:absolute; z-index:5; display:flex; align-items:center; justify-content:center; color:#e4ecff; font-weight:700; font-size:clamp(8px,1vw,15px); text-shadow:0 1px 2px #000,0 0 4px #000; pointer-events:none; letter-spacing:.02em; }
+.classic-skill-stat-sp { left:33.7%; top:91.4%; width:12.9%; height:3.9%; }
+.classic-skill-stat-mr { left:70.7%; top:90.4%; width:13.5%; height:4.6%; }
+
+/* ===== 🎨 v3.0.40 登入首頁：310 固定底圖＋273～300 左下逐幀動畫（移植自參考版） ===== */
+#creation-screen { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; overflow:auto; padding:0; background:#050505; }
+#creation-screen.hidden { display:none !important; }
+#login-art-stage { position:relative; width:min(100vw,calc(100vh * 4 / 3)); aspect-ratio:4 / 3; flex:0 0 auto; overflow:hidden; background:#050505; box-shadow:0 0 45px #000; }
+#login-bg-image { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; user-select:none; }
+#login-anim-image { position:absolute; left:0; top:63.75%; width:78.28125%; height:36.25%; object-fit:fill; pointer-events:none; user-select:none; }
+#login-title-layer { position:absolute; z-index:3; left:3.1%; top:14%; width:30.8%; color:#f7df91; text-shadow:0 2px 4px #000,0 0 6px #000; }
+#login-title-layer h1 { margin:0 0 2.5%; font-size:clamp(14px,2.05vw,31px); line-height:1.15; color:#f5d46c; }
+#login-title-layer p { margin:0; font-size:clamp(9px,1.05vw,16px); color:#e7d7b5; }
+#main-menu { position:absolute; z-index:4; left:50.4%; top:48.5%; width:25%; margin:0 !important; display:flex; flex-direction:column; align-items:stretch; gap:clamp(4px,.8vw,11px) !important; }
+#main-menu.hidden { display:none !important; }
+#main-menu > button { width:100% !important; padding:clamp(5px,.72vw,11px) 4px !important; font-size:clamp(9px,1.03vw,16px) !important; line-height:1.1; border-color:#b68a39; background:linear-gradient(180deg,rgba(35,55,83,.94),rgba(10,22,42,.96)); color:#f8e7bb; text-shadow:0 1px 2px #000; box-shadow:inset 0 0 9px rgba(116,165,219,.35),0 2px 5px #000; }
+#main-menu > button:hover { filter:brightness(1.18); }
+#main-menu > p { width:150% !important; margin:1% 0 0 -25% !important; font-size:clamp(9px,.78vw,14px) !important; line-height:1.42; color:#eee2c7; text-shadow:0 1px 3px #000,0 0 3px #000; }
+#login-meta-layer { position:absolute; z-index:3; left:5.8%; top:41.5%; width:25.4%; color:#d8c8a2; text-shadow:0 1px 3px #000; }   /* 🔧 v3.0.41 用戶：版權文字縮小+寬度縮短不超框（width 28.7%→25.4%·left 內縮置中於左框） */
+#login-version { margin-bottom:3%; font-size:clamp(12px,1.05vw,18px) !important; font-weight:700; color:#f2d77f; }
+#login-disclaimer { max-width:none !important; padding:0 !important; margin:0 !important; font-size:clamp(8px,.6vw,11px) !important; line-height:1.45; color:#eee2c7; }
+#slot-select-panel:not(.hidden) { position:absolute; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,92vw); max-height:92vh; overflow:auto; margin:0 !important; padding:22px; border:2px solid #b89243; border-radius:14px; background:rgba(15,23,42,.96); box-shadow:0 20px 70px #000; }
+#creation-panel:not(.hidden) { position:absolute; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%); width:min(1000px,96vw); max-height:96vh; overflow:auto; padding:20px; border:2px solid #b89243; border-radius:14px; background:rgba(15,23,42,.96); box-shadow:0 20px 70px #000; }

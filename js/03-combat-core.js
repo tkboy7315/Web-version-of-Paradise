@@ -87,17 +87,17 @@ function gameLoop() {
     const _goldBefore = player.gold;
 
     state.ff = true;
-    state.inTick = true;   // 🔧 架構#2：補跑期間同樣每個 tick 結束才清算死亡
+    state.inTick = true;
     try {
         for(let k=0; k<n; k++) {
             if(!state.running || player.dead) break;
             tick();
-            settleDeadMobs();   // 每個 tick 結束即清算，下一個 tick 以遞補完成的場面開始
+            settleDeadMobs();
         }
     } finally {
-        state.ff = false;   // 保證即使 tick() 拋例外也會解除補跑旗標，避免畫面/出怪永久凍結
+        state.ff = false;
         state.inTick = false;
-        settleDeadMobs();   // 保底：例外中斷時也完成清算
+        settleDeadMobs();
     }
 
     // 將這次補跑的淨增量併入累積（以前後數量差計算，含被消耗者的負值，最終只輸出淨正值）
@@ -152,6 +152,14 @@ function _initMobListGuard() {   // 在 #mob-list(穩定父節點·只換其 inn
     let release = () => { if (!_mobPointerDown) return; _mobPointerDown = false; if (_mobRebuildPending) { _mobRebuildPending = false; setTimeout(() => _renderMobsImpl(), 0); } };   // 放開後(讓 click→setTarget 先在存活節點上觸發)再補一次重繪
     document.addEventListener('pointerup', release);
     document.addEventListener('pointercancel', release);
+}
+// ⚔️ 天堂職業硬直：玩家被「直接命中」（物理/魔法·非 DoT）時，延遲下次一般攻擊 d.hitstun 個 tick。每個攻擊週期最多硬直一次（不無限疊加·避免被群毆時完全鎖死）。
+function applyPlayerHitstun() {
+    if (!state || state._pStunCycle || player.dead) return;
+    let hs = (player.d && player.d.hitstun) || 0;
+    if (hs <= 0) return;
+    state.pDmgTick = (state.pDmgTick || 0) - hs;   // 攻擊累加器倒退 → 下次攻擊延後 hs tick
+    state._pStunCycle = true;
 }
 function tick() {
     if(!state.running || player.dead) return;
@@ -232,6 +240,7 @@ function tick() {
     if(player.cds.atkSk > 0) player.cds.atkSk--;
     if(player.cds.healSk > 0) player.cds.healSk--;
     if((player.cds.purifySk || 0) > 0) player.cds.purifySk--;   // 🔧 淨化技獨立冷卻
+    if((player.cds.castLock || 0) > 0) player.cds.castLock--;   // 🔮 天堂職業施法冷卻下限（法師快·王族/黑妖慢）·autoCastSpells 依此節流攻擊魔法
     if(canAct) autoCastSpells();   // 每 tick 嘗試自動施法，實際間隔由上方冷卻控制
 
     if(state.ticks % 10 === 0) {
@@ -281,8 +290,17 @@ function tick() {
                 } else if(KING_ROOMS[mapState.current]) {
                     delay = 50;                                                 // 🔧 軍王之室：固定 5 秒復活，不受日光術/席琳的世界加速影響
                 } else {
-                    delay = (player.buffs.sk_sunlight > 0) ? 10 : 50;          // 50 tick = 5 秒（日光術約 1 秒）
-                    if (sherineWorldActive() && !isSiegeArea(mapState.current)) delay = Math.max(1, delay - 10);   // 🔮 席琳的世界：搜索時間 −1 秒（與日光術疊加）
+                    // 🐾 v3.0.27 重生延遲＝基準 50 tick(5秒) × 變身移動速度(pf.wlk·16=基準·越小越快) × 移動加速倍率(加速/勇敢/精靈餅乾)
+                    let _pfW = (player._setPoly && player._setPoly.wlk) ? player._setPoly.wlk          // 套裝變身優先（與 js/02 變身套用同優先序）
+                             : ((player.buffs.poly > 0 && player.poly && player.poly.wlk) ? player.poly.wlk : 16);   // 卷軸變身移動速度；未變身＝16
+                    let _mv = 1;   // 加速/勇敢/餅乾也加快「移動速度」→加快重生（與攻速同倍率·相乘疊加）
+                    if (player.buffs.haste > 0 || player._equipHaste) _mv *= 0.67;   // 加速術/裝備常駐加速 +33%
+                    if (player.buffs.brave > 0) _mv *= 0.67;                          // 勇敢藥水 +33%
+                    if (player.buffs.elfcookie > 0) _mv *= 0.85;                      // 精靈餅乾 +15%
+                    delay = Math.round(50 * (_pfW / 16) * _mv);
+                    if (player.buffs.sk_sunlight > 0) delay -= 10;                    // ☀️ v3.0.27 日光術：固定加快 1 秒（10 tick·由「設為1秒」改為「−1秒」）
+                    if (sherineWorldActive() && !isSiegeArea(mapState.current)) delay -= 10;   // 🔮 席琳的世界：固定加快 1 秒（與日光術疊加）
+                    delay = Math.max(1, delay);
                 }
                 if(mapState.spawnAt[i] == null) mapState.spawnAt[i] = nowT + delay; // 空格剛出現：排程 delay 後（一般／純BOSS房／軍王之室皆 5 秒）
                 if(nowT >= mapState.spawnAt[i]) { spawnMob(i); mapState.spawnAt[i] = null; }
@@ -298,6 +316,7 @@ function tick() {
         if(state.pDmgTick >= aspdTicks) {
             playerAttack();
             state.pDmgTick = 0;
+            state._pStunCycle = false;   // ⚔️ 硬直：每次攻擊後重置「本週期已硬直」旗標（下週期被擊可再延遲一次）
         }
     }
     
@@ -640,7 +659,7 @@ function spawnMob(idx) {
         if(_kr.dual) { _id = _kr.bosses[idx]; if(!_id) { mapState.mobs[idx] = null; return; } }   // 🏛️ 雙BOSS祭壇：0,1 兩格各一隻BOSS（第三格留空）
         else _id = (idx === 1) ? _kr.boss : _kr.minion;
         let _b = DB.mobs[_id]; if(!_b) return;
-        mapState.mobs[idx] = { ..._b, curHp: _b.hp, uid: uid(), _magCd: {}, justHit: false, st: newMobStatus() };
+        mapState.mobs[idx] = { ..._b, curHp: _b.hp, uid: uid(), _born: ++_mobBornSeq, _magCd: {}, justHit: false, st: newMobStatus() };
         applySherineBuff(idx);   // 🔮 軍王之室／底比斯歐西里斯祭壇也吃「席琳的世界」強化＋_sherine（與一般出怪一致；不含恩賜 grace；須在 initHardSkin 之前）
         if(mapState.mobs[idx].hard) initHardSkin(mapState.mobs[idx]);
         return;
@@ -732,7 +751,7 @@ function spawnMob(idx) {
     }
     let base = DB.mobs[mobId];
     if(!base) return;
-    mapState.mobs[idx] = { ...base, curHp: base.hp, uid: uid(), _magCd: {}, justHit: false, st: newMobStatus(), _bornMs: Date.now() };   // 🏛️ _bornMs：生成時間（長老之室 BOSS 3 分鐘節流用）
+    mapState.mobs[idx] = { ...base, curHp: base.hp, uid: uid(), _born: ++_mobBornSeq, _magCd: {}, justHit: false, st: newMobStatus(), _bornMs: Date.now() };   // 🏛️ _bornMs：生成時間（長老之室 BOSS 3 分鐘節流用）；_born：出生序（鎖定最早出生用）
     // 弓：場上原本沒有任何敵人時，第一個出現的敵人不論主動/被動，都強制視為被動（搭配弓攻擊3秒延遲，可先手放風箏）
     if(!base.boss && player.eq.wpn && DB.items[player.eq.wpn.id] && DB.items[player.eq.wpn.id].isBow && !mapState.mobs.some((m, j) => m && j !== idx)) {
         mapState.mobs[idx].beh = '被動';   // 頭目除外，維持主動
@@ -766,14 +785,20 @@ function getMobNameClass(m) {
 function getTarget() {
     let t = mapState.mobs[mapState.targetIdx];
     if (t && t._dead) t = null;   // 🔧 架構#2：已死亡待清算的怪不可作為目標
-    // 當前目標不存在（如剛開局或剛擊殺）時，依照「中央(1) -> 左邊(0) -> 右邊(2)」順序鎖定第一個活著的敵人
+    // 🎯 v3.0.11 當前目標不存在（如剛開局或剛擊殺）時，自動鎖定「最早出生」的活怪（_born 最小＝在場上存活最久）。
+    //    _born＝全域單調出生序（spawnMob/spawnRiftMob/軍王之室 三處生成時戳記）；缺 _born 的怪（理論上不會有）以 Infinity 墊底、再以格位序 tiebreak。
+    //    手動點擊鎖定（setTarget）不受影響：鎖定目標存活期間不會被此邏輯改鎖。
     if(!t) {
-        let priorityOrder = [1, 0, 2, 3, 4];   // 🆕 前排(中1→左0→右2)優先，其次後排(3,4)；後排為 undefined 時自動略過
-        for(let i of priorityOrder) {
-            if(mapState.mobs[i] && !mapState.mobs[i]._dead) {
-                setTarget(i);
-                return mapState.mobs[i];
-            }
+        let best = -1, bestBorn = Infinity;
+        for(let i = 0; i < mapState.mobs.length; i++) {
+            let m = mapState.mobs[i];
+            if(!m || m._dead) continue;
+            let b = (m._born != null) ? m._born : Infinity;
+            if(b < bestBorn) { bestBorn = b; best = i; }
+        }
+        if(best >= 0) {
+            setTarget(best);
+            return mapState.mobs[best];
         }
     }
     return t;
@@ -986,10 +1011,10 @@ function procLightArrow(t) {
     } else {
         renderMobs();
     }
-    // 🔮 魔女 5/5：累計共鳴次數，每 5 次免費發動一次冰雪暴（冰雪颶風風暴傷害·免學·不吃法師階級加成）
+    // 🔮 魔女 5/5：累計共鳴次數，每 5 次免費發動一次冰雪暴（sk_blizzard·4×2D10 水屬性全體·免學·不吃法師階級加成）
     if (player._setWitch5) {
         player._witchResCnt = (player._witchResCnt || 0) + 1;
-        if (player._witchResCnt >= 5) { player._witchResCnt = 0; if (typeof stormBuffTick === 'function' && DB.skills['sk_blizzard_storm']) stormBuffTick(DB.skills['sk_blizzard_storm'], true); }
+        if (player._witchResCnt >= 5) { player._witchResCnt = 0; if (typeof stormBuffTick === 'function' && DB.skills['sk_blizzard']) stormBuffTick(DB.skills['sk_blizzard'], true); }
     }
 }
 // ===== 月光爆裂：對指定目標造成 1D30 + 2×強化等級 的風屬性固定傷害（不受魔法公式影響）=====
@@ -1307,7 +1332,7 @@ function ironGuardSweep() {
     renderMobs();
 }
 
-// 🔮 魔女 5/5：每觸發 5 次共鳴，免費施放一次冰矛圍籬（不耗 MP、不需學會；公式同 castSkill 單體魔法）
+// 🔮 冰矛圍籬（鑽石高崙武器 10% proc·js/07 c.iceLance→本函式）：免費單體水魔法（不耗 MP、不需學會；公式同 castSkill 單體魔法）。⚠️魔女5/5 已改走 stormBuffTick(sk_blizzard)＝冰雪暴，不再用本函式。
 function witchIceLance() {
     let sk = DB.skills['sk_ice_lance'];
     if (!sk) return;
@@ -1336,7 +1361,7 @@ function witchIceLance() {
     if (t.st && t.st.mrhalf > 0) t.st.mrhalf = 0;
     mobWake(t);
     if (sk.freeze) applyMobStatus(t, { kind:'freeze', pbase:sk.freeze, dur:6 }, sk.n);
-    logCombat(`<span class="font-bold" style="color:#7dd3fc;text-shadow:0 0 6px #0ea5e9;">【魔女 5/5】</span>共鳴引動了 冰矛圍籬，對 <span class="${getMobColor(t.lv)}">${t.n}</span> 造成 ${dmg} 點傷害。${isCrit ? ' (爆擊!)' : ''}`, 'magic');
+    logCombat(`<span class="font-bold" style="color:#7dd3fc;text-shadow:0 0 6px #0ea5e9;">【冰矛圍籬】</span>對 <span class="${getMobColor(t.lv)}">${t.n}</span> 造成 ${dmg} 點傷害。${isCrit ? ' (爆擊!)' : ''}`, 'magic');
     if (t.curHp <= 0) { let ri = mapState.mobs.findIndex(m => m && m.uid === t.uid); if (ri !== -1) killMob(ri); }
     else renderMobs();
 }
