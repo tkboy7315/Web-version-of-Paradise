@@ -18,7 +18,7 @@ function auditReset() {
 }
 function auditTrackKill(mob) {
     if (!mob || typeof getExpGainMult !== 'function') return;
-    let g = Math.floor((mob.exp || 0) * getExpGainMult(player.lv));
+    let g = Math.floor((mob.exp || 0) * (1 + partyExpBonusPct() / 100) / partyExpShareCount() * getExpGainMult(player.lv));   // 🤝 v3.0.87 效率統計記主玩家「實得」經驗（怪物經驗 ×組隊加成 ÷分經驗人數），與經驗條一致
     if (g > 0) _audit.exp += g;
     _audit.kills++;
 }
@@ -167,9 +167,23 @@ setInterval(() => { try { renderAuditTab(); } catch(e) {} }, 2000);   // 開著�
 // killMob() 只負責「標記死亡＋發放獎勵/掉落」；原格清空與目標重鎖延後到 settleDeadMobs()（v2.7.47 起不再遞補壓實）。
 // tick 內的擊殺由 gameLoop 在 tick 結束後統一清算；手動操作（點技能/道具）觸發的擊殺立即清算。
 // 好處：怪物迭代過程中陣列不再位移，徹底杜絕「怪物被跳過回合 / 索引指到錯的怪」這類隱性錯誤。
-function classicDropMult() { var _r = RATE_PRESETS[(state.rateLv || 2)]; return player.classicMode ? _r.classicDrop : _r.drop; }   // 🎮 經典模式：所有物品掉落機率 ×1/10
-// 🎮 經典模式例外：職業專屬試煉道具（TRIAL_ITEM_CLASS 內者）不受 ×1/10 影響→照原機率掉落（避免 50 級試煉在經典模式難度暴增 10 倍）；非試煉道具仍套用 classicDropMult。用於 MOB_DROPS／DRAGON_DROPS 兩個含試煉道具的掉落表。
+// ⚠️v3.0.85 用戶指示：經典模式「掉落率 ×1/10」懲罰移除（歷次：v3.0.82 經驗×0.5／金幣÷2 移除 → v3.0.85 掉落×1/10 移除）。
+//   classicDropMult 恆 1 保留為單一真相掛點（十餘個掉落判定點仍乘它·未來要恢復懲罰只改這裡）；trialItemDropMult（試煉道具豁免）同步恆 1。
+//   經典模式現存差異：死亡損失 5% 經驗、隱藏祝福/精通/席琳、停用武器/盾/騎士特效。
+function classicDropMult() {
+    let r = (typeof RATE_PRESETS !== 'undefined' && state && state.rateLv) ? RATE_PRESETS[state.rateLv] : null;
+    if (!r) return (player && player.classicMode) ? 1 : 10;
+    return (player && player.classicMode) ? r.classicDrop : r.drop;
+}
 function trialItemDropMult(id) { return (typeof TRIAL_ITEM_CLASS !== 'undefined' && TRIAL_ITEM_CLASS[id]) ? 1 : classicDropMult(); }
+// 🤝 v3.0.86 組隊經驗改「4 人均分」：分經驗人數＝主玩家 ＋ 未倒地傭兵（例：滿隊 3 傭兵→4 人；怪物經驗÷人數＝每人一份·1000exp→各 250）。倒地傭兵不參與、不稀釋其他人。
+function partyExpShareCount() { return 1 + ((player.allies || []).filter(a => a && !a._downed).length); }
+// 🤝 v3.0.87 組隊經驗「加成」：每名未倒地隊友使怪物經驗 +（王族隊長 8%／非王族 4%）·線性（1/2/3 隊友＝王族 8/16/24%、非王族 4/8/12%·王族因傭兵上限可 >3 隊友則續加）。加成套在怪物經驗上（分配前），再由 partyExpShareCount 均分。單人（0 隊友）無加成。
+function partyExpBonusPct() {
+    let _mates = (player.allies || []).filter(a => a && !a._downed).length;
+    if (_mates <= 0) return 0;
+    return _mates * ((player && player.cls === 'royal') ? 8 : 4);   // 👑 王族隊長每隊友 +8%；其餘職業每隊友 +4%（減半）
+}
 function killMob(idx) {
     let mob = mapState.mobs[idx];
     if (!mob || mob._dead) return;        // 冪等保護：同一隻怪只結算一次獎勵
@@ -187,15 +201,17 @@ function killMob(idx) {
     // 🔧 轉場建築（往上層的樓梯 / 遺忘之島傳送門）：擊敗即進入下一層/島，不顯示「擊敗了…」戰鬥訊息（race 建築且 noAutoTeleport，排除攻城塔/城門）
     let _hideKillMsg = (mob.race === '建築' && mob.noAutoTeleport);
     if(!_hideKillMsg) logCombat(`擊敗了 <span class="${getMobColor(mob.lv)}">${mob.n}</span>！`, 'player-heavy');  // 👈 新增
-    player.exp += Math.floor(mob.exp * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * (player.classicMode ? RATE_PRESETS[(state.rateLv || 2)].classicExp : RATE_PRESETS[(state.rateLv || 2)].exp));
+    // 🤝 v3.0.87 組隊經驗＝先加成再均分：怪物經驗 ×(1+partyExpBonusPct%) ÷ partyExpShareCount()（主玩家＋未倒地傭兵）＝每人一份。
+    //   例（王族隊長+1 隊友）：1000 ×1.08 ÷2 ＝ 540／人；主玩家僅得一份（單人時＝全額·無加成）。🪆 魔法娃娃 expBonus% 仍加乘於主玩家該份。
+    let _expShare = mob.exp * (1 + partyExpBonusPct() / 100) / partyExpShareCount();
+    let _rateExp = (typeof RATE_PRESETS !== 'undefined' && state && state.rateLv) ? (player.classicMode ? RATE_PRESETS[state.rateLv].classicExp : RATE_PRESETS[state.rateLv].exp) : 1;
+    player.exp += Math.floor(_expShare * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * _rateExp);   // 自訂：一般×100、經典×1
     checkLvUp();
-    // 🤝 協力傭兵經驗平分：每名非倒地傭兵各得「以自身等級計算」的 MERC_EXP_SHARE（不減玩家）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。
+    // 🤝 v3.0.86 協力傭兵各得「均分後的一份」（以自身等級計 getExpGainMult·滿等歸0·不減其他人）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。（原 MERC_EXP_SHARE=0.5 制已廢）
     if (player.allies && player.allies.length && mob.exp) {
-        let _r = RATE_PRESETS[(state.rateLv || 2)];
-        let _cm = player.classicMode ? _r.classicExp : _r.exp;
         player.allies.forEach(a => {
             if (!a || a._downed) return;
-            let _gain = Math.floor(mob.exp * getExpGainMult(a.lv || 1) * _cm * MERC_EXP_SHARE);
+            let _gain = Math.floor(_expShare * getExpGainMult(a.lv || 1) * _rateExp);   // 🤝 每名未倒地傭兵各得一份（與主玩家同額·例 1000exp 滿隊→各 250）
             if (_gain <= 0) return;
             a.exp = (a.exp || 0) + _gain;
             a._expGained = (a._expGained || 0) + _gain;
@@ -216,7 +232,8 @@ function killMob(idx) {
         let gMin = mob.goldMin || (mob.lv * 5);
         let gMax = mob.goldMax || (mob.lv * 10);
         let g = gMin + Math.floor(Math.random() * (gMax - gMin + 1));
-        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (player.classicMode ? RATE_PRESETS[(state.rateLv || 2)].classicGold : RATE_PRESETS[(state.rateLv || 2)].gold));   // 🪆 魔法娃娃 goldBonus%（莫提斯）
+        let _rateGold = (typeof RATE_PRESETS !== 'undefined' && state && state.rateLv) ? (player.classicMode ? RATE_PRESETS[state.rateLv].classicGold : RATE_PRESETS[state.rateLv].gold) : 1;
+        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * _rateGold);   // 自訂：一般×50、經典×1
         player.gold += g;
         // 🔧 金幣不再逐殺輸出於系統日誌；改由 gameLoop 累積、flushAwaySummary 以「掛機期間獲得總金幣」統一顯示。
 
@@ -301,7 +318,8 @@ function killMob(idx) {
         let itemId = entry[0];
         let ratePct = entry[1];               // 機率(%)
         if(!DB.items[itemId]) return;          // 該物品不存在於資料庫則略過
-        if(trialDropBlocked(itemId)) return;   // 🔒 試煉兌換道具：僅本職擊殺才掉（非本職直接跳過）
+        if(trialDropBlocked(itemId)) return;   // 🔒 試煉兌換道具：僅本職擊殺才掉＋🔥 v3.0.78 須已接取對應試煉且未達需求數量
+        if (typeof trialForced100 === 'function' && trialForced100(itemId)) { gainItem(itemId, 1); return; }   // 🔥 接取制試煉道具：通過閘門後 100% 掉落
         let _clMult = (mob.n === '卡瑞' && itemId === 'wpn_dragonslayer') ? 1 : trialItemDropMult(itemId);   // 🔧 v2.6.75 卡瑞·屠龍劍：經典模式仍維持 100%（獎勵已綁「擊殺消耗四任務道具」的成本·不受 ×1/10）
         if(Math.random() < (ratePct * _dropBase * _clMult) / 100) gainItem(itemId, 1);   // 🎮 試煉道具不受經典 ×1/10（trialItemDropMult 回 1）
     });
@@ -347,11 +365,15 @@ function killMob(idx) {
     { let _dcd = (typeof DARK_CRYSTAL_DROPS !== 'undefined') ? DARK_CRYSTAL_DROPS[mob.n] : null;
       if (_dcd) _dcd.forEach(e => { if (DB.items[e[0]] && Math.random() < (e[1] * _dropMult) / 100) gainItem(e[0], 1); }); }
     // === 🐉 龍騎士掉落（任務道具／書板／鎖鏈劍）：僅龍騎士主玩家擊殺時判定 ===
-    { let _drd = (typeof DRAGON_DROPS !== 'undefined') ? DRAGON_DROPS[mob.n] : null;   // 🐉 龍騎士掉落表改為全職可掉（書板/鎖鏈劍·就算不能裝備也掉）；妖魔搜索文件等試煉道具由 trialDropBlocked 限定 dragon
-      if (_drd) _drd.forEach(e => { if (DB.items[e[0]] && !trialDropBlocked(e[0]) && Math.random() < (e[1] * _dropBase * trialItemDropMult(e[0])) / 100) gainItem(e[0], 1); }); }   // 🎮 龍騎士試煉道具不受經典 ×1/10
+    { let _drd = (typeof DRAGON_DROPS !== 'undefined') ? DRAGON_DROPS[mob.n] : null;   // 🐉 龍騎士掉落表改為全職可掉（書板/鎖鏈劍·就算不能裝備也掉）；妖魔搜索文件等試煉道具由 trialDropBlocked 限定 dragon＋接取制
+      if (_drd) _drd.forEach(e => { if (!DB.items[e[0]] || trialDropBlocked(e[0])) return;
+          if (typeof trialForced100 === 'function' && trialForced100(e[0])) { gainItem(e[0], 1); return; }   // 🔥 v3.0.78 接取制試煉道具：100% 掉落
+          if (Math.random() < (e[1] * _dropBase * trialItemDropMult(e[0])) / 100) gainItem(e[0], 1); }); }   // 🎮 龍騎士試煉道具不受經典 ×1/10
     // === ⚔️ 戰士技能印記掉落（全職可掉·僅戰士可學）===
     { let _wrd = (typeof WARRIOR_DROPS !== 'undefined') ? WARRIOR_DROPS[mob.n] : null;
-      if (_wrd) _wrd.forEach(e => { if (DB.items[e[0]] && Math.random() < (e[1] * _dropMult) / 100) gainItem(e[0], 1); }); }
+      if (_wrd) _wrd.forEach(e => { if (!DB.items[e[0]] || trialDropBlocked(e[0])) return;   // 🔥 v3.0.78 戰士試煉道具（若列於此表）同樣吃接取制閘門
+          if (typeof trialForced100 === 'function' && trialForced100(e[0])) { gainItem(e[0], 1); return; }
+          if (Math.random() < (e[1] * _dropMult) / 100) gainItem(e[0], 1); }); }
     // 🔮 記憶水晶掉落（幻術士法術書·全職可掉，獨立 roll·與 MOB_DROPS 並存）
     { let _memd = (typeof MEM_DROPS !== 'undefined') ? MEM_DROPS[mob.n] : null;
       if (_memd) _memd.forEach(e => { if (DB.items[e[0]] && Math.random() < (e[1] * _dropMult) / 100) gainItem(e[0], 1); }); }
@@ -455,10 +477,10 @@ function settleDeadMobs() {
         oblivionOnPortalKill();
     }
 }
-// 🔧 魔獸軍王之室：擊敗巴蘭卡後的傳送（目的地同「回村/回城」按鈕：攻城獲勝→獲勝城池城堡，否則→職業/血盟起始村）
+// 🔧 魔獸軍王之室：擊敗巴蘭卡後的傳送（目的地同「回村/回城」按鈕：攻城獲勝→獲勝城池城堡，否則→上一個待過的安全區·無紀錄回起始村）
 function kbVictoryTeleport() {
     logSys('<span class="text-amber-300 font-bold">⚔ 你擊敗了軍王！封印之力消散，將你送回了安全之地。</span>');
-    setMapSelectors(siegeVictoryActive() ? victoryCityCfg().castle : getHomeTown());
+    setMapSelectors(siegeVictoryActive() ? victoryCityCfg().castle : getLastTown());   // 🏘️ v3.0.94 與「回村」按鈕一致：回上一個待過的安全區
     changeMap(true);   // force：略過受控狀態檢查與鑰匙消耗
     // 🔧 自軍王之室回城後，將「特殊」分類的記憶位置改為新兵修練場（下次選特殊優先進入，不會自動回到需鑰匙的軍王之室）
     if (!player.lastMapByCat) player.lastMapByCat = {};
@@ -941,6 +963,7 @@ function reviveInPlace() {
     document.getElementById('btn-revive').classList.add('hidden');
     { let ip = document.getElementById('btn-revive-inplace'); if(ip) ip.classList.add('hidden'); }
     calcStats(); updateUI();
+    if (typeof playSelfFx === 'function') { try { playSelfFx('返生術', (typeof _partyMemberRect === 'function') ? _partyMemberRect(player) : null); } catch (e) {} }   // 🪦 v3.0.102 返生術/復活卷軸→於復活的玩家身上播返生術特效
     if (player.allies && player.allies.length) logSys('<span class="text-emerald-300">原地復活，協力傭兵仍在你身邊。</span>');
     saveGame();   // 原地復活成功後自動存檔（傭兵保留）
 }

@@ -6,9 +6,17 @@ const _VFX_ELE_COLOR = { fire:'#ff7a45', water:'#4fc3f7', wind:'#9ccc65', earth:
 // ✨ 適合投射動畫的「非屬性」攻擊技能（屬性魔法已自動涵蓋）：技能id→投射外觀(屬性色 or 'axe'=旋轉金屬斧)
 const _VFX_PROJECTILE_SKILLS = { sk_lightarrow:'magic', sk_disintegrate:'magic', sk_illu_mindbreak:'magic', sk_elf_triple:'wind' };   // 戰斧投擲是「下一擊」增益→改在攻擊觸發處射斧，不走 cast 樞紐
 function _vfxLayer() {
+    // 🎚️ v3.0.73 vfx 圖層改掛進 #app-stage（與 item-modal/收集冊/浮動裝備視窗/浮動倉庫 同一 stacking context）→ 其 z-index(35) 才排得進這些 UI(z45~72)之下；先前掛 document.body(root context)時 z-index:45 正值恆蓋在 #app-stage(position:fixed→自成 context·z-auto)之上，使死亡殘影蓋掉所有 UID。#app-stage 為 position:fixed 且無 transform/filter→其 position:fixed 子層仍以「視窗」為容器塊(getBoundingClientRect 螢幕座標定位不變)。
+    let host = document.getElementById('app-stage') || document.body;
     let l = document.getElementById('vfx-layer');
-    if (!l) { l = document.createElement('div'); l.id = 'vfx-layer'; document.body.appendChild(l); }
+    if (!l) { l = document.createElement('div'); l.id = 'vfx-layer'; host.appendChild(l); }
+    else if (l.parentElement !== host) host.appendChild(l);   // 舊狀態若曾掛 body→搬進 app-stage
     return l;
+}
+function _vfxClearAll() {   // 🎚️ v3.0.73 換地圖/回城即清空狩獵區殘留特效（死亡殘影 vfx-ghost／法術 vfx-spell／冰凍／怪技能特效）→上一張地圖尚在播放的死亡動畫不會殘留、蓋到村莊或新地圖介面。冰凍/怪技能追蹤 dict 一併清鍵避免孤兒元素。
+    try { let l = document.getElementById('vfx-layer'); if (l) while (l.firstChild) l.removeChild(l.firstChild); } catch (e) {}
+    try { if (typeof _freezeFx !== 'undefined' && _freezeFx) for (let k in _freezeFx) delete _freezeFx[k]; } catch (e) {}
+    try { if (typeof _mobSkillFx !== 'undefined' && _mobSkillFx) for (let k in _mobSkillFx) delete _mobSkillFx[k]; } catch (e) {}
 }
 // ===== ⚡ 法術特效疊加層（v2.7.15）：技能命中時於目標怪身上疊播天堂原版法術特效序列幀（一次性·加亮混合 screen·純視覺不影響任何數值·吃 __vfxOff 開關）=====
 //   幀來源：assets/fx/<dir>/<prefix>_0.png..N.png（spr2png 單檔轉·gfx 對照 list.spr·10-0.spr=lightning gfx10）。
@@ -24,37 +32,47 @@ function _vfxLayer() {
 const SPELL_FX_REF_MSCALE_K = 1.095 / 112;   // proj: mScale = r.height × 此（帶高112→1.095·與妖魔鬥士當前一致）
 const SPELL_FX_REF_W_K = 105 / 112;          // w驅動: 基準寬 = r.height × 此（帶高112→105）
 const SPELL_FX = {
-    '極道落雷': { dir: '極道落雷', prefix: 'fx',    n: 6,  fps: 14, blend: 'screen', h: 2.0, ax: 0.60, ay: 0.98 },   // gfx10 lightning：加亮發光·頂天劈下(高度驅動)
-    '地裂術':   { dir: '地裂術',   prefix: '129-1', n: 10, fps: 14, w: 0.85, ax: 0.50, ay: 0.82, targetVc: 0.92, shadowPrefix: '129-1_s' },   // gfx129 earthquake：不透明岩石(無 blend)＋地面裂痕影子層·寬度驅動(寬≈怪寬×0.85)·erupt 自腳底
-    '極光雷電': { dir: '極光雷電', prefix: '170-1', n: 6,  fps: 14, blend: 'screen', proj: true, nw: 122, nh: 255, projScale: 0.5, ax: 0.50, ay: 0.50 },   // v3.0.20 gfx170：改「由玩家朝向怪物發射的雷電光束」(飛行投射物·原生122×255×怪物縮放×0.5·加亮)·取代原頂天劈下柱
-    '火箭':     { dir: '火箭',     prefix: '171-1', n: 5,  fps: 12, blend: 'screen', proj: true, nw: 43, nh: 49, ax: 0.50, ay: 0.50 },   // gfx171 fireball：飛行投射物(取代丟出的火球)·原生尺寸×怪物顯示縮放(對等大小)·加亮
-    '冰箭':     { dir: '冰箭',     prefix: '167-1', n: 4,  fps: 12, blend: 'screen', proj: true, nw: 32, nh: 40, ax: 0.50, ay: 0.50 },   // gfx167 energy bolt：飛行投射物·原生尺寸×怪物縮放·加亮
-    '光箭':     { dir: '冰箭',     prefix: '167-1', n: 4,  fps: 12, blend: 'screen', proj: true, nw: 32, nh: 40, ax: 0.50, ay: 0.50 },   // gfx167 energy bolt：光箭與冰箭同 spr(167 也作用於光箭)→複用已部署 167 幀·飛行投射物·原生尺寸×怪物縮放
-    // 🔮 v2.7.39 攻擊/減益型法術特效批次(13 支·來源 spr彙整/fx/·單檔 --luma-alpha 去黑邊·screen 加亮·觸發免寫=js/07 castSkillInner 逐目標迴圈通用·名字對上技能 n 自動播)：
-    '冰矛圍籬':   { dir: '冰矛圍籬',   prefix: '1809-2', n: 3,  fps: 10, blend: 'screen', proj: true, nw: 70, nh: 48, ax: 0.50, ay: 0.50 },   // v3.0.4 飛行投射物·原生70×48×怪物縮放(對等大小)
-    '冰錐':       { dir: '冰錐',       prefix: '1797-1', n: 4,  fps: 12, blend: 'screen', proj: true, nw: 15, nh: 21, ax: 0.50, ay: 0.50 },   // v3.0.4 飛行投射物·原生15×21×怪物縮放(對等大小)
-    '冰雪暴':     { dir: '冰雪暴',     prefix: '757-0', n: 23, fps: 16, blend: 'screen', h: 1.35, ax: 0.50, ay: 0.55 },   // gfx757 blizzard·大範圍冰暴蓋身
-    '寒冷戰慄':   { dir: '寒冷戰慄',   prefix: '236-1', n: 6,  fps: 12, blend: 'screen', h: 1.00, ax: 0.50, ay: 0.55 },   // gfx236·寒氣直立
-    '毒咒':       { dir: '毒咒',       prefix: '745-0', n: 8,  fps: 12, blend: 'screen', h: 0.80, ax: 0.50, ay: 0.55 },   // gfx745 poison·綠毒霧
-    '流星雨':     { dir: '流星雨',     prefix: '762-0', n: 20, fps: 16, blend: 'screen', h: 1.90, ax: 0.50, ay: 0.88 },   // gfx762 meteor·天降(高柱·錨近底=衝擊點)
-    '烈炎術':     { dir: '烈炎術',     prefix: '1811-0', n: 19, fps: 16, blend: 'screen', h: 1.20, ax: 0.50, ay: 0.55 },   // v2.7.41 換 gfx1811(原764)·317×240
-    '燃燒的火球': { dir: '燃燒的火球', prefix: '1669-1', n: 6, fps: 12, blend: 'screen', h: 1.00, ax: 0.50, ay: 0.55 },   // gfx1669 fireball·火球衝擊
-    '龍捲風':     { dir: '龍捲風',     prefix: '758-0', n: 20, fps: 16, blend: 'screen', h: 1.50, ax: 0.50, ay: 0.82, targetVc: 0.90 },   // gfx758 tornado·自腳底捲起(錨近腳底)
-    '吸血鬼之吻': { dir: '吸血鬼之吻', prefix: '235-1', n: 6, fps: 12, blend: 'screen', h: 1.00, ax: 0.50, ay: 0.55 },   // gfx235·紅色吸血
-    '魔法封印':   { dir: '魔法封印',   prefix: '761-0', n: 10, fps: 14, blend: 'screen', h: 1.00, ax: 0.50, ay: 0.55 },   // gfx761 seal(vacuum/沉默)·寬幅符陣
-    '緩速術':     { dir: '緩速術',     prefix: '752-0', n: 8,  fps: 12, blend: 'screen', h: 0.85, ax: 0.50, ay: 0.55 },   // gfx752 slow·藍色減速
-    '起死回生術': { dir: '起死回生術', prefix: '754-0', n: 21, fps: 16, blend: 'screen', h: 1.30, ax: 0.50, ay: 0.55 },   // gfx754·對不死系 instakill·聖光
-    // 🔮 v2.7.41 新增攻擊/proc 型法術特效(來源 spr彙整/fx·單檔 --luma-alpha·screen·觸發免寫=castSkillInner + 武器proc 逐目標通用)：
-    '地獄之牙':   { dir: '地獄之牙',   prefix: '1801-0', n: 9,  fps: 14, blend: 'screen', h: 0.70, ax: 0.50, ay: 0.55 },   // gfx1801·橫向獠牙(101×44 寬)
-    '寒冰氣息':   { dir: '寒冰氣息',   prefix: '1804-0', n: 21, fps: 16, blend: 'screen', h: 1.20, ax: 0.50, ay: 0.55 },   // gfx1804·冰霜吐息 198×153
-    '岩牢':       { dir: '岩牢',       prefix: '1805-0', n: 17, fps: 14, blend: 'screen', h: 1.20, ax: 0.50, ay: 0.55 },   // gfx1805·岩石囚牢包身 85×72
-    '火風暴':     { dir: '火風暴',     prefix: '1819-0', n: 14, fps: 14, blend: 'screen', h: 1.30, ax: 0.50, ay: 0.55 },   // gfx1819·火焰風暴 149×165
-    '風刃':       { dir: '風刃',       prefix: '1799-0', n: 5,  fps: 12, blend: 'screen', proj: true, nw: 36, nh: 26, ax: 0.50, ay: 0.50 },   // gfx1799·飛行投射物(風刃 36×26)·原生尺寸×怪物縮放·加亮
-    '黑闇之影':   { dir: '黑闇之影',   prefix: '1803-0', n: 9,  fps: 14, blend: 'screen', h: 1.00, ax: 0.50, ay: 0.55 },   // gfx1803·暗影 67×53
-    // 🎇 v2.7.41 多層同步特效(cfg.layers=額外前綴·3 spr 同畫布 --multi 同時播·screen 疊亮)：
-    '究極光裂術': { dir: '究極光裂術', prefix: '1815-0', layers: ['1816-0', '1817-0'], n: 21, fps: 16, blend: 'screen', h: 1.90, ax: 0.50, ay: 0.85 },   // sk_integrate tier10·天降聖光 395×568(3層)
-    '震裂術':     { dir: '震裂術',     prefix: '1812-0', layers: ['1813-0', '1814-0'], n: 16, fps: 16, blend: 'screen', h: 1.25, ax: 0.50, ay: 0.60 },   // spellProc earth aoe·地震裂 278×188(3層)
-    // 🔮 v2.7.44 屬性變體特效(cfg.byEle·依目標怪 mob.e 選幀組)：能量感測(sk_energy_sense manual·js/07 sense 分支掛點)→火/水/地/風 各 8 幀·目標無屬性不播
+    '光箭': { dir:'光箭', dirPrefix:'167-', dirs:4, n:4, fps:12, blend:'screen', proj:true, nw:32, nh:40, ax:0.50, ay:0.50 },
+    '冰矛圍籬': { dir:'冰矛圍籬', dirPrefix:'756-', dirs:8, n:4, fps:12, blend:'screen', proj:true, nw:49, nh:44, ax:0.50, ay:0.50 },
+    '冰箭': { dir:'冰箭', dirPrefix:'1797-', dirs:8, n:4, fps:12, blend:'screen', proj:true, nw:15, nh:21, ax:0.50, ay:0.50 },
+    '冰錐': { dir:'冰錐', dirPrefix:'1809-', dirs:8, n:3, fps:12, blend:'screen', proj:true, nw:35, nh:59, ax:0.50, ay:0.50 },
+    '冰雪暴': { dir:'冰雪暴', prefix:'757-0', n:23, fps:16, blend:'screen', h:1.35, ax:0.50, ay:0.55 },
+    '吸血鬼之吻': { dir:'吸血鬼之吻', dirPrefix:'236-', dirs:8, n:6, fps:12, blend:'screen', proj:true, nw:63, nh:96, ax:0.50, ay:0.50 },
+    '呼喚盟友': { dir:'呼喚盟友', prefix:'2281-0', n:7, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '地獄之牙': { dir:'地獄之牙', prefix:'1801-0', n:9, fps:14, blend:'screen', h:0.7, ax:0.50, ay:0.55 },
+    '地裂術': { dir:'地裂術', prefix:'129-1', n:10, fps:14, w:0.85, ax:0.50, ay:0.82, targetVc:0.92 },
+    '地面障礙': { dir:'地面障礙', prefix:'2250-0', n:13, fps:14, blend:'screen', w:0.9, ax:0.50, ay:0.82, targetVc:0.9 },
+    '壞物術': { dir:'壞物術', prefix:'172-0', n:15, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '寒冰氣息': { dir:'寒冰氣息', prefix:'1804-0', n:21, fps:16, blend:'screen', h:1.2, ax:0.50, ay:0.55 },
+    '寒冷戰慄': { dir:'寒冷戰慄', dirPrefix:'252-', dirs:8, n:6, fps:12, blend:'screen', proj:true, nw:63, nh:96, ax:0.50, ay:0.50 },
+    '封印禁地': { dir:'封印禁地', prefix:'2241-0', n:13, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '岩牢': { dir:'岩牢', prefix:'1805-0', n:17, fps:14, blend:'screen', h:1.2, ax:0.50, ay:0.55 },
+    '弱化術': { dir:'弱化術', prefix:'2228-0', n:9, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '會心一擊': { dir:'會心一擊', prefix:'2952-0', n:16, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '木乃伊的詛咒': { dir:'木乃伊的詛咒', prefix:'746-0', n:8, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '極光雷電': { dir:'極光雷電', dirPrefix:'170-', dirs:8, n:6, fps:12, blend:'screen', proj:true, nw:122, nh:255, projScale:0.5, ax:0.50, ay:0.50 },
+    '極道落雷': { dir:'極道落雷', prefix:'10-0', n:6, fps:14, blend:'screen', h:2, ax:0.50, ay:0.98 },
+    '毒咒': { dir:'毒咒', prefix:'745-0', n:8, fps:14, blend:'screen', h:0.8, ax:0.50, ay:0.55 },
+    '沉睡之霧': { dir:'沉睡之霧', prefix:'760-0', n:21, fps:16, blend:'screen', h:0.9, ax:0.50, ay:0.55 },
+    '流星雨': { dir:'流星雨', prefix:'762-0', n:20, fps:16, blend:'screen', h:1.9, ax:0.50, ay:0.88 },
+    '火箭': { dir:'火箭', dirPrefix:'1583-', dirs:4, n:4, fps:12, blend:'screen', proj:true, nw:31, nh:40, ax:0.50, ay:0.50 },
+    '火風暴': { dir:'火風暴', prefix:'1819-0', n:14, fps:14, blend:'screen', h:1.3, ax:0.50, ay:0.55 },
+    '烈炎術': { dir:'烈炎術', prefix:'1811-0', n:19, fps:16, blend:'screen', h:1.2, ax:0.50, ay:0.55 },
+    '燃燒的火球': { dir:'燃燒的火球', dirPrefix:'171-', dirs:8, n:5, fps:12, blend:'screen', proj:true, nw:43, nh:49, ax:0.50, ay:0.50 },
+    '疾病術': { dir:'疾病術', prefix:'2230-0', n:11, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '究極光裂術': { dir:'究極光裂術', prefix:'1815-0', layers:['1816-0', '1817-0'], n:21, fps:16, blend:'screen', h:1.9, ax:0.50, ay:0.85 },
+    '緩速術': { dir:'緩速術', prefix:'752-0', n:8, fps:14, blend:'screen', h:0.85, ax:0.50, ay:0.55 },
+    '衝擊之暈': { dir:'衝擊之暈', prefix:'4434-0', n:6, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '起死回生術': { dir:'起死回生術', prefix:'754-0', n:21, fps:16, blend:'screen', h:1.3, ax:0.50, ay:0.55 },
+    '迷魅術': { dir:'迷魅術', prefix:'228-0', n:7, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '闇盲咒術': { dir:'闇盲咒術', prefix:'746-0', n:8, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '雷霆風暴': { dir:'雷霆風暴', prefix:'3924-0', n:13, fps:14, blend:'screen', h:1.3, ax:0.50, ay:0.55 },
+    '震裂術': { dir:'震裂術', prefix:'1812-0', n:16, fps:14, blend:'screen', h:1.25, ax:0.50, ay:0.6 },
+    '風刃': { dir:'風刃', prefix:'1799-0', n:5, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '魔法封印': { dir:'魔法封印', prefix:'2177-0', n:17, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '魔法消除': { dir:'魔法消除', prefix:'2181-0', n:19, fps:16, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    '黑闇之影': { dir:'黑闇之影', prefix:'2175-0', n:8, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
+    // 🔮 保留：能量感測(byEle 屬性變體·手動 sense 掛點)
     '能量感測':   { dir: '能量感測',   n: 8, fps: 12, blend: 'screen', h: 0.85, ax: 0.50, ay: 0.55,
                     byEle: { fire: { prefix: '火' }, water: { prefix: '水' }, earth: { prefix: '地' }, wind: { prefix: '風' } } },
 };
@@ -67,6 +85,14 @@ function _preloadFxFrames(dir, prefix, n) {
     for (let i = 0; i < n; i++) { let im = new Image(); im.src = 'assets/fx/' + encodeURIComponent(dir) + '/' + prefix + '_' + i + '.png'; arr.push(im); }
     _spellFxCache[key] = arr;
     return arr;
+}
+// 🎯 方向型投射物選向：天堂 spr 方向索引（順時針·1=N 2=NE 3=E 4=SE 5=S 6=SW 7=W 0=NW）。
+//   base＝依「施法者→目標」角度算出的 45°分格（0=正上·順時針）。回 { idx=要用的 spr 方向索引, flip=水平鏡射 }。
+//   8向：全原生（idx=(base+1)%8）。4向：僅存 N/NE/E（idx 1/2/3）·左側(NW/W)用鏡射；投射物恆朝上→下半球(SE/S/SW)不會發生。
+function _pickFxDir(dirs, base) {
+    if (dirs >= 8) return { idx: (base + 1) % 8, flip: false };
+    let T = { 0: { idx: 1, flip: false }, 1: { idx: 2, flip: false }, 2: { idx: 3, flip: false }, 3: { idx: 3, flip: false }, 4: { idx: 1, flip: false }, 5: { idx: 3, flip: true }, 6: { idx: 3, flip: true }, 7: { idx: 2, flip: true } };
+    return T[base] || { idx: 1, flip: false };
 }
 // 🧊 v2.7.46 死亡特效(death_effect) registry＋預載：怪名→{n幀, ew/eh 特效畫布尺寸, anchored:{ox,oy,bw,bh}}。frames 在 assets/anim/<怪名>/death_effect_N.png(隨本體部署·非 fx 夾)。死亡時(vfxKill)獨立時間軸疊播(可比 body death 長)。
 const MOB_ANIM_DEATH_FX = {
@@ -102,7 +128,18 @@ function playSpellFx(skn, mob) {
         let _anc = _mobImgAnchor(_mobImg);
         let _vc = (cfg.targetVc != null) ? cfg.targetVc : _anc.vc;   // 🌋 地面型特效可指定較低錨點(近腳底)
         let ax = r.left + r.width * _anc.hc, ay = r.top + r.height * _vc;   // 打擊點螢幕座標
-        let frames = _preloadFxFrames(cfg.dir, cfg.prefix, cfg.n);
+        // 🎯 方向型投射物：依「施法者(玩家 sprite 胸口／戰鬥區底部中央)→目標打擊點」角度選對應方向 spr（8向原生·4向左側鏡射）
+        let _effPrefix = cfg.prefix, _flipX = false;
+        if (cfg.proj && cfg.dirs && cfg.dirPrefix) {
+            let _bv0 = document.getElementById('battle-view'); let _br0 = _bv0 && _bv0.getBoundingClientRect();
+            let _pr0 = (typeof _pmCasterRect === 'function') ? _pmCasterRect() : null;
+            let _ox0 = _pr0 ? (_pr0.left + _pr0.width * 0.5) : (_br0 ? (_br0.left + _br0.width * 0.5) : ax);
+            let _oy0 = _pr0 ? (_pr0.top + _pr0.height * 0.35) : (_br0 ? (_br0.top + _br0.height * 0.98) : (ay + 120));
+            let _deg = (Math.atan2(ax - _ox0, -(ay - _oy0)) * 180 / Math.PI + 360) % 360;   // 0=正上·順時針
+            let _sel = _pickFxDir(cfg.dirs, Math.round(_deg / 45) % 8);
+            _effPrefix = cfg.dirPrefix + _sel.idx; _flipX = _sel.flip;
+        }
+        let frames = _preloadFxFrames(cfg.dir, _effPrefix, cfg.n);
         let shadowFrames = cfg.shadowPrefix ? _preloadFxFrames(cfg.dir, cfg.shadowPrefix, cfg.n) : null;
         let first = frames[0];
         let _arFallback = !(first.naturalWidth && first.naturalHeight);   // 🩹 v2.7.41 首播未解碼→ar 退 0.93→解碼後 interval 重算一次(修高瘦特效如究極光裂術 395×568 首播被 0.93 撐寬)
@@ -142,6 +179,7 @@ function playSpellFx(skn, mob) {
             let oy = pr ? (pr.top + pr.height * 0.35) : (br ? (br.top + br.height * 0.98) : (ay + (fxH || 40) * 3));  // 施法者垂直＝sprite 胸口·退回戰鬥區底部(玩家視角)
             let axf = (cfg.ax != null ? cfg.ax : 0.5), ayf = (cfg.ay != null ? cfg.ay : 0.5);   // 投射物錨點(哪一點沿路徑走)
             let el = mkImg(first.src, null, cfg.blend);
+            if (_flipX) el.style.transform = 'scaleX(-1)';   // 🎯 4向左側：水平鏡射（NW←NE鏡射·W←E鏡射）
             el.style.left = (ox - fxW * axf) + 'px'; el.style.top = (oy - fxH * ayf) + 'px';   // 立即置於起點(避免首幀閃在終點)
             _spellFxActive[fxKey] = true;
             let dist = Math.hypot(ax - ox, ay - oy);
@@ -183,28 +221,82 @@ function playSpellFx(skn, mob) {
 // 🙏 v2.7.48 自我增益特效（SELF_FX）：治癒/武器附魔/防禦/屏障等 type buff/heal 技能施放時，於 #battle-view 中央疊播（v3.0.49：玩家變身 sprite 顯示中→改錨定 sprite 身上·否則以戰鬥區為「施法者」錨點）。
 //   掛點＝js/07 castSkill 施放成功且 isSupportSkill(sk)→playSelfFx(sk.n)（未註冊者靜默略過）。cfg：{dir,prefix,n,fps,blend,h=高為戰鬥區高倍數,cx/cy=戰鬥區內錨點比例(預設 0.5/0.62 略偏下=玩家視角)}。
 const SELF_FX = {
-    // 治癒（744 三階同 spr→中/高複用初級 dir·全部治癒術獨立 2173）
-    '初級治癒術':   { dir: '初級治癒術', prefix: '744-0', n: 21, fps: 16, blend: 'screen', h: 0.42 },
-    '中級治癒術':   { dir: '初級治癒術', prefix: '744-0', n: 21, fps: 16, blend: 'screen', h: 0.50 },
-    '高級治癒術':   { dir: '初級治癒術', prefix: '744-0', n: 21, fps: 16, blend: 'screen', h: 0.58 },
-    '全部治癒術':   { dir: '全部治癒術', prefix: '2173-0', n: 17, fps: 16, blend: 'screen', h: 0.62 },
-    // 武器附魔
-    '神聖武器':     { dir: '神聖武器',   prefix: '2165-0', n: 13, fps: 14, blend: 'screen', h: 0.45 },
-    '祝福魔法武器': { dir: '祝福魔法武器', prefix: '2176-0', n: 17, fps: 16, blend: 'screen', h: 0.60 },
-    '火炎武器':     { dir: '火炎武器',   prefix: '2182-0', n: 11, fps: 14, blend: 'screen', h: 0.50 },
-    '擬似魔法武器': { dir: '擬似魔法武器', prefix: '747-0', n: 19, fps: 16, blend: 'screen', h: 0.48 },
-    // 防禦/屏障/強化
-    '屬性防禦':     { dir: '屬性防禦',   prefix: '2184-0', n: 13, fps: 14, blend: 'screen', h: 0.45 },
-    '魔法屏障':     { dir: '魔法屏障',   prefix: '2174-0', n: 15, fps: 14, blend: 'screen', h: 0.55 },
-    '鎧甲護持':     { dir: '鎧甲護持',   prefix: '748-0', n: 20, fps: 16, blend: 'screen', h: 0.48 },
-    '負重強化':     { dir: '負重強化',   prefix: '2170-0', n: 13, fps: 14, blend: 'screen', h: 0.48 },
-    '體魄強健術':   { dir: '體魄強健術', prefix: '750-0', n: 11, fps: 14, blend: 'screen', h: 0.58 },
-    '通暢氣脈術':   { dir: '通暢氣脈術', prefix: '751-0', n: 11, fps: 14, blend: 'screen', h: 0.58 },
-    '加速術':       { dir: '加速術',     prefix: '755-0', n: 6,  fps: 12, blend: 'screen', h: 0.42 },
-    '傳送術':       { dir: '傳送術',     prefix: '169-0', n: 7,  fps: 14, blend: 'screen', h: 0.85, cy: 0.55 },   // 🌀 v2.7.54 高瘦傳送光柱(97×330)·手動施放於 manualCast teleport 分支掛
+    '中級治癒術': { dir:'中級治癒術', prefix:'744-0', n:21, fps:16, blend:'screen', h:0.5 },
+    '保護罩': { dir:'保護罩', prefix:'221-0', n:5, fps:14, blend:'screen', h:0.50, overHead:true },
+    '全部治癒術': { dir:'全部治癒術', prefix:'744-0', n:21, fps:16, blend:'screen', h:0.62 },
+    '冥想術': { dir:'冥想術', prefix:'2173-0', n:17, fps:14, blend:'screen', h:0.50, overHead:true },
+    '冰雪颶風': { dir:'冰雪颶風', prefix:'3933-0', n:31, fps:14, blend:'screen', h:0.50, overHead:true },
+    '初級治癒術': { dir:'初級治癒術', prefix:'744-0', n:21, fps:16, blend:'screen', h:0.42 },
+    '力量提升': { dir:'力量提升', prefix:'3909-0', n:18, fps:14, blend:'screen', h:0.50, overHead:true },
+    '加速術': { dir:'加速術', prefix:'755-0', n:6, fps:14, blend:'screen', h:0.50, overHead:true },
+    '反擊屏障': { dir:'反擊屏障', prefix:'5832-0', n:17, fps:14, blend:'screen', h:0.50, overHead:true },
+    '單屬性防禦': { dir:'單屬性防禦', prefix:'2285-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '堅固防護': { dir:'堅固防護', prefix:'5831-0', n:14, fps:14, blend:'screen', h:0.50, overHead:true },
+    '增幅防禦': { dir:'增幅防禦', prefix:'4824-0', n:19, fps:14, blend:'screen', h:0.50, overHead:true },
+    '大地屏障': { dir:'大地屏障', prefix:'2251-0', n:21, fps:14, blend:'screen', h:0.50, overHead:true },
+    '大地的祝福': { dir:'大地的祝福', prefix:'2287-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '大地防護': { dir:'大地防護', prefix:'2249-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '尖刺盔甲': { dir:'尖刺盔甲', prefix:'4648-0', n:22, fps:14, blend:'screen', h:0.50, overHead:true },
+    '屬性之火': { dir:'屬性之火', prefix:'4402-0', n:17, fps:14, blend:'screen', h:0.50, overHead:true },
+    '屬性防禦': { dir:'屬性防禦', prefix:'2184-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '強力加速術': { dir:'強力加速術', prefix:'3104-0', n:6, fps:14, blend:'screen', h:0.50, overHead:true },
+    '影之防護': { dir:'影之防護', prefix:'2943-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '心靈轉換': { dir:'心靈轉換', prefix:'2179-0', n:19, fps:14, blend:'screen', h:0.50, overHead:true },
+    '擬似魔法武器': { dir:'擬似魔法武器', prefix:'747-0', n:19, fps:14, blend:'screen', h:0.50, overHead:true },
+    '敏捷提升': { dir:'敏捷提升', prefix:'3910-0', n:18, fps:14, blend:'screen', h:0.50, overHead:true },
+    '暗影之牙': { dir:'暗影之牙', prefix:'2951-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '暗影閃避': { dir:'暗影閃避', prefix:'2950-0', n:15, fps:14, blend:'screen', h:0.50, overHead:true },
+    '暗隱術': { dir:'暗隱術', prefix:'2944-0', n:9, fps:14, blend:'screen', h:0.50, overHead:true },
+    '暴風之眼': { dir:'暴風之眼', prefix:'2288-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '暴風神射': { dir:'暴風神射', prefix:'2248-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '毒性抵抗': { dir:'毒性抵抗', prefix:'2948-0', n:11, fps:14, blend:'screen', h:0.50, overHead:true },
+    '水之元氣': { dir:'水之元氣', prefix:'4401-0', n:21, fps:14, blend:'screen', h:0.50, overHead:true },
+    '淨化精神': { dir:'淨化精神', prefix:'2180-0', n:11, fps:14, blend:'screen', h:0.50, overHead:true },
+    '火焰武器': { dir:'火焰武器', prefix:'2182-0', n:11, fps:14, blend:'screen', h:0.50, overHead:true },
+    '火牢': { dir:'火牢', prefix:'168-0', n:11, fps:14, blend:'screen', h:0.50, overHead:true },
+    '烈炎武器': { dir:'烈炎武器', prefix:'2242-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '烈焰之魂': { dir:'烈焰之魂', prefix:'5833-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '無所遁形術': { dir:'無所遁形術', prefix:'749-0', n:23, fps:14, blend:'screen', h:0.50, overHead:true },
+    '燃燒鬥志': { dir:'燃燒鬥志', prefix:'2946-0', n:9, fps:14, blend:'screen', h:0.50, overHead:true },
+    '狂暴術': { dir:'狂暴術', prefix:'3943-0', n:27, fps:14, blend:'screen', h:0.50, overHead:true },
+    '生命之泉': { dir:'生命之泉', prefix:'2243-0', n:16, fps:16, blend:'screen', h:0.5 },
+    '生命的祝福': { dir:'生命的祝福', prefix:'2244-0', n:16, fps:16, blend:'screen', h:0.5 },
+    '祝福魔法武器': { dir:'祝福魔法武器', prefix:'2176-0', n:17, fps:14, blend:'screen', h:0.50, overHead:true },
+    '神聖武器': { dir:'神聖武器', prefix:'2165-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '神聖疾走': { dir:'神聖疾走', prefix:'3936-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '精準射擊': { dir:'精準射擊', prefix:'5826-0', n:12, fps:14, blend:'screen', h:0.50, overHead:true },
+    '精準目標': { dir:'精準目標', prefix:'1765-0', n:31, fps:14, blend:'screen', h:0.50, overHead:true },
+    '絕對屏障': { dir:'絕對屏障', prefix:'2234-0', n:31, fps:14, blend:'screen', h:0.50, overHead:true },
+    '聖潔之光': { dir:'聖潔之光', prefix:'227-0', n:7, fps:16, blend:'screen', h:0.5 },
+    '聖結界': { dir:'聖結界', prefix:'228-0', n:7, fps:14, blend:'screen', h:0.50, overHead:true },
+    '能量激發': { dir:'能量激發', prefix:'5825-0', n:16, fps:14, blend:'screen', h:0.50, overHead:true },
+    '行走加速': { dir:'行走加速', prefix:'2945-0', n:6, fps:14, blend:'screen', h:0.50, overHead:true },
+    '負重強化': { dir:'負重強化', prefix:'2170-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '返生術': { dir:'返生術', prefix:'3944-0', n:24, fps:14, blend:'screen', h:0.55 },
+    '通暢氣脈術': { dir:'通暢氣脈術', prefix:'750-0', n:11, fps:14, blend:'screen', h:0.50, overHead:true },
+    '造屍術': { dir:'造屍術', prefix:'226-0', n:7, fps:14, blend:'screen', h:0.50, overHead:true },
+    '鋼鐵防護': { dir:'鋼鐵防護', prefix:'2252-0', n:15, fps:14, blend:'screen', h:0.50, overHead:true },
+    '鎧甲護持': { dir:'鎧甲護持', prefix:'748-0', n:20, fps:14, blend:'screen', h:0.50, overHead:true },
+    '鏡反射': { dir:'鏡反射', prefix:'4395-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '附加劇毒': { dir:'附加劇毒', prefix:'2942-0', n:9, fps:14, blend:'screen', h:0.50, overHead:true },
+    '雙重破壞': { dir:'雙重破壞', prefix:'2949-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '靈魂昇華': { dir:'靈魂昇華', prefix:'3935-0', n:19, fps:14, blend:'screen', h:0.50, overHead:true },
+    '風之疾走': { dir:'風之疾走', prefix:'2247-0', n:14, fps:14, blend:'screen', h:0.50, overHead:true },
+    '風之神射': { dir:'風之神射', prefix:'2246-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    '體力回復術': { dir:'體力回復術', prefix:'759-0', n:10, fps:16, blend:'screen', h:0.5 },
+    '體能激發': { dir:'體能激發', prefix:'4400-0', n:16, fps:14, blend:'screen', h:0.50, overHead:true },
+    '體魄強健術': { dir:'體魄強健術', prefix:'751-0', n:11, fps:14, blend:'screen', h:0.50, overHead:true },
+    '高級治癒術': { dir:'高級治癒術', prefix:'744-0', n:21, fps:16, blend:'screen', h:0.58 },
+    '魂體轉換': { dir:'魂體轉換', prefix:'2178-0', n:19, fps:14, blend:'screen', h:0.50, overHead:true },
+    '魔力奪取': { dir:'魔力奪取', prefix:'2171-0', n:9, fps:14, blend:'screen', h:0.50, overHead:true },
+    '魔法屏障': { dir:'魔法屏障', prefix:'2174-0', n:15, fps:14, blend:'screen', h:0.50, overHead:true },
+    '魔法相消術': { dir:'魔法相消術', prefix:'870-0', n:1, fps:16, blend:'screen', h:0.5 },
+    '魔法防禦': { dir:'魔法防禦', prefix:'2186-0', n:13, fps:14, blend:'screen', h:0.50, overHead:true },
+    // 🌀 保留：傳送術(手動 teleport 掛點·高瘦光柱)
+    '傳送術':       { dir: '傳送術',     prefix: '169-0', n: 7,  fps: 14, blend: 'screen', h: 0.85, cy: 0.55 },
 };
 let _selfFxActive = {};   // 技能名 → true：同增益同時只保留一個
-function playSelfFx(skn) {
+function playSelfFx(skn, anchorRect) {   // 🩹 v3.0.95 第2參 anchorRect（選用）：顯式錨點 rect（傭兵治癒疊在被治癒者 sprite 身上）·未傳→原邏輯（玩家 sprite→戰鬥區中央）
     try {
         if (window.__vfxOff) return;
         let cfg = SELF_FX[skn]; if (!cfg) return;
@@ -221,11 +313,14 @@ function playSelfFx(skn) {
         let fxH, fxW, left, top;
         let _geom = () => {
             fxH = r.height * (cfg.h || 0.5); fxW = fxH * ar;
-            let pr = (typeof _pmCasterRect === 'function') ? _pmCasterRect() : null;   // 🧝 v3.0.49 玩家變身 sprite 顯示中→特效錨定 sprite 身上（水平置中·底對齊腳底·尺寸仍以戰鬥區高為基準）
-            if (pr) { left = (pr.left + pr.width / 2 - fxW / 2) + 'px'; top = (pr.bottom - fxH) + 'px'; }
+            let pr = anchorRect || ((typeof _pmCasterRect === 'function') ? _pmCasterRect() : null);   // 🧝 v3.0.49 玩家變身 sprite 顯示中→特效錨定 sprite 身上（水平置中）；v3.0.95 顯式錨點優先
+            if (pr) {
+                left = (pr.left + pr.width / 2 - fxW / 2) + 'px';
+                top = (cfg.overHead ? (pr.top - fxH * 0.55) : (pr.bottom - fxH)) + 'px';   // 🙏 輔助 buff→疊在 sprite 頭頂上方；治癒→疊在身體(自腳底往上)
+            }
             else {
                 left = (r.left + r.width * (cfg.cx != null ? cfg.cx : 0.5) - fxW / 2) + 'px';
-                top = (r.top + r.height * (cfg.cy != null ? cfg.cy : 0.62) - fxH / 2) + 'px';
+                top = (r.top + r.height * (cfg.cy != null ? cfg.cy : (cfg.overHead ? 0.42 : 0.62)) - fxH / 2) + 'px';   // 無 sprite→輔助偏上、治癒略偏下
             }
         };
         _geom();
@@ -243,6 +338,26 @@ function playSelfFx(skn) {
             el.src = frames[i].src;
         }, Math.round(1000 / (cfg.fps || 14)));
     } catch (e) {}
+}
+// 🌀 v3.0.102 傳送術特效：於玩家 sprite 身上播 傳送術 光柱，並在特效期間暫時隱藏玩家 sprite（時間到自動恢復）。掛點＝doTeleport / enterHiddenArea（涵蓋 傳送術技能 + 手動/自動 瞬間移動卷軸）。
+let _teleportFxUntil = 0;   // Date.now() 毫秒·此刻之前 _playerMorphApply 隱藏玩家 sprite
+function playTeleportFx() {
+    try {
+        let cfg = SELF_FX['傳送術'];
+        let durMs = cfg ? (cfg.n / (cfg.fps || 14) * 1000) : 500;
+        _teleportFxUntil = Date.now() + durMs + 80;   // +80ms 緩衝：特效播畢後 sprite 才復現
+        if (typeof playSelfFx === 'function') playSelfFx('傳送術');   // 無 anchorRect→錨定玩家 sprite（_pmCasterRect）·此刻 sprite 尚未隱藏→rect 有效
+    } catch (e) {}
+}
+// 🩹 v3.0.95 隊伍成員「戰場 sprite」錨點：回傳該成員(玩家/傭兵) sprite 的 rect，供 playSelfFx 把治癒特效疊在被治癒者身上；無 sprite/不可見→null（playSelfFx 落回預設錨點）
+function _partyMemberRect(who) {
+    try {
+        if (!who) return null;
+        if (who === player) return (typeof _pmCasterRect === 'function') ? _pmCasterRect() : null;
+        let st = _allySpriteStates[String(who._slot)];
+        if (st && st.el && st.el.isConnected) { let r = st.el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) return r; }
+    } catch (e) {}
+    return null;
 }
 // ===== ❄️ 冰凍「狀態」疊加動畫（v2.7.20）：怪物 st.freeze>0 時於身上循環播冰封 state 幀·解凍(freeze歸0/怪陣亡)時播一次 end 碎裂幀 =====
 //   來源 assets/fx/冰凍狀態/state_0..7.png(持續中·全域時鐘循環)＋end_0..3.png(結束碎裂·一次性)。逐怪一個疊層(vfx-layer·每幀重錨定跟隨怪·適用所有怪不限動畫怪)。
@@ -401,8 +516,8 @@ function _vfxFlush() {
             let cx = it.cx, cy = it.top + it.h * 0.45;
             // 🩸 傷害數字＝玩家最在意的資訊、單一輕量文字節點→放寬上限至 200，使快速/多段攻擊(龍騎士、AoE、傭兵/召喚同時打)也穩定顯示，不再整批被略過
             if (layer.childElementCount < 200) _vfxNumber(cx + (Math.random() * 26 - 13), it.top + it.h * 0.40, it.p.dmg, it.p.ele, it.p.big);
-            // ✨ 命中衝擊環＋屬性火花＝較重(blur/box-shadow/多節點)→維持原防洪上限 80；場上特效過多時只略過「粒子」、傷害數字照常顯示
-            if (!window.__vfxOff && layer.childElementCount < 80) _vfxImpact(cx, cy, it.p.ele, it.p.big);   // 🎚️ v3.0.9 命中衝擊環/火花＝純特效→僅特效開時顯示（傷害數字已獨立於上方）
+            // ⛔ v3.0.104 取消「白光打擊特效」（命中衝擊環 _vfxImpact + 火花）：改由命中濺血當唯一命中回饋（_vfxImpact 函式保留為死碼·如需恢復把此行改回呼叫即可）
+            if (!window.__vfxOff && layer.childElementCount < 150) _vfxBlood(cx, cy, it.p.big);   // 🩸 v3.0.103 命中濺血（小顆·無殘留）：純特效·輕量小 div 故上限放寬至 150
         }
     }
     _vfxPending = [];
@@ -449,6 +564,32 @@ function _vfxImpact(cx, cy, ele, big) {
               { transform: 'translate(calc(-50% + ' + dx.toFixed(1) + 'px), calc(-50% + ' + dy.toFixed(1) + 'px)) scale(.2)', opacity: 0 } ],
             { duration: 300 + Math.random() * 220, easing: 'cubic-bezier(.2,.7,.3,1)' }
         ).onfinish = () => sp.remove();
+    }
+}
+// 🩸 v3.0.103 命中濺血：命中點噴數顆小紅血滴（帶重力弧線→淡出·無殘留貼花·怪物不變色）。爆擊/重擊噴更多。純裝飾·吃 window.__vfxOff。顆粒小、不上 box-shadow 保持不搶眼。
+const _VFX_BLOOD_COLORS = ['#7f1d1d', '#991b1b', '#b91c1c', '#dc2626', '#ef4444'];
+function _vfxBlood(cx, cy, big) {
+    let layer = _vfxLayer();
+    let n = big ? (8 + (Math.random() * 5 | 0)) : (4 + (Math.random() * 3 | 0));   // 爆擊/重擊 8~12·一般 4~6（不用太多）
+    for (let i = 0; i < n; i++) {
+        let sp = document.createElement('div'); sp.className = 'vfx-blood';
+        let sz = 1.3 + Math.random() * (big ? 2.1 : 1.4);   // 小顆粒：一般 1.3~2.7·爆擊 1.3~3.4
+        sp.style.width = sz + 'px'; sp.style.height = sz + 'px';
+        sp.style.left = cx + 'px'; sp.style.top = cy + 'px';
+        sp.style.background = _VFX_BLOOD_COLORS[(Math.random() * _VFX_BLOOD_COLORS.length) | 0];
+        layer.appendChild(sp);
+        let ang = Math.PI * 2 * Math.random();
+        let dist = (big ? 22 : 14) + Math.random() * (big ? 22 : 15);
+        let dx = Math.cos(ang) * dist;
+        let up = Math.sin(ang) * dist * 0.55 - (5 + Math.random() * 9);       // 初期向外略偏上
+        let fall = 16 + Math.random() * (big ? 30 : 20);                       // 末段重力下墜
+        sp.animate(
+            [ { transform: 'translate(-50%,-50%) scale(1)', opacity: 0.9 },
+              { transform: 'translate(calc(-50% + ' + (dx * 0.7).toFixed(1) + 'px), calc(-50% + ' + up.toFixed(1) + 'px)) scale(1)', opacity: 0.85, offset: 0.4 },
+              { transform: 'translate(calc(-50% + ' + dx.toFixed(1) + 'px), calc(-50% + ' + (up + fall).toFixed(1) + 'px)) scale(.45)', opacity: 0 } ],
+            { duration: 360 + Math.random() * 240, easing: 'cubic-bezier(.3,.5,.5,1)' }
+        ).onfinish = () => sp.remove();
+        setTimeout(() => { if (sp.parentNode) sp.remove(); }, 680);
     }
 }
 // 🎯 v2.6.45 怪物圖「視覺中心」偵測：怪物 PNG 多為方形畫布、實體繪於下方(腳貼底·上方透明)→死亡爆裂/傷害數字若錨在方框幾何中心(0.45~0.5)會浮在怪物「上方」。
@@ -777,8 +918,8 @@ if (typeof castSkill === 'function' && !castSkill._vfxWrapped) {
         let proj = !window.__vfxOff && !!_pele;
         let before = null;
         if (proj) { before = mapState.mobs.map(m => (m && !m._dead) ? { uid: m.uid, hp: m.curHp, rect: _vfxSlotRect(m.uid) } : null); }
-        try { if (typeof _playerMorphTrigger === 'function') _playerMorphTrigger('skill'); } catch (e) {}   // 🧝 v3.0.46 玩家變身 sprite：施法動作
         let r = _vfxOrigCastSkill(skId);
+        if (r) { try { if (typeof _playerMorphTrigger === 'function') _playerMorphTrigger('skill', skId); } catch (e) {} }   // 🧝 v3.0.105 施法動作只在「實際施放成功(r)」才播（修：自動恢復/維持技即使沒真的施放·仍每 tick 觸發施法動畫→sprite 卡在施法姿勢）
         if (proj) { try { _vfxCastProjectiles(before, _pele); } catch (e) {} }
         return r;
     };
@@ -915,7 +1056,7 @@ function _renderMobsImpl() {
 //       →不觸發格子重建、不重播受擊動畫）。
 // 效能：8fps interval 掃描場上 ≤5 張卡；分頁背景(document.hidden)自動暫停；探測每怪一次（結果快取）。
 const MOB_ANIM_FPS = 8;            // 全域幀率（動作/秒）
-function _animTickMs() { try { return 1000 / (MOB_ANIM_FPS * Math.max(1, (typeof state !== 'undefined' && state) ? (state.spd || 1) : 1)); } catch (e) { return 1000 / MOB_ANIM_FPS; } }
+function _animTickMs() { try { var _b = 125; _b = 1000 / MOB_ANIM_FPS; return _b / ((typeof state !== 'undefined' && state && state.spd) || 1); } catch (e) { return 125; } }   // 🚀 配合遊戲速度加速動畫
 const MOB_ANIM_MAX_FRAMES = 60;    // 每動作幀數探測上限（v2.7.10 30→60：林德拜爾 death 35 幀被 30 截斷·探測逐號載到 404 即止→調高對短動畫零額外成本）
 let _mobAnimCache = {};            // 怪名 → {idle,spawn,attack,skill,death:各[Image]|null} ｜ 'probing' ｜ null（全無）
 // 🎬 有序列幀動畫的怪物名單（單一真相·同步判斷用）：戰鬥/圖鑑靜態顯示點與探測皆據此，避免對 1000+ 無動畫怪發 404。
@@ -978,7 +1119,7 @@ const MOB_ANIM_SKILL_FX = {
     '黑法師':       { startPfx: 'skill_effect', anchored: { ox: 39, oy: 50, bw: 97, bh: 130 } },   // v2.7.77 黑法師施法特效(3幀·offset 由 meta latticeOrigin 差自動算·本體畫布97×130)
     // 🌍 v2.7.38 新增 anchored 技能特效(offset 由 spr彙整 meta latticeOrigin 差自動算)：
     '伊萊克頓':     { startPfx: 'skill_effect', anchored: { ox: 27, oy: -13, bw: 217, bh: 150 } },
-    '希爾黛斯':     { startPfx: 'skill_effect', anchored: { ox: 184, oy: 159, bw: 399, bh: 300 } },
+    '希爾黛斯':     { startPfx: 'skill_effect', anchored: { ox: 103, oy: 11, bw: 211, bh: 152 } },   // 🔧 v3.0.68 本體畫布裁小(399×300→211×152·死亡爆炸/施法漩渦外圍粒子裁邊·本體放大~2×修「圖太小」)→anchored 偏移同步(原ox184-cropX81/oy159-cropY148)
     '法利昂':       { startPfx: 'skill_effect', anchored: { ox: 39, oy: 129, bw: 375, bh: 249 } },
     // 🔥 v2.7.40 火焰系新怪 anchored 技能特效：
     '伊弗利特':     { startPfx: 'skill_effect', anchored: { ox: 19, oy: 77, bw: 135, bh: 203 } },
@@ -1200,8 +1341,9 @@ function _mobAnimApply() {
         }
     }
 }
-// ===== 🧝 v3.0.46 玩家變身戰鬥 sprite（Phase 2）=====
-//   變身為下列 15 形態時，狩獵區(#battle-view.area-fit)最下方「中間偏左」顯示玩家 sprite（assets/morphanim/<名>/）。
+// ===== 🧝 v3.0.46 玩家戰鬥 sprite（變身 Phase 2＋🗡️ v3.0.67 職業動態 ARPG Tier1）=====
+//   形態優先序：變身（assets/morphanim/<名>/）＞ 職業動態（assets/classanim/<avatar>/·依手上武器選變體）＞ 無（不顯示）。
+//   顯示位置＝狩獵區(#battle-view.area-fit)最下方「中間偏左」。
 //   動作：idle=停止攻擊循環／attack=攻擊觸發(js/04 playerAttack)／skill=施法觸發(castSkill/manualCast 包裝)／hurt=受擊觸發(HP-delta 偵測·免掛 50+ 傷害點)／death=死亡觸發·播畢凍結最後一幀直到復活(HP>0 自動解除)。
 //   三層：<動作>_s(影子·multiply·墊底)＋本體＋<動作>_w(武器特效·screen·最上)——與本體 --multi 共畫布→同 rect 疊放即像素級對齊·嚴格逐幀(_w 本幀無→隱藏·比照 v2.7.36)。
 //   ⚠️容器不用 transform 置中（transform 會建立隔離群組使 _w 的 mix-blend:screen 失效＝火系黑邊病根·v3.0.19）→ 改 left:calc(44% - 寬/2)。
@@ -1210,12 +1352,59 @@ const MORPH_BATTLE_ANIM = new Set(['克特', '卡司特王', '思克巴女皇', 
     '反王肯恩', '吸血鬼', '巨人', '白金巡守', '賽尼斯', '銀光巡守', '阿魯巴', '黃金巡守', '黑暗巡守', '黑暗精靈',   // 🧝 v3.0.52 +10 變身（黑暗精靈＝黑暗妖精套裝 高等黑暗精靈 經別名映射）
     '卡士柏', '史巴托', '妖魔巡守', '妖魔鬥士', '巨大牛人', '巴土瑟', '暴走兔', '果凍怪', '格利芬', '歐姆民兵', '獨眼巨人', '甘地妖魔', '石頭高崙', '紙人', '羅孚妖魔', '西瑪', '那魯加妖魔', '都達瑪拉妖魔', '重裝歐姆', '長老', '阿吐巴妖魔', '雪怪', '食人妖精', '馬庫爾', '骷髏', '黑暗妖精運送員', '黑長者', '黑騎士']);   // 🧝 v3.0.57 +28 變身（合計 76＝POLY_TIERS 全形態·變身動畫全數到位）
 const MORPH_BATTLE_ALIAS = { '真‧死亡騎士': '死亡騎士', '真‧克特': '克特', '高等黑暗精靈': '黑暗精靈' };   // 套裝變身→同源動畫（v3.0.52 黑暗妖精套裝→黑暗精靈·與 js/19 立繪別名一致）
-let _morphBattleCache = {};   // 變身名 → { idle/attack/skill/hurt/death:[Image]|null, shadow:{...}, weapon:{...} } | 'probing'
-function _morphBattleProbe(name) {
-    _morphBattleCache[name] = 'probing';
+// ===== 🗡️ v3.0.67 職業戰鬥動態（ARPG Tier1·用戶確認：未變身＝職業 sprite 常駐場上·有變身＝變身形態取代）=====
+//   assets/classanim/<avatar>/：檔名＝<武器key>_<idle|attack|hurt>_N.png（+_s 影子）＋全武器共用 skill_N/death_N（+_s）·無 _w 層。
+//   武器 key 由 atkSpdFamily(手上武器) 映射；清單外武器一律 sword1（用戶 CSV 規則「裝備列表沒有的武器就用單手劍顯示」）·空手/箭矢=unarmed。
+//   ⚠️新職業：部署 assets/classanim/<avatar>/（46 spr 一次 --multi 共畫布·管線見記憶 class-battle-anim-project）後把 avatar 名加進 Set（一行）。
+const CLASS_BATTLE_ANIM = new Set(['男騎士', '女騎士', '男妖精', '女妖精', '王子', '公主', '男法師', '女法師', '男黑暗妖精', '女黑暗妖精', '男龍騎士', '女龍騎士', '男幻術士', '女幻術士', '男戰士', '女戰士']);   // 🗡️ v3.0.70 全 16 avatar（職業動態 CSV 全部轉檔完成）
+const CLASS_ANIM_WPN_KEY = { '匕首': 'dagger', '單手劍': 'sword1', '雙手劍': 'sword2', '單手鈍器': 'blunt', '雙手鈍器': 'blunt', '弓': 'bow', '十字弓': 'bow', '單手矛': 'spear', '雙手矛': 'spear', '魔杖': 'wand', '雙刀': 'dual', '鋼爪': 'claw', '鎖鏈劍': 'chainsword', '奇古獸': 'qigu' };   // 🏹 v3.0.89 十字弓沿用弓動畫（有弓動畫的職業裝十字弓即播弓·龍騎士/戰士無弓動畫仍走各自 fallback）
+// 🗡️ v3.0.70 per-avatar 可用武器變體＋fallback（CSV 規則：裝備列表沒有的武器→各職 fallback 顯示·法師/幻術士=魔杖·黑暗妖精=匕首·戰士=雙手劍·其餘=單手劍）
+const CLASS_ANIM_SETS = {
+    '男騎士':     { w: ['unarmed','sword2','dagger','sword1','blunt','bow','spear'], fb: 'sword1' },
+    '女騎士':     { w: ['unarmed','sword2','dagger','sword1','blunt','bow','spear'], fb: 'sword1' },
+    '男妖精':     { w: ['unarmed','bow','dagger','sword1','blunt','spear'], fb: 'sword1' },
+    '女妖精':     { w: ['unarmed','bow','dagger','sword1','blunt','spear'], fb: 'sword1' },
+    '王子':       { w: ['unarmed','sword1','dagger','spear','bow','blunt','sword2'], fb: 'sword1' },
+    '公主':       { w: ['unarmed','sword1','blunt','dagger','spear','sword2','bow'], fb: 'sword1' },
+    '男法師':     { w: ['unarmed','dagger','sword1','wand','bow','spear','blunt'], fb: 'wand' },
+    '女法師':     { w: ['unarmed','wand','dagger','sword1','spear','bow','blunt'], fb: 'wand' },
+    '男黑暗妖精': { w: ['unarmed','dagger','sword1','bow','dual','claw'], fb: 'dagger' },
+    '女黑暗妖精': { w: ['unarmed','dagger','sword1','bow','dual','claw'], fb: 'dagger' },
+    '男龍騎士':   { w: ['unarmed','sword1','sword2','blunt','chainsword'], fb: 'sword1' },
+    '女龍騎士':   { w: ['unarmed','sword2','sword1','blunt','chainsword'], fb: 'sword1' },
+    '男幻術士':   { w: ['unarmed','blunt','wand','bow','qigu'], fb: 'wand' },
+    '女幻術士':   { w: ['unarmed','blunt','wand','bow','qigu'], fb: 'wand' },
+    '男戰士':     { w: ['unarmed','dblunt','blunt','spear','sword2'], fb: 'sword2' },
+    '女戰士':     { w: ['unarmed','blunt','dblunt','spear','sword2'], fb: 'sword2' }
+};
+function _classAnimWpnKey(p, set) {   // p=玩家或傭兵（讀 p.eq.wpn/offwpn）
+    let w = p && p.eq && p.eq.wpn;
+    if (!w || !w.id) return 'unarmed';
+    if (p.cls === 'warrior' && p.eq.offwpn && set.w.indexOf('dblunt') >= 0) return 'dblunt';   // ⚔️ 戰士雙持（副手武器欄有東西）→ 雙持鈍器動作
+    let fam = (typeof atkSpdFamily === 'function') ? atkSpdFamily(w.id) : null;
+    if (!fam) return 'unarmed';   // 箭矢等非揮擊武器
+    let k = CLASS_ANIM_WPN_KEY[fam] || null;
+    return (k && set.w.indexOf(k) >= 0) ? k : set.fb;   // 該職無此變體（含十字弓等未列武器）→ fallback
+}
+function _classForm(p, allyGrp) {   // 職業形態解析：p=玩家或傭兵·allyGrp=true→隊員2/3 用 <avatar>2 資料夾（另一組朝向）
+    let av = p ? p.avatar : null;
+    if (!av || !CLASS_BATTLE_ANIM.has(av)) return null;
+    let set = CLASS_ANIM_SETS[av]; if (!set) return null;
+    let wk = _classAnimWpnKey(p, set);
+    let folder = allyGrp ? av + '2' : av;
+    return { key: 'class:' + folder + ':' + wk, base: 'assets/classanim/' + encodeURIComponent(folder) + '/', wpn: wk };
+}
+function _playerBattleForm() {   // 主玩家戰場形態：變身優先 → 職業動態 → null（變身限定主玩家·隊員一律職業動畫）
+    let m = _playerMorphName();
+    if (m) return { key: 'morph:' + m, base: 'assets/morphanim/' + encodeURIComponent(m) + '/', wpn: null };
+    return _classForm((typeof player !== 'undefined') ? player : null, false);
+}
+let _morphBattleCache = {};   // 形態 key（morph:<名>｜class:<avatar>:<武器key>）→ { idle/attack/skill/hurt/death:[Image]|null, shadow:{...}, weapon:{...} } | 'probing'
+function _battleSpriteProbe(form) {
+    _morphBattleCache[form.key] = 'probing';
     let out = { shadow: {}, weapon: {} };
-    let pending = 15;
-    let finish = () => { if (--pending <= 0) _morphBattleCache[name] = out; };
+    let pending = form.wpn ? 17 : 15;   // 🗡️ v3.0.70 職業形態多探 2 項：武器專屬 skill（<wpn>_skill_·黑暗妖精雙刀/鋼爪·龍騎士雙手劍/鎖鏈劍·戰士各武器）
+    let finish = () => { if (--pending <= 0) _morphBattleCache[form.key] = out; };
     let probeSeq = (target, key, pfx, minF) => {
         let frames = [], _min = minF || 2;
         let tryLoad = (i) => {
@@ -1223,15 +1412,22 @@ function _morphBattleProbe(name) {
             let im = new Image();
             im.onload = () => { frames.push(im); tryLoad(i + 1); };
             im.onerror = () => { target[key] = frames.length >= _min ? frames : null; finish(); };
-            im.src = 'assets/morphanim/' + encodeURIComponent(name) + '/' + pfx + i + '.png';
+            im.src = form.base + pfx + i + '.png';
         };
         tryLoad(0);
     };
+    let pfxOf = (a) => (form.wpn && a !== 'skill' && a !== 'death') ? form.wpn + '_' + a + '_' : a + '_';   // 職業形態：idle/attack/hurt 帶武器前綴·skill/death 共用
     ['idle', 'attack', 'skill', 'hurt', 'death'].forEach(a => {
-        probeSeq(out, a, a + '_', a === 'hurt' ? 1 : 2);
-        probeSeq(out.shadow, a, a + '_s_', 1);
-        probeSeq(out.weapon, a, a + '_w_', 1);
+        let p = pfxOf(a);
+        probeSeq(out, a, p, a === 'hurt' ? 1 : 2);
+        probeSeq(out.shadow, a, p.slice(0, -1) + '_s_', 1);
+        if (form.wpn) { out.weapon[a] = null; finish(); }   // 職業動態無 _w 層→免探測（省 404）
+        else probeSeq(out.weapon, a, p.slice(0, -1) + '_w_', 1);
     });
+    if (form.wpn) {   // 🗡️ 武器專屬 skill（無此檔＝null→播放層退通用 skill）
+        probeSeq(out, 'wskill', form.wpn + '_skill_', 2);
+        probeSeq(out.shadow, 'wskill', form.wpn + '_skill_s_', 1);
+    }
 }
 function _playerMorphName() {   // 目前變身名（含套裝別名映射）·非 15 形態之一→null
     if (typeof player === 'undefined' || !player) return null;
@@ -1250,37 +1446,63 @@ function _pmCasterRect() {
         return (r.width > 0 && r.height > 0) ? r : null;
     } catch (e) { return null; }
 }
-function _playerMorphTrigger(k) {   // js/04 attack／castSkill·manualCast 包裝 skill／HP-delta hurt 呼叫
-    let name = _playerMorphName(); if (!name) return;
+// 🎬 v3.0.106 動作播放權重（用戶指定）：death > hurt > skill > attack > idle。高權重可打斷低權重·低權重不打斷高權重(attack 被蓋→排隊到當前播完再補)。
+const _PM_PRIO = { death: 5, hurt: 4, skill: 3, attack: 2, idle: 1 };
+function _pmCurActivePrio() {   // 目前「仍在播放中」動作的權重（已播完/待機→0）
     let st = _pmState;
-    if (st.act === 'death') return;   // 死亡鎖定：復活前不接受其他動作
-    if (st.act === 'skill' && k === 'hurt') {   // 施法鎖定：受擊不打斷（比照怪物 skill lock）
-        let a = _morphBattleCache[name];
-        let seq = (a && a !== 'probing') ? a.skill : null;
-        if (seq && (Date.now() - st.t) < seq.length * _animTickMs()) return;
-    }
-    st.act = k; st.t = Date.now();
+    if (!st.act || st.act === 'idle') return 0;
+    if (st.act === 'death') return _PM_PRIO.death;   // 死亡鎖定
+    let form = _playerBattleForm(); let a = form && _morphBattleCache[form.key];
+    if (!a || a === 'probing') return 0;
+    let seq = (st.act === 'skill' && !st.skGen && a.wskill) ? a.wskill : a[st.act];
+    if (!seq || !seq.length) return 0;
+    let fms = (st.act === 'attack') ? _atkFrameMs((player.d && player.d.aspd) || 0, seq.length)
+        : (st.act === 'skill') ? _skillFrameMs(seq.length) : _animTickMs();
+    return ((Date.now() - st.t) < seq.length * fms) ? (_PM_PRIO[st.act] || 0) : 0;   // 仍在播→其權重·已播完→0(idle)
+}
+function _playerMorphTrigger(k, skId) {   // js/04 attack／castSkill·manualCast 包裝 skill／HP-delta hurt 呼叫（🗡️ v3.0.67 職業形態亦適用·呼叫端零改動）
+    let form = _playerBattleForm(); if (!form) return;
+    let st = _pmState;
+    if (st.act === 'death') return;   // 死亡鎖定：復活前不接受任何動作（最高權重）
+    let newP = _PM_PRIO[k] || 0, curP = _pmCurActivePrio();   // 🎬 v3.0.106 依權重決定是否打斷（hurt>skill>attack）
+    if (newP < curP) { if (k === 'attack') st.pendAtk = true; return; }   // 權重較低→不打斷（attack 排隊·hurt/skill 直接略過）
+    if (k === 'skill') st.skGen = (skId === 'sk_warrior_roar');   // 🗡️ v3.0.70 戰士咆哮用「通用」skill 動作（CSV 規則）·其餘技能優先武器專屬 wskill
+    st.act = k; st.t = Date.now(); st.pendAtk = false;   // 🔮 新動作生效→清掉排隊中的攻擊（已被取代）
 }
 function _playerMorphRemove() {
     if (_pmState.el) { try { _pmState.el.remove(); } catch (e) {} }
-    _pmState.el = null; _pmState.imgs = null; _pmState.act = null; _pmState.name = null; _pmState.prevHp = null;
+    _pmState.el = null; _pmState.imgs = null; _pmState.act = null; _pmState.name = null; _pmState.prevHp = null; _pmState.pendAtk = false;
 }
-function _playerMorphApply() {   // 8fps ticker 驅動
-    let name = _playerMorphName();
+// ⚔️ v3.0.91 攻擊動畫播放速度隨攻速：攻擊動作每幀時長＝攻擊間隔(秒)÷幀數→整段動畫恰在一次攻擊間隔內播完（「播完對上攻速」）。
+//   只加速不放慢：慢攻取 min(base,…)＝維持預設 8fps（早播完後待機·不拖成慢動作）；下限 45ms/幀(≈22fps)防過快閃爍。
+//   intervalSec 來源＝各消費者實際攻擊排程用值：玩家＝player.d.aspd(js/03:290·已含加速/勇敢/精通/切割/變身所有倍率)、傭兵＝atkSpdBaseItv(ally)(js/06:1833)。僅套用於 attack 動作·idle/skill/hurt/death 維持 8fps。
+function _atkFrameMs(intervalSec, seqLen) {
+    let base = _animTickMs();   // 預設含遊戲速度倍率
+    if (!(intervalSec > 0) || !(seqLen > 0)) return base;
+    return Math.max(45, Math.min(base, intervalSec * 1000 / seqLen));
+}
+// 🔮 v3.0.94 技能動畫播放速度隨施法速度：比照 _atkFrameMs·間隔＝castLock(tick·職業施法冷卻下限·js/07 施法鎖同源)÷10 秒·只加速不放慢（慢施法維持 8fps 早播完待機）
+//    v3.0.96 第2參 lockTicks（選用）：傭兵傳自身 ally.d.castLock；未傳＝主玩家 player.d.castLock（fallback 12）
+function _skillFrameMs(seqLen, lockTicks) { return _atkFrameMs((lockTicks != null ? lockTicks : ((player && player.d && player.d.castLock) || 12)) / 10, seqLen); }
+function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態＝變身優先→職業動態·key 含武器變體→換武器自動重建）
+    let form = _playerBattleForm();
     let bv = document.getElementById('battle-view');
     let inBattle = bv && !bv.classList.contains('hidden') && bv.classList.contains('area-fit');
-    if (!name || !inBattle) { if (_pmState.el) _playerMorphRemove(); return; }
-    let a = _morphBattleCache[name];
-    if (a === undefined) { _morphBattleProbe(name); return; }
+    if (!form || !inBattle) { if (_pmState.el) _playerMorphRemove(); return; }
+    // 🌀 v3.0.102 傳送術特效期間：暫時隱藏玩家 sprite（特效結束自動恢復·期間跳過渲染）
+    if (_teleportFxUntil > Date.now()) { if (_pmState.el) _pmState.el.style.visibility = 'hidden'; return; }
+    if (_pmState.el && _pmState.el.style.visibility === 'hidden') _pmState.el.style.visibility = '';
+    let a = _morphBattleCache[form.key];
+    if (a === undefined) { _battleSpriteProbe(form); return; }
     if (!a || a === 'probing') return;
-    if (_pmState.name !== name) { _playerMorphRemove(); _pmState.name = name; }
+    if (_pmState.name !== form.key) { _playerMorphRemove(); _pmState.name = form.key; }
     // 受擊：HP-delta 偵測（涵蓋物理/魔法/DoT 所有傷害落點）
     let hp = player.hp;
     if (_pmState.prevHp != null && hp < _pmState.prevHp && hp > 0) _playerMorphTrigger('hurt');
     _pmState.prevHp = hp;
     // 死亡/復活：以遊戲的 player.dead 旗標為準（手動改 hp 不觸發·regen 亦不誤判）；復活(revive 清旗標)→解除凍結回待機
     let _dead = !!player.dead || hp <= 0;
-    if (_dead) { if (_pmState.act !== 'death') { _pmState.act = 'death'; _pmState.t = Date.now(); try { if (typeof playMorphDeathSfx === 'function') playMorphDeathSfx(); } catch (e) {} } }   // 🧝 v3.0.47 變身死亡音（該怪物死亡音·一次）
+    if (_dead) { if (_pmState.act !== 'death') { _pmState.act = 'death'; _pmState.t = Date.now(); _pmState.pendAtk = false; try { if (typeof playMorphDeathSfx === 'function') playMorphDeathSfx(); } catch (e) {} } }   // 🧝 v3.0.47 變身死亡音（該怪物死亡音·一次）
     else if (_pmState.act === 'death') _pmState.act = null;
     // 建立 DOM（懶建·battle-view 直屬子節點·renderMobs 只重建 #mob-list 不動此層）
     if (!_pmState.el) {
@@ -1295,26 +1517,36 @@ function _playerMorphApply() {   // 8fps ticker 驅動
         _pmState.el = el; _pmState.imgs = { sh: sh, bd: bd, wp: wp };
         let w = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
         el.style.width = w + 'px';
-        el.style.left = 'calc(44% - ' + Math.round(w / 2) + 'px)';   // 中間偏左一點點·免 transform
     } else if (_pmState.el.parentElement !== bv) bv.appendChild(_pmState.el);
+    { let _pw = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100; _pmState.el.style.left = 'calc(' + _partySpriteXs().P + ' - ' + Math.round(_pw / 2) + 'px)'; }   // 🗡️ v3.0.71 每輪更新：站怪物格縫隙(依 5格/3格版面動態)·免 transform
+    // 🗡️ v3.0.70 權重站位：依 aggro 權重排前後（_partyBottoms 由 _allySpritesApply 每輪先算·權重高=前=bottom小·z 高）
+    if (typeof _partyBottoms !== 'undefined' && _partyBottoms && _partyBottoms.P != null) { _pmState.el.style.bottom = _partyBottoms.P + 'px'; _pmState.el.style.zIndex = String(30 - _partyBottoms.P); }
     // 動作＋幀（比照 _mobAnimApply：單次動作播一輪回待機·death 凍結最後一幀）
-    let act = null, f = 0;
+    let act = null, f = 0, _useW = false;
     if (_pmState.act) {
         let seq = a[_pmState.act];
+        if (_pmState.act === 'skill' && !_pmState.skGen && a.wskill) { seq = a.wskill; _useW = true; }   // 🗡️ v3.0.70 武器專屬 skill 優先（戰士咆哮 skGen→通用）
         if (seq) {
-            let ff = Math.floor((Date.now() - _pmState.t) / _animTickMs());
+            let _fms = (_pmState.act === 'attack') ? _atkFrameMs((player.d && player.d.aspd) || 0, seq.length)   // ⚔️ v3.0.91 攻擊動畫隨攻速加速
+                : (_pmState.act === 'skill') ? _skillFrameMs(seq.length)   // 🔮 v3.0.94 技能動畫隨施法速度加速（castLock 內播完）
+                : _animTickMs();
+            let ff = Math.floor((Date.now() - _pmState.t) / _fms);
             if (_pmState.act === 'death') { act = 'death'; f = Math.min(ff, seq.length - 1); }
             else if (ff < seq.length) { act = _pmState.act; f = ff; }
-            else _pmState.act = null;
+            else {
+                _pmState.act = null;
+                if (_pmState.pendAtk && a.attack) { _pmState.pendAtk = false; _pmState.act = 'attack'; _pmState.t = Date.now(); act = 'attack'; f = 0; _useW = false; }   // 🎬 v3.0.106 skill／hurt 播完→接播排隊中的攻擊動畫
+                else _pmState.pendAtk = false;
+            }
         } else if (_pmState.act !== 'death') _pmState.act = null;   // 該動作無序列→回待機（death 無序列則維持 idle）
         else act = null;
     }
-    if (act === null && a.idle) { act = 'idle'; f = Math.floor(Date.now() / _animTickMs()) % a.idle.length; }
+    if (act === null && a.idle) { act = 'idle'; f = Math.floor(Date.now() / _animTickMs()) % a.idle.length; _useW = false; }
     if (act === null) return;
-    let seq = a[act]; if (!seq || !seq[f]) return;
+    let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
     let I = _pmState.imgs;
     if (I.bd.src !== seq[f].src) I.bd.src = seq[f].src;
-    let ss = a.shadow[act];   // 影子：寬容（幀數不足取模·缺動作隱藏）
+    let ss = (act === 'skill' && _useW) ? a.shadow.wskill : a.shadow[act];   // 影子：寬容（幀數不足取模·缺動作隱藏）
     if (ss && ss.length) { let sf = f < ss.length ? f : (f % ss.length); if (I.sh.style.visibility === 'hidden') I.sh.style.visibility = ''; if (I.sh.src !== ss[sf].src) I.sh.src = ss[sf].src; }
     else if (I.sh.style.visibility !== 'hidden') I.sh.style.visibility = 'hidden';
     let ws = a.weapon[act];   // 武器：嚴格 1:1（本動作本幀無 _w→隱藏·v2.7.36 規則）
@@ -1324,10 +1556,116 @@ function _playerMorphApply() {   // 8fps ticker 驅動
 // 🧝 施法觸發：包裝 manualCast（castSkill 已於上方 VFX 包裝內加掛）
 if (typeof manualCast === 'function' && !manualCast._pmWrapped) {
     let _pmOrigManualCast = manualCast;
-    manualCast = function () { try { if (typeof _playerMorphTrigger === 'function') _playerMorphTrigger('skill'); } catch (e) {} return _pmOrigManualCast.apply(this, arguments); };
+    manualCast = function (skId) { try { if (typeof _playerMorphTrigger === 'function') _playerMorphTrigger('skill', skId); } catch (e) {} return _pmOrigManualCast.apply(this, arguments); };
     manualCast._pmWrapped = true;
 }
-setInterval(() => { if (!document.hidden) { try { _mobAnimApply(); } catch (e) {} try { _updateFreezeFx(); } catch (e) {} try { _updateMobSkillFx(); } catch (e) {} try { _playerMorphApply(); } catch (e) {} } }, Math.floor(_animTickMs()));
+// ===== 🤝 v3.0.70 隊員戰場 sprite（隊員1=主玩家組動畫·主玩家左側；隊員2/3=<avatar>2 組·中間偏右/更右；一律職業動畫·變身限定主玩家）=====
+// 🗡️ v3.0.71 隊伍站「怪物格縫隙中點」避免與怪物完全重疊：5格模式(前排flex1.2×3+後排0.8×2+gap16)怪物中心≈12/34.5/57/76/91%→隊伍站 23/45.5/66/83.5%；
+//    3格版面(純BOSS房/軍王之室·等寬格)怪物中心≈17.3/50/82.7%→兩縫各站兩人 28/39/62/72%。相對序恆為 隊員1＜主玩家＜隊員2＜隊員3（主玩家中間偏左·隊員2中間偏右·隊員3更右）。
+function _partySpriteXs() {
+    let five = true; try { five = (typeof backSlotsActive !== 'function') || backSlotsActive(); } catch (e) {}
+    return five ? { P: '45.5%', A: ['23%', '66%', '83.5%'] } : { P: '39%', A: ['28%', '62%', '72%'] };
+}
+let _allySpriteStates = {};   // slot → { act, t, prevHp, el, imgs, key, skGen }
+let _partyBottoms = null;     // 每輪 _allySpritesApply 先算：{ P: bottom, <slot>: bottom }（權重高=前=bottom 小·主玩家 sprite 於 _playerMorphApply 消費）
+function _partyRankBottom() {
+    let members = [{ id: 'P', w: (typeof mercAggroWeight === 'function') ? mercAggroWeight(player) : 1 }];
+    ((player && player.allies) || []).forEach(a => { if (a) members.push({ id: String(a._slot), w: (a._downed || (a.curHp || 0) <= 0) ? -1 : mercAggroWeight(a) }); });   // 倒地者權重視為最低（排最後方）
+    members.sort((x, y) => y.w - x.w);
+    let out = {};
+    members.forEach((m, i) => { out[m.id] = 2 + i * 9; });   // 最前 bottom 2px·每名往後 +9px（狩獵區帶內可辨識前後）
+    return out;
+}
+function _allySpriteTrigger(ally, k, skId) {   // js/06 掛點：allyAttackOnce→'attack'·三施法函式→'skill'
+    try {
+        if (!ally || ally._slot == null) return;
+        let st = _allySpriteStates[String(ally._slot)];
+        if (!st || st.act === 'death') return;
+        if (st.act === 'skill' && k === 'attack') {   // 🔮 v3.0.96 鏡像玩家(v3.0.94)：技能動畫優先——攻擊排隊(pendAtk)到技能播完才播（傭兵受擊走 HP-delta 本就不打斷施法）
+            let a = _morphBattleCache[st.key];
+            let seq = (a && a !== 'probing') ? ((!st.skGen && a.wskill) ? a.wskill : a.skill) : null;
+            if (seq && (Date.now() - st.t) < seq.length * _skillFrameMs(seq.length, (ally.d && ally.d.castLock) || 12)) { st.pendAtk = true; return; }
+        }
+        if (k === 'skill') st.skGen = (skId === 'sk_warrior_roar' || skId === '咆哮');   // 傭兵端傳技能名·玩家端傳技能 id
+        st.act = k; st.t = Date.now(); st.pendAtk = false;   // 新動作生效→清掉排隊中的攻擊（已被取代）
+    } catch (e) {}
+}
+function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphApply→_partyBottoms 供主玩家消費）
+    let bv = document.getElementById('battle-view');
+    let inBattle = bv && !bv.classList.contains('hidden') && bv.classList.contains('area-fit');
+    let allies = (typeof player !== 'undefined' && player && player.allies) || [];
+    _partyBottoms = inBattle ? _partyRankBottom() : null;
+    for (let slot in _allySpriteStates) {   // 清理：離場/不在戰鬥→移除
+        if (!inBattle || !allies.some(a => a && String(a._slot) === slot)) {
+            let st = _allySpriteStates[slot];
+            if (st && st.el) { try { st.el.remove(); } catch (e) {} }
+            delete _allySpriteStates[slot];
+        }
+    }
+    if (!inBattle) return;
+    allies.forEach((ally, i) => {
+        if (!ally) return;
+        let form = _classForm(ally, i > 0);   // 隊員1(i=0)＝主玩家組·隊員2/3＝<avatar>2 組
+        if (!form) return;
+        let a = _morphBattleCache[form.key];
+        if (a === undefined) { _battleSpriteProbe(form); return; }
+        if (!a || a === 'probing') return;
+        let slot = String(ally._slot);
+        let st = _allySpriteStates[slot] || (_allySpriteStates[slot] = { act: null, t: 0, prevHp: null, el: null, imgs: null, key: null, skGen: false, pendAtk: false });
+        if (st.key !== form.key) { if (st.el) { try { st.el.remove(); } catch (e) {} } st.el = null; st.imgs = null; st.act = null; st.key = form.key; st.pendAtk = false; }   // 🔮 v3.0.96 換形態→清排隊攻擊
+        // 受擊：curHp-delta（涵蓋所有傷害落點）🎬 v3.0.106 播放權重 hurt>skill：受擊可打斷施法（只有死亡不被打斷·鏡像玩家）
+        let hp = ally.curHp || 0;
+        if (st.prevHp != null && hp < st.prevHp && hp > 0 && st.act !== 'death') { st.act = 'hurt'; st.t = Date.now(); st.pendAtk = false; }
+        st.prevHp = hp;
+        // 倒地/復活
+        if (ally._downed || hp <= 0) { if (st.act !== 'death') { st.act = 'death'; st.t = Date.now(); st.pendAtk = false; } }   // 🔮 v3.0.96 倒地→清排隊攻擊
+        else if (st.act === 'death') st.act = null;
+        // DOM 懶建
+        if (!st.el) {
+            let el = document.createElement('div');
+            el.className = 'party-sprite';
+            let sh = document.createElement('img'); sh.className = 'pm-shadow';
+            let bd = document.createElement('img'); bd.className = 'pm-body';
+            [sh, bd].forEach(im => { im.alt = ''; im.draggable = false; });
+            el.append(sh, bd);
+            bv.appendChild(el);
+            st.el = el; st.imgs = { sh: sh, bd: bd };
+        } else if (st.el.parentElement !== bv) bv.appendChild(st.el);
+        let w = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
+        st.el.style.width = w + 'px';
+        st.el.style.left = 'calc(' + _partySpriteXs().A[Math.min(i, 2)] + ' - ' + Math.round(w / 2) + 'px)';   // 每輪更新（隊員順位/地圖版面 5格↔3格 可能變）
+        if (_partyBottoms && _partyBottoms[slot] != null) { st.el.style.bottom = _partyBottoms[slot] + 'px'; st.el.style.zIndex = String(30 - _partyBottoms[slot]); }
+        // 動作＋幀（同主玩家邏輯·wskill 武器專屬 skill 優先·咆哮通用）
+        let act = null, f = 0, _useW = false;
+        if (st.act) {
+            let seq = a[st.act];
+            if (st.act === 'skill' && !st.skGen && a.wskill) { seq = a.wskill; _useW = true; }
+            if (seq) {
+                let _fms = (st.act === 'attack') ? _atkFrameMs(((ally.d && ally.d.aspd) ? ally.d.aspd : (typeof atkSpdBaseItv === 'function' ? atkSpdBaseItv(ally) : 0)), seq.length)   // ⚔️ v3.0.98 傭兵攻擊動畫用實際排程間隔 ally.d.aspd（含加速等·與 js/06 攻速一致；原用 base 會動畫比攻擊慢）
+                    : (st.act === 'skill') ? _skillFrameMs(seq.length, (ally.d && ally.d.castLock) || 12)   // 🔮 v3.0.96 傭兵技能動畫隨自身施法速度（鏡像玩家 v3.0.94）
+                    : _animTickMs();
+                let ff = Math.floor((Date.now() - st.t) / _fms);
+                if (st.act === 'death') { act = 'death'; f = Math.min(ff, seq.length - 1); }
+                else if (ff < seq.length) { act = st.act; f = ff; }
+                else {
+                    let _wasSkill = (st.act === 'skill');
+                    st.act = null;
+                    if (_wasSkill && st.pendAtk && a.attack) { st.pendAtk = false; st.act = 'attack'; st.t = Date.now(); act = 'attack'; f = 0; _useW = false; }   // 🔮 v3.0.96 技能播完→接播排隊中的攻擊動畫
+                    else st.pendAtk = false;
+                }
+            } else if (st.act !== 'death') st.act = null;
+            else act = null;
+        }
+        if (act === null && a.idle) { act = 'idle'; f = (Math.floor(Date.now() / _animTickMs()) + i * 3) % a.idle.length; _useW = false; }   // 隊員間錯相（+i*3）
+        if (act === null) return;
+        let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
+        if (st.imgs.bd.src !== seq[f].src) st.imgs.bd.src = seq[f].src;
+        let ss = (act === 'skill' && _useW) ? a.shadow.wskill : a.shadow[act];
+        if (ss && ss.length) { let sf = f < ss.length ? f : (f % ss.length); if (st.imgs.sh.style.visibility === 'hidden') st.imgs.sh.style.visibility = ''; if (st.imgs.sh.src !== ss[sf].src) st.imgs.sh.src = ss[sf].src; }
+        else if (st.imgs.sh.style.visibility !== 'hidden') st.imgs.sh.style.visibility = 'hidden';
+    });
+}
+setInterval(() => { if (!document.hidden) { try { _mobAnimApply(); } catch (e) {} try { _updateFreezeFx(); } catch (e) {} try { _updateMobSkillFx(); } catch (e) {} try { _allySpritesApply(); } catch (e) {} try { _playerMorphApply(); } catch (e) {} } }, Math.floor(_animTickMs()));
 
 // 🚀 效能：分頁面板重繪保護＋節流。狩獵時扣箭/耗肉/掉寶會每 tick 觸發 renderTabs 重建整個面板，
 //    重建會洗掉按鈕→在 mousedown↔mouseup 間重建使「賣出/強化」點擊失效並造成卡頓。

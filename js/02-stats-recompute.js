@@ -1,3 +1,4 @@
+let _recomputingAlly = false;   // 🌟 v3.0.100 recompute 對象是否為傭兵（buildAlly/_allyLevelRecompute 設 true）：true→跳過「傭兵來源幻覺攻擊光環注入玩家」段（傭兵走 alliesTick 逐回合注入·勿於此重複）
 function recomputeStats() {
     let p = player, d = p.d, b = p.base, a = p.alloc;
     if (typeof p.lv === 'number') p.lv = Math.max(1, Math.min(100, Math.floor(p.lv) || 1));   // 🛡️ 等級硬夾 [1,100]：即時中和「改 player.lv」的外掛，避免職業成長值被放大
@@ -224,11 +225,18 @@ function recomputeStats() {
         applyBlessStats(d, p.eq.wpn.bless, 'wpn');   // 祝福的/詛咒的
         // 遠古武器：額外傷害+2、魔法傷害+1
         applyAncStats(d, p.eq.wpn.anc, 'wpn');   // 遠古系變體能力
-		
+        // 🔥 屬性詞綴（v3.0.77 五階制）：額外傷害+N、額外魔法點數+N（N=1/3/5/7/9·ATTR_AFFIX js/08）；一般攻擊轉屬性走 getWpnEle/elementCounterMult
+        let _wAtt = getAttrAffix(p.eq.wpn.attr);
+        if (_wAtt) { d.extraDmg += _wAtt.dmg; d.extraMp += _wAtt.mp; }
+
     }
 
-    // ⚔️ 迅猛雙斧副手武器：祝福/遠古比照主武器計入 global d（與其他裝備一致疊加；玩家＋傭兵 buildAlly 換身共用本函式）。屬性詞綴走 getPhysicalDmg 副手揮擊（用 offwpn 自身屬性）
-    if (p.eq.offwpn) { applyBlessStats(d, p.eq.offwpn.bless, 'wpn'); applyAncStats(d, p.eq.offwpn.anc, 'wpn'); }
+    // ⚔️ 迅猛雙斧副手武器：祝福/遠古/屬性比照主武器計入 global d（與其他裝備一致疊加；玩家＋傭兵 buildAlly 換身共用本函式）。剋制屬性仍走 getPhysicalDmg 副手揮擊（用 offwpn 自身屬性）
+    if (p.eq.offwpn) {
+        applyBlessStats(d, p.eq.offwpn.bless, 'wpn'); applyAncStats(d, p.eq.offwpn.anc, 'wpn');
+        let _oAtt = getAttrAffix(p.eq.offwpn.attr);
+        if (_oAtt) { d.extraDmg += _oAtt.dmg; d.extraMp += _oAtt.mp; }   // 🔥 副手屬性詞綴：額外傷害/魔法點數
+    }
 
     let setCheck = {}, _setSeen = {};
     p._equipHaste = false;   // 裝備常駐加速（如伊娃之盾）：每次重算先清除，卸下即消失（同 _setPoly 模式）
@@ -289,15 +297,7 @@ d.mr += (baseMr + bonusMr);
         // 祝福的：防具→AC-1、傷害減免+1；飾品→AC-1、MR+1
         applyBlessStats(d, e.bless, (ed.slot==='ring'||ed.slot==='amulet'||ed.slot==='belt'||ed.slot==='ear') ? 'acc' : 'arm');   // 祝福的/詛咒的
         applyAncStats(d, e.anc, (ed.slot==='ring'||ed.slot==='amulet'||ed.slot==='belt'||ed.slot==='ear') ? 'acc' : 'arm');   // 遠古系變體能力
-        // 屬性詞綴（防具/飾品）：對應元素抗性 + MR，依階級 1/2/3
-        let _aAff = getAttrAffix(e.attr);
-        if(_aAff) {
-            if(_aAff.ele === 'fire')  d.resFire  += _aAff.res;
-            else if(_aAff.ele === 'water') d.resWater += _aAff.res;
-            else if(_aAff.ele === 'wind')  d.resWind  += _aAff.res;
-            else if(_aAff.ele === 'earth') d.resEarth += _aAff.res;
-            d.mr += _aAff.mr;
-        }
+        // 🔥 v3.0.77 屬性詞綴改版：只能存在於武器（額外傷害/魔法點數，於上方武器區塊計入）；舊防具/飾品屬性詞綴（元素抗性+MR）已廢除並由 loadGame 清除
         if(ed.set && !_setSeen[e.id]) { _setSeen[e.id] = true; setCheck[ed.set] = (setCheck[ed.set]||0) + 1; }   // 🔧 以「不重複物品」計件：兩枚同款戒指只算 1 件，杜絕灌水湊套裝
         
         // 🔧 架構#4：移除 ed.skAdd 死碼 —— 全資料庫無任何物品使用此欄位，且其語意（永久寫入 player.skills、
@@ -507,6 +507,8 @@ d.mr += (baseMr + bonusMr);
         if(_awakenOn) spdMult *= (p.mastery === 'k_awaken' ? (1/1.5) : (1/1.2));   // 覺醒攻速：🏅覺醒精通+50%、否則+20%（不疊加；多覺醒只算一次）
     }
     if(p.buffs.sk_dragon_bloodlust > 0) spdMult *= 0.85;   // 🐉 血之渴望：攻速+15%（與加速/覺醒/變身相乘疊加）
+    // 🌟 v3.0.100 玩家攻擊也吃「傭兵提供的幻覺攻擊光環」(化身+10/歐吉+4傷+4命/巫妖+2魔傷)：玩家自身幻覺已由上方 buff 迴圈套入 d·此處只補「傭兵來源」(teamIlluAura(p) 已排除玩家自身避免雙算)·限玩家(_recomputingAlly=false·傭兵走 alliesTick 注入)。傭兵化身狀態變動時由 allyMaintainBuffs 觸發 calcStats 刷新此段。
+    if (!_recomputingAlly && typeof teamIlluAura === 'function') { let _mia = teamIlluAura(p); if (_mia) { d.extraDmg += _mia.ed; d.extraHit += _mia.eh; d.magicDmg += _mia.md; } }
     d.spdMult = spdMult;   // 速度倍率（受加速/勇敢藥水/精靈餅乾/變身影響），供自動施法間隔使用
     d.aspd = d.aspd * spdMult;
 
@@ -715,6 +717,7 @@ function hasTeleportRing() {
 }
 // 傳送：清空當前怪物並重置生怪排程；forceBoss=true 時讓下一次生怪必定為 BOSS
 function doTeleport(forceBoss) {
+    if (typeof playTeleportFx === 'function') { try { playTeleportFx(); } catch (e) {} }   // 🌀 v3.0.102 傳送術特效＋玩家 sprite 暫隱（傳送術技能/手動+自動瞬移卷軸皆經此）
     saveSiegeBossHp();   // 傳送前保存攻城塔/門血量
     mapState.mobs = [null, null, null, null, null];
     mapState.spawnAt = [null, null, null, null, null];
@@ -729,6 +732,7 @@ const HIDDEN_AREA_NAMES = { hidden_lab_nolife: '無生物研究室', hidden_lab_
 const HIDDEN_AREA_BG = { hidden_lab_nolife: '象牙塔4樓', hidden_lab_darkmagic: '象牙塔5樓', hidden_seal_spirit: '象牙塔6樓', hidden_seal_monster: '象牙塔7樓', hidden_seal_demon: '象牙塔8樓', hidden_antqueen: '螞蟻洞穴2樓' };   // 🏛️ 隱藏區域背景＝對應母地圖樓層同名圖（applyAreaBackground 探測 assets/area/<樓層>.jpg；不存在則退回 SPECIAL_AREA_BG）
 function isHiddenArea(m) { return !!(m && HIDDEN_AREA_NAMES[m]); }
 function enterHiddenArea(hiddenId) {
+    if (typeof playTeleportFx === 'function') { try { playTeleportFx(); } catch (e) {} }   // 🌀 v3.0.102 隱藏區域傳送亦播傳送術特效＋玩家 sprite 暫隱
     let sel = document.getElementById('map-select');
     if (sel && !Array.from(sel.options).some(o => o.value === hiddenId)) {   // 隱藏地圖不在選單→臨時補一個 option 供 changeMap 讀值
         let o = document.createElement('option'); o.value = hiddenId; o.textContent = HIDDEN_AREA_NAMES[hiddenId] || hiddenId; sel.appendChild(o);
@@ -856,8 +860,7 @@ const OSIRIS_BOX_HIGH = [
     ['new_item_152', 8], ['new_item_155', 8], ['new_item_158', 8], ['new_item_161', 8]
 ];
 function osirisBoxRoll(table) {
-    if (tradNoScrolls()) table = table.filter(e => !TRAD_NO_SCROLLS[e[0]]);   // 🏛️ 僅經典+傳統：寶箱不開出施法卷軸（改抽其餘獎品，不浪費龜裂之核）；一般+傳統照常
-    let total = 0; for (let e of table) total += e[1];   // 過濾後重算總權重（一般情況=100）
+    let total = 0; for (let e of table) total += e[1];   // 總權重（一般情況=100）
     let r = lootRng('osiris') * total, acc = 0;   // 🎲 committed RNG（防 SL 重抽歐西里斯寶箱開到哪件）
     for (let e of table) { acc += e[1]; if (r < acc) return e[0]; }
     return table[table.length - 1][0];

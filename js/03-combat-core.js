@@ -40,7 +40,7 @@ function gameLoop() {
 
     if(elapsed < 0) elapsed = 0;
     if(elapsed > MAX_CATCHUP_MS) elapsed = MAX_CATCHUP_MS; // 上限保護
-    _tickDebt += elapsed * state.spd;
+    _tickDebt += elapsed * (state.spd || 1);
 
     let n = Math.floor(_tickDebt / TICK_MS);
     _tickDebt -= n * TICK_MS;
@@ -55,31 +55,18 @@ function gameLoop() {
         return;
     }
 
-    // 前景加速 / 背景補跑分流：
-    //   - 前景加速（文件可見且 spd>1）：不設 ff，保留戰鬥訊息與即時刷新
-    //   - 背景補跑（文件隱藏或 spd===1）：ff=true，關閉逐 tick 訊息，跑完彙總
-    const _isBg = !!(document.hidden) || state.spd === 1;
-
-    if (!_isBg) {
-        // 前景加速：多個 tick 一次跑，但保留 logCombat/logSys，每批結束刷新一次
-        flushAwaySummary();
-        state.inTick = true;
-        try {
-            for(let k=0; k<n; k++) {
-                if(!state.running || player.dead) break;
-                tick();
-                settleDeadMobs();
-            }
-        } finally {
-            state.inTick = false;
-            settleDeadMobs();
+    // 前景加速（spd > 1 且分頁可見）：不設 ff，保留 logCombat/logSys 即時輸出
+    if ((state.spd || 1) > 1 && !document.hidden) {
+        for (let k = 0; k < n; k++) {
+            if (!state.running || player.dead) break;
+            state.inTick = true;
+            try { tick(); } finally { state.inTick = false; settleDeadMobs(); }
+            flushTickRender();
         }
-        flushTickRender();
-        updateUI();
         return;
     }
 
-    // 背景補跑（n > 1）：期間關閉逐 tick 的畫面刷新與戰鬥訊息，跑完再統一刷新一次
+    // 需要補跑多個 tick：期間關閉逐 tick 的畫面刷新與戰鬥訊息，跑完再統一刷新一次
     // 補跑期間 logSys 被靜音，先記錄背包與金幣，補跑後把增量「累積」起來（不立即輸出，
     // 避免計時抖動/背景降速造成每次小補跑都洗一行訊息）。達門檻並回到即時後由 flushAwaySummary 統一輸出。
     const _invBefore = {};
@@ -87,17 +74,17 @@ function gameLoop() {
     const _goldBefore = player.gold;
 
     state.ff = true;
-    state.inTick = true;
+    state.inTick = true;   // 🔧 架構#2：補跑期間同樣每個 tick 結束才清算死亡
     try {
         for(let k=0; k<n; k++) {
             if(!state.running || player.dead) break;
             tick();
-            settleDeadMobs();
+            settleDeadMobs();   // 每個 tick 結束即清算，下一個 tick 以遞補完成的場面開始
         }
     } finally {
-        state.ff = false;
+        state.ff = false;   // 保證即使 tick() 拋例外也會解除補跑旗標，避免畫面/出怪永久凍結
         state.inTick = false;
-        settleDeadMobs();
+        settleDeadMobs();   // 保底：例外中斷時也完成清算
     }
 
     // 將這次補跑的淨增量併入累積（以前後數量差計算，含被消耗者的負值，最終只輸出淨正值）
@@ -880,13 +867,11 @@ function getPhysicalDmg(diceStr, target, wpn, arrowData, forceHeavy, forceHit, f
     // 固定傷害（屬性/特效，於最低1之後加上）
     let fixed = 0;
 
-    // 0. 屬性詞綴：固定傷害 +1/+3/+5（剋制改用最終 ×1.4/×0.6 倍率，見下方 _outDmg）
+    // 0. 屬性詞綴（v3.0.77 五階制）：額外傷害/魔法點數已改走 recompute（d.extraDmg/d.extraMp·見 js/02），此處只取屬性供剋制倍率（下方 _outDmg ×1.4/×0.6）
     let _attrInst = (wpnInst && wpnInst.attr) ? wpnInst : player.eq.wpn;   // ⚔️ 指定揮擊武器（副手＝offwpn）自身有屬性詞綴則用其屬性，否則沿用主武器（純加成、不減損既有行為）
     let _wAff = getAttrAffix(_attrInst && _attrInst.attr);
-    if (_wAff) {
-        fixed += _wAff.fix;
-    }
-    
+
+
     // 先判定武器/箭矢本身是否帶「對不死/狼人」加成 (unBonus)
     let hasUnBonus = false;
     // 檢查箭矢 (例如銀箭、米索莉箭)
@@ -1367,7 +1352,7 @@ function witchIceLance() {
 }
 // 🔧 水之元氣（sk_elf_watervital）：buff 期間內，下次受到「治癒術」（玩家自身瞬間治癒，不含持續回復 HoT）治癒時恢復量加倍，觸發後 7 秒冷卻（player._waterVitalCd，每秒遞減）。
 function waterVitalHeal(heal) {
-    if (heal > 0 && player.buffs && player.buffs.sk_elf_watervital > 0 && (player._waterVitalCd || 0) <= 0) {
+    if (heal > 0 && _teamAuraHas('sk_elf_watervital') && (player._waterVitalCd || 0) <= 0) {   // 🌟 v3.0.99 任一隊員(玩家/傭兵)維持水之元氣即生效·player._waterVitalCd 為全隊共用冷卻
         player._waterVitalCd = 7;   // 觸發後 7 秒冷卻
         logCombat('💧 水之元氣發動：本次治療恢復量加倍！', 'heal');
         return heal * 2;
@@ -1399,7 +1384,7 @@ function qiguPlayerAttack(target, wpn) {
     let ignoreMr = (player.mastery === 'i_qigu' && wpn.qigu);   // 🔮 奇古獸精通：裝備奇古獸時無視魔抗
     let dmg = Math.max(1, Math.floor(raw * (ignoreMr ? 1 : mrMult(effMr))));
     let ele = 'none';
-    if (player.eq.wpn && player.eq.wpn.attr && ATTR_AFFIX[player.eq.wpn.attr]) { ele = ATTR_AFFIX[player.eq.wpn.attr].ele; }
+    { let _qa = player.eq.wpn && getAttrAffix(player.eq.wpn.attr); if (_qa) ele = _qa.ele; }   // 🔥 getAttrAffix：相容舊12代碼
     dmg = Math.max(1, Math.floor(dmg * elementCounterMult(ele, target.e)));   // ⚔️ 屬性剋制 ×1.4(剋)/×0.6(被剋)（取代舊 +6）
     dmg = Math.max(1, Math.floor(dmg * wpnEnFinalMult(player.eq.wpn)));   // 武器強化 +11~+20 最終倍率
     dmg = Math.max(1, Math.floor(dmg * rlFuryMult()));   // 🔮 紅獅5/5＋😡狂怒5/5

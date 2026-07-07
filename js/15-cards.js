@@ -122,9 +122,9 @@ function ensureCardBook() {
 function rollCardDrops(mob) {
     if (!mob || mob.race === '血盟' || mob.race === '建築') return;
     if (!CARD_MOB_INFO[mob.n]) return;
-    _cardDropRoll(mob.n, 3, 0.005);     // 金卡 0.5%
-    _cardDropRoll(mob.n, 2, 0.01);      // 銀卡 1%
-    _cardDropRoll(mob.n, 1, 0.05);      // 普卡 5%
+    _cardDropRoll(mob.n, 3, 0.005);      // 金卡 0.5%
+    _cardDropRoll(mob.n, 2, 0.01);       // 銀卡 1%
+    _cardDropRoll(mob.n, 1, 0.05);       // 普卡 5%
 }
 // 🎴 加分登錄 + 開通溢出退費（普/銀/金共用·useCardItem 與 acquireCard 單一真相）。回傳 {useN, overflow}。
 function _cardRegister(name, tier, count) {

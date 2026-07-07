@@ -78,6 +78,7 @@ function summonTick(sm, clearFn, owner) {
 // 🔮 幻覺3/5：輔助技能(buff/heal/轉換/淨化等·非直接攻擊) MP 消耗 -50%
 const _SUPPORT_SKILL_TYPES = ['buff','self_buff','self_haste','heal','self_heal','heal_allies','convert','pray','bless','call_ally','dispel'];
 function isSupportSkill(sk){ return !!sk && _SUPPORT_SKILL_TYPES.indexOf(sk.type) >= 0; }
+let _lastHealFxTarget = null;   // 🩹 最近一次治癒魔法的實際受益者（供 castSkill 把治癒特效疊在其身上·非施法者）
 function cubeTick() {
     if (player.dead || !state.running || !player.skills) return;
     player._cubeCd = player._cubeCd || {};
@@ -185,7 +186,7 @@ function manualCast(skId) {
         if(KING_ROOMS[mapState.current]) { logSys('<span class="text-red-400">軍王之室的封印之力壓制了傳送術，無法生效。</span>'); return; }
         if(prideTeleportBlocked()) { logSys('<span class="text-red-400">' + (state.riftRun ? '時空裂痕中無法使用傳送術。' : (state.prideRanked ? '排名挑戰中無法使用傳送術。' : '在此樓層需持有對應的傲慢之塔支配符才能使用傳送術。')) + '</span>'); return; }
         if(state.oblivion) { logSys('<span class="text-red-400">遺忘之島的迷霧壓制了傳送術，無法生效。</span>'); return; }
-        if(typeof playSelfFx === 'function') { try { playSelfFx('傳送術'); } catch(e){} }   // 🌀 v2.7.54 傳送術特效（過所有封鎖閘後、實際傳送前播·於戰鬥區中央光柱）
+        // 🌀 v3.0.102 傳送術特效＋玩家 sprite 暫隱已移入 doTeleport / enterHiddenArea（涵蓋技能與瞬移卷軸所有路徑）
         if (HIDDEN_AREA_PARENT[mapState.current]) {   // 🏛️ 對應地圖手動施放傳送術→進入隱藏狩獵區域（MP 已扣、冷卻照走）
             enterHiddenArea(HIDDEN_AREA_PARENT[mapState.current]);
         } else {
@@ -216,12 +217,14 @@ function manualCast(skId) {
                 hitBonus:(t.hit||0), proc:null, cd:10, endTick: state.ticks + 36000
             };
             logCombat(`<span class="${getMobColor(t.lv)}">${t.n}</span> 成為你的僕人。`, 'magic');
+            if(typeof playSpellFx === 'function') { try { playSpellFx(sk.n, t); } catch(e){} }   // 🔮 迷魅術特效疊在目標身上（於移除前·否則卡片消失無法錨定）
             if(idx !== -1) { mapState.mobs[idx] = null; renderMobs(); }
         } else logCombat('迷魅術失敗了。', 'miss');
     } else if(sk.mEff === 'barrier') {
         // 🛡️ 絕對屏障：施放後進入隔絕狀態（持續 sk.dur 秒；無敵且無法行動）
         player.buffs.sk_abs_barrier = sk.dur;
         logCombat(`<span class="font-bold" style="color:#7dd3fc;text-shadow:0 0 8px #38bdf8;">${sk.msg || '你感覺身體與這個世界隔絕了。'}</span>`, 'magic');
+        if(typeof playSelfFx === 'function') { try { playSelfFx(sk.n); } catch(e){} }   // 🛡️ 絕對屏障特效疊在玩家頭上（手動技·不經 castSkill 的 isSupportSkill 掛點）
     }
     player.mp -= cost;
     if (player.mastery === 'i_mana' && player.mp < _mpBeforeManual) manaMasteryRefund(_mpBeforeManual - player.mp);   // 🔮 魔力精通：手動施法消耗MP→傭兵回饋10%
@@ -241,7 +244,13 @@ function castSkill(skId) {
         if (player.mp < _before) manaMasteryRefund(_before - player.mp);
     }
     if (r) { try { playSpellCast(DB.skills[skId] ? DB.skills[skId].n : null); } catch(e){} }   // 🔊 音效：施法成功才出聲（依技能名對應專屬施展音，查無→通用魔法音）
-    if (r && typeof playSelfFx === 'function' && DB.skills[skId] && isSupportSkill(DB.skills[skId])) { try { playSelfFx(DB.skills[skId].n); } catch(e){} }   // 🙏 v2.7.48 自我增益特效：治癒/武器附魔/防禦/屏障等 buff/heal 施放成功→#battle-view 中央疊播(未註冊靜默略過)
+    if (r && typeof playSelfFx === 'function' && DB.skills[skId] && isSupportSkill(DB.skills[skId])) {   // 🙏 v2.7.48 自我增益特效：buff→玩家頭上(overHead)·heal→被治療目標身上（未註冊靜默略過）
+        try {
+            let _sk = DB.skills[skId];
+            let _anchor = (_sk.type === 'heal' && typeof _partyMemberRect === 'function') ? _partyMemberRect(_lastHealFxTarget || player) : null;   // 🩹 治癒特效疊在實際受益者身上；其餘 buff 走 playSelfFx 內 overHead（玩家頭上）
+            playSelfFx(_sk.n, _anchor);
+        } catch(e){}
+    }
     return r;
 }
 // 👑 魔法精通：免費額外施放「目前設定的攻擊技能」（_royalFreeCast → 不耗MP、不受攻擊冷卻；castSkill 內部仍會驗證等級/目標/MP，可施放才施放）
@@ -271,8 +280,8 @@ function castSkillInner(skId) {
     let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && (needLv === undefined || player.lv < needLv)) return false;
-    //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符
-    //if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性
+    // if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符（已解除）
+    // if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性（已解除）
 
     // 🔧 黑暗妖精：會心一擊（消耗 HP 50% + 剩餘所有 MP；傷害 = 重擊一般攻擊(無視硬皮)×爆擊×(消耗MP佔上限%×10)；對血盟 x2）
     if (sk.darkCrit) {
@@ -367,9 +376,14 @@ function castSkillInner(skId) {
             ? Math.max(1, Math.floor((rollDice(sk.healDice[0], sk.healDice[1]) + (sk.healBase || 0)) * _spCoefHeal))   // (XdY + healBase) × 魔法傷害公式
             : Math.max(1, (sk.valBase || 0) + roll(sk.valDice[0], sk.valDice[1]) + player.d.magicDmg);
         heal = waterVitalHeal(heal);   // 🔧 水之元氣：下次恢復魔法治癒加倍
-        player.hp = Math.min(player.mhp, player.hp + heal);
+        // 🤝 v3.0.94 隊長治癒也幫隊員：目標＝隊伍(玩家＋未倒地傭兵)中 HP% 最低者（原僅治癒玩家自己；鏡像傭兵 allyTryHeal 的選人規則）
+        let _hTgt = player, _hPct = (player.mhp > 0) ? (player.hp / player.mhp) : 1;
+        (player.allies || []).forEach(a => { if (a && !a._downed && (a.curHp || 0) > 0 && (a.mhp || 0) > 0) { let _p2 = a.curHp / a.mhp; if (_p2 < _hPct) { _hPct = _p2; _hTgt = a; } } });
+        _lastHealFxTarget = _hTgt;   // 🩹 記錄受益者→castSkill 把治癒特效疊在其身上
+        if (_hTgt === player) player.hp = Math.min(player.mhp, player.hp + heal);
+        else _hTgt.curHp = Math.min(_hTgt.mhp, (_hTgt.curHp || 0) + heal);
         player.cds.healSk = getAutoCastInterval();
-        logCombat(`施放 ${sk.n}，恢復了 ${heal} 點 HP。${sk.msg || ''}`, 'heal');
+        logCombat(`施放 ${sk.n}，恢復了${_hTgt === player ? '' : (' 協力·' + _hTgt._allyName)} ${heal} 點 HP。${sk.msg || ''}`, 'heal');
         return true;
     }
     
@@ -801,6 +815,8 @@ function autoActions() {
         let sk = DB.skills[sid];
         if(sk.type === 'buff') {
             if(sk.haste && (player.buffs.haste > 0 || player._equipHaste)) return;  // 已有加速來源（含裝備常駐），不重複施放
+            // 💨 v3.0.94 強力加速術優先：加速術/強力加速術同時勾選→只施放強力加速術（加速術讓位；原本加速術先施放後 buffs.haste>0 會永遠擋住強力加速術→其 buff 鍵不存在、狀態圖示也不顯示）
+            if(sid === 'sk_haste_spell') { let _g = document.getElementById('auto-sk-sk_greater_haste'); if (_g && _g.checked && player.skills.includes('sk_greater_haste')) return; }
             if(sid === 'sk_sunlight' && KING_ROOMS[mapState.current]) return;   // 🔧 軍王之室／底比斯祭壇：日光術無效，跳過自動施放（否則每 tick 被擋下並狂洗系統日誌）
             if(sk.darkStealth && player._darkStealthCd > state.ticks) return;   // 🔧 暗隱術：冷卻中不自動施放（須身上無暗隱術且冷卻結束才再施放）
             if(sk.awaken && player.mastery !== 'k_awaken' && ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].some(a => (player.buffs[a]||0) > 0)) return;   // 🐉 覺醒互斥：已有一種覺醒生效時不自動施放其他覺醒（避免互相清除而反覆耗HP/MP）；覺醒精通可同時三種
@@ -874,7 +890,10 @@ function autoCastSpells() {
     let healSk = document.getElementById('sel-heal-skill').value;
     let healThr = parseInt(document.getElementById('set-mp-heal').value) || 0;
     // 治癒魔法改為「HP <= X%」觸發（與恢復生命藥水相同機制）；MP 是否足夠由 castSkill 內部判斷
-    if(healSk && hpPct <= healThr) castSkill(healSk);
+    // 🤝 v3.0.94 隊長治癒也幫隊員：觸發條件改看「隊伍(玩家＋未倒地傭兵)最低 HP%」——隊員低於門檻也會施放（castSkill 治癒分支自會選 HP% 最低者施放）
+    let _teamLowPct = hpPct;
+    (player.allies || []).forEach(a => { if (a && !a._downed && (a.curHp || 0) > 0 && (a.mhp || 0) > 0) { let _p2 = (a.curHp / a.mhp) * 100; if (_p2 < _teamLowPct) _teamLowPct = _p2; } });
+    if(healSk && _teamLowPct <= healThr) castSkill(healSk);
 }
 
 // 詞綴抽取（新制）：掉落/製作/潘朵拉/血盟 等管道只會隨機產生「祝福的」(bless) 1%；不再有單/雙/三詞綴或屬性/遠古的隨機掉落。
