@@ -280,21 +280,22 @@
       if (typeof window.renderTabs !== 'function' || window.renderTabs.__mBagDefer) return;
       var origRT = window.renderTabs;
       var THROTTLE_MS = 250, SELSEL = '#tab-weapons,#tab-armors,#tab-items,#tab-equip,#tab-skill,#item-modal';
-      var dirty = false, lastRun = -1e9, trail = null;
+      var dirty = false, dirtyForce = false, lastRun = -1e9, trail = null;   // dirtyForce:延後期間有沒有 force 呼叫——補跑只在真的有 force 被延後時才 force,免得掉寶的非強制重繪被升級成 force、繞過核心 renderTabs 的「快速廢品/強化選擇模式凍結」守衛
       function now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
       function bagOpen() { return document.body.classList.contains('mview-bag'); }
       function selOpen() { var ae = document.activeElement; try { return !!(ae && ae.tagName === 'SELECT' && ae.closest && ae.closest(SELSEL)); } catch (e) { return false; } }
-      function schedTrail(delay) { if (!trail) trail = setTimeout(function () { trail = null; if (dirty) run([true]); }, delay); }
+      function markDirty(force) { dirty = true; dirtyForce = dirtyForce || !!force; }
+      function schedTrail(delay) { if (!trail) trail = setTimeout(function () { trail = null; if (dirty) { var f = dirtyForce; run([f]); } }, delay); }
       function run(args) {
-        if (selOpen()) { dirty = true; schedTrail(200); return; }   // 下拉開著時不重建(會把它關掉)→ 比照 afk-fixes select-guard,延後
-        dirty = false; lastRun = now(); return origRT.apply(window, args || [true]);
+        if (selOpen()) { markDirty(args && args[0]); schedTrail(200); return; }   // 下拉開著時不重建(會把它關掉)→ 比照 afk-fixes select-guard,延後
+        dirty = false; dirtyForce = false; lastRun = now(); return origRT.apply(window, args || [true]);
       }
       var wrapped = function () {
         if (!detectMobile()) return origRT.apply(this, arguments);
-        if (!bagOpen()) { dirty = true; return; }                  // 戰鬥/設定畫面看不到背包 → 跳過,記 dirty
+        if (!bagOpen()) { markDirty(arguments[0]); return; }       // 戰鬥/設定畫面看不到背包 → 跳過,記 dirty
         var t = now();
         if (t - lastRun >= THROTTLE_MS) return run(arguments);     // 節流窗外 → 立即(自己的操作即時)
-        dirty = true; schedTrail(THROTTLE_MS - (t - lastRun));     // 窗內(連續掉寶)→ 併入 trailing
+        markDirty(arguments[0]); schedTrail(THROTTLE_MS - (t - lastRun));   // 窗內(連續掉寶)→ 併入 trailing
       };
       wrapped.__mBagDefer = true;
       window.renderTabs = wrapped;
@@ -658,6 +659,10 @@
       'body.m-mobile.mview-config #squad-tab-team,body.m-mobile.mview-config #squad-tab-skill{max-height:none !important;overflow:visible !important;}',
 
       'body.m-mobile{padding:0 !important;}',
+      /* iOS Safari 在 input 實際 font-size<16px 時 focus 會自動放大頁面(且新版 iOS 無視 maximum-scale),
+         遊戲的數字輸入(商店數量/自動喝水%/倉庫/製作…)幾乎都是 13~14px → 一點就放大。
+         統一提到 16px 門檻就不觸發;touch-action 順便取消雙擊縮放判定的 300ms 等待。 */
+      'body.m-mobile input[type="number"],body.m-mobile input[type="text"],body.m-mobile input:not([type]),body.m-mobile select,body.m-mobile textarea{font-size:16px !important;touch-action:manipulation;}',
       /* 🖥️→📱 中和作者 2026-06 新增的「1920×1080 固定設計舞台」#app-stage:它用 fitStage() 對舞台
          下 transform:scale(min(vw/1920,vh/1080)) 等比縮小整個桌機版面——手機上會把我們自建的版面
          一起縮成中央一小塊(0.2~0.8×),且 transform/will-change 會讓我們 fixed 的 #game-screen 改以
@@ -910,17 +915,24 @@
          沒有巢狀就沒有哪層的爭議,iOS/安卓都正常。桌機維持原本各自捲(滑鼠滾輪無此問題)。 */
       'body.m-mobile #wh-inv-list,body.m-mobile #wh-store-list{max-height:none !important;overflow:visible !important;}',
 
-      /* 潘朵拉黑市卡片:原作用「左圖固定 112px + 右購買鈕固定 84px」的橫向列(行內 height:120px),
-         手機窄寬下中間名稱/說明/價格欄被擠到只剩約 20px → 文字一字一行整個糊掉。改成直向堆疊:
-         圖示置中、資訊欄取消固定高度與 truncate 正常換行、購買鈕整條寬。scope 在卡片唯一的 .max-w-xl,
-         作者若重排此卡規則自動失效(不會壞);桌機(無 m-mobile)完全不受影響。 */
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch{flex-direction:column !important;height:auto !important;align-items:center !important;gap:10px !important;}',
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch > div{width:100% !important;height:auto !important;}',
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch > div:first-child{width:96px !important;height:96px !important;align-self:center !important;}',   /* 圖示框維持方形、置中 */
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch > div:nth-child(2){height:auto !important;text-align:center !important;}',
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch > div:nth-child(2) .truncate{white-space:normal !important;overflow:visible !important;}',   /* 名稱/價格不再被 truncate 切掉 */
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch > div:nth-child(2) .overflow-y-auto{overflow:visible !important;max-height:none !important;}',   /* 說明欄不限高、整段顯示 */
-      'body.m-mobile #interaction-content .max-w-xl .items-stretch > div:last-child button{width:100% !important;height:auto !important;flex-direction:row !important;gap:8px !important;padding:11px !important;}',   /* 購買鈕整條寬、圖示+字並排 */
+      /* 倉庫版面(手機緊湊化):說明縮小、金幣/分類列收緊、廢話註記藏掉、兩清單改上下堆疊。
+         掛鉤 class(wh-help/wh-goldrow/wh-ctlrow/wh-note/wh-grid)由 js/12 renderWarehouseNPC 模板提供。 */
+      'body.m-mobile .wh-help{font-size:11px !important;line-height:1.5 !important;color:#94a3b8 !important;}',
+      'body.m-mobile .wh-goldrow{padding:8px !important;gap:6px !important;font-size:12px !important;}',
+      'body.m-mobile .wh-goldrow > span{flex:1 1 100% !important;}',   /* 金幣資訊獨佔第一行 → 第二行=輸入框+存入+取出,不再孤鈕換行 */
+      'body.m-mobile .wh-goldrow input{flex:1 1 auto !important;width:auto !important;min-width:0 !important;height:32px !important;margin-left:0 !important;}',
+      'body.m-mobile .wh-goldrow button{flex:0 0 auto !important;height:32px !important;padding:0 12px !important;font-size:12px !important;}',
+      'body.m-mobile .wh-ctlrow{gap:6px !important;font-size:12px !important;}',
+      'body.m-mobile .wh-note{display:none !important;}',   /* （存入／取出共用此分類）手機藏:資訊價值低、佔一整行 */
+      'body.m-mobile .wh-ctlrow select{flex:1 1 34% !important;min-width:0 !important;height:32px !important;}',   /* 第一行=物品分類+兩個下拉(合計>100% → 後面的自動換行) */
+      'body.m-mobile .wh-ctlrow #wh-qty-amt{flex:0 0 64px !important;width:64px !important;height:32px !important;}',
+      'body.m-mobile .wh-ctlrow button{flex:1 1 30% !important;min-width:0 !important;white-space:nowrap !important;margin-left:0 !important;height:34px !important;padding:0 4px !important;font-size:13px !important;}',   /* 第二行=數量+輸入框+一鍵存入+一鍵排列 */
+      'body.m-mobile .wh-grid{grid-template-columns:1fr !important;gap:12px !important;}',   /* 兩欄在手機太窄 → 背包/倉庫上下堆疊 */
+
+      /* 潘朵拉黑市(20 格輪播櫥窗):桌機 4 欄在手機窄寬下每格只剩 ~85px,名稱/價格/購買鈕塞不下 → 改 2 欄。
+         能力 tooltip 走滑鼠 hover,手機點卡片(非購買鈕)會觸發 mouseenter 顯示、點別處收起,堪用。
+         scope 在 js/14 面板加的 .pandora-grid(inline 4 欄要 !important 才蓋得過);版面再改自動失效。 */
+      'body.m-mobile #interaction-content .pandora-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;}',
 
       /* 村莊頁頂部:村名(text-3xl)+「安全區域」提示在手機佔掉一截高度 → 縮字級與上下間距 */
       'body.m-mobile #town-view{padding:10px 12px !important;gap:5px !important;}',
@@ -957,9 +969,30 @@
       'body.m-mobile #m-tip-card .m-tip-body{font-size:13px;line-height:1.6;}',
       'body.m-mobile .tip-host,body.m-mobile #interaction-content [title]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}',
 
-      /* 創角畫面手機化:外框釘在頂端、用可視高度(--app-h)當上限,避免 94vh 延伸到 Brave 底部
-         工具列後面把「開始冒險」鈕蓋住;內層原本 flex-row + 固定寬高(會爆寬)→ 全改直向堆疊、滿版 */
-      'body.m-mobile #creation-screen{position:fixed !important;top:0 !important;left:50% !important;transform:translateX(-50%) !important;margin:0 !important;width:96vw !important;max-width:96vw !important;height:auto !important;max-height:var(--app-h,94vh) !important;overflow-y:auto !important;padding:16px 16px 28px !important;}',
+      /* ── 新版登入首頁(v3.0.40+)手機化 ────────────────────────────────────
+         作者把首頁改成固定 4:3「藝術舞台」#login-art-stage,標題/選單/版號用 % 絕對定位疊在背景圖上。
+         直式手機下 4:3 舞台被壓成中央一條矮 letterbox,三個圖層擠成一團互相重疊、按鈕縮小難點(爆版)。
+         手機改成:舞台還原成滿版直向流,背景圖鋪底(cover·壓暗),標題→選單→版號由上到下堆疊置中、
+         按鈕放大好點;逐幀動畫小圖在直式沒有定位意義故隱藏。載入/創角面板仍是舞台內的絕對置中 modal,
+         舞台維持 position:relative 即照常置中。scope 全在 body.m-mobile,作者哪天改回/移除這些 id,
+         規則不命中自動失效,桌機不受影響。
+         ⚠ #creation-screen 這條務必 :not(.hidden)——本選擇器 specificity(1,1,1) 高過作者的
+         `#creation-screen.hidden{display:none!important}`(1,1,0),若無條件 `display:block !important`
+         會壓過 .hidden、讓載入/創角後「登入畫面關不掉、蓋在遊戲上」→ 玩家卡在選角畫面(踩過 2026-07-06)。
+         加 :not(.hidden) 後有 .hidden 時本規則不命中,交還作者的隱藏。 */
+      'body.m-mobile #creation-screen:not(.hidden){position:fixed !important;inset:0 !important;display:block !important;overflow-y:auto !important;padding:0 !important;}',
+      'body.m-mobile #login-art-stage{position:relative !important;width:100vw !important;max-width:100vw !important;aspect-ratio:auto !important;min-height:var(--app-h,100dvh) !important;display:flex !important;flex-direction:column !important;justify-content:center !important;overflow:visible !important;padding:32px 22px 40px !important;box-shadow:none !important;}',
+      'body.m-mobile #login-bg-image{position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;object-fit:cover !important;opacity:.35 !important;}',
+      'body.m-mobile #login-anim-image{display:none !important;}',
+      'body.m-mobile #login-title-layer{position:relative !important;left:auto !important;top:auto !important;width:100% !important;text-align:center !important;margin:0 0 6vh !important;z-index:3 !important;}',
+      'body.m-mobile #login-title-layer h1{font-size:26px !important;margin:0 0 8px !important;}',
+      'body.m-mobile #login-title-layer p{font-size:14px !important;}',
+      'body.m-mobile #main-menu{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:330px !important;margin:0 auto !important;gap:12px !important;z-index:4 !important;}',
+      'body.m-mobile #main-menu > button{width:100% !important;font-size:16px !important;padding:14px 12px !important;}',
+      'body.m-mobile #main-menu > p{width:100% !important;margin:8px 0 0 !important;font-size:13px !important;line-height:1.5 !important;}',
+      'body.m-mobile #login-meta-layer{position:relative !important;left:auto !important;top:auto !important;width:100% !important;max-width:330px !important;margin:6vh auto 0 !important;text-align:center !important;z-index:3 !important;}',
+      'body.m-mobile #login-version{font-size:15px !important;}',
+      'body.m-mobile #login-disclaimer{font-size:11px !important;}',
       'body.m-mobile #creation-panel{flex-direction:column !important;gap:12px !important;align-items:stretch !important;}',
       'body.m-mobile .m-cre-avatar{width:100% !important;height:220px !important;}',
       'body.m-mobile .m-cre-right{width:100% !important;height:auto !important;}',
@@ -983,7 +1016,24 @@
       'body.m-mobile #slot-list > div > button:first-child > img{width:40px !important;height:40px !important;}',   /* 👤 大頭貼放大(用原作者 img,不再自建 .m-slot-av) */
       'body.m-mobile #slot-list .afk-slot-extra{font-size:.78rem !important;}',   /* 📍 掛機地點 / ⏱ 已掛機多久:afk-slotinfo.js 附加,手機微調字級 */
       'body.m-mobile #slot-list > div > div{width:auto !important;flex:1 1 0 !important;min-width:0 !important;flex-direction:column !important;}',   /* 動作區:右 1/3,蓋掉固定 w-56,匯入/復原改上下堆疊 */
-      'body.m-mobile #slot-list > div > div > button{flex:1 1 0 !important;padding:.5rem .25rem !important;font-size:.8rem !important;}'   /* 匯入/復原:各佔右側一半高 */
+      'body.m-mobile #slot-list > div > div > button{flex:1 1 0 !important;padding:.5rem .25rem !important;font-size:.8rem !important;}',   /* 匯入/復原:各佔右側一半高 */
+
+      /* 🌡️ 手機降溫:把「無限循環的 drop-shadow/filter 呼吸動畫」改成靜態光暈(取原 keyframe 中間亮度)。
+         這些 filter 動畫每一幀都要 GPU 重算濾鏡,幾十個元素同時跑(背包發光裝備/怪物恩賜/席琳字樣)是手機
+         持續發熱的大宗;改靜態後「有光暈的樣子」保留、只是不再呼吸,GPU 只在元素真的變化時重算一次。
+         桌機(無 body.m-mobile)完全不受影響。原 keyframe 改版時這裡只是蓋不到新 class、自動失效無害。 */
+      'body.m-mobile .legend-glow{animation:none !important;filter:drop-shadow(0 0 6px rgba(217,138,4,.85));}',
+      'body.m-mobile .mana-glow{animation:none !important;filter:drop-shadow(0 0 6px rgba(56,189,248,.85));}',
+      'body.m-mobile .grace-glow{animation:none !important;filter:drop-shadow(0 0 6px rgba(239,68,68,.8));}',
+      'body.m-mobile .sherine-glow-icon{animation:none !important;filter:drop-shadow(0 0 6px rgba(74,222,128,.75));}',
+      'body.m-mobile .c-sherine{animation:none !important;text-shadow:0 0 5px rgba(74,222,128,.7),0 0 12px rgba(74,222,128,.45);}',
+      'body.m-mobile .bless-glow{animation:none !important;filter:drop-shadow(0 0 7px rgba(250,204,21,.8));}',
+      'body.m-mobile .curse-glow{animation:none !important;filter:drop-shadow(0 0 7px rgba(255,32,32,.8));}',
+      'body.m-mobile .ancient-glow{animation:none !important;filter:drop-shadow(0 0 7px rgba(168,85,247,.8));}',
+      'body.m-mobile .anc-bless-glow{animation:none !important;filter:drop-shadow(0 0 9px rgba(243,188,72,1)) drop-shadow(0 0 20px rgba(192,132,252,.7)) brightness(1.4) saturate(1.8);}',
+      'body.m-mobile .ancient-glow-strong{animation:none !important;filter:drop-shadow(0 0 10px rgba(184,104,250,1)) drop-shadow(0 0 22px rgba(150,60,235,.7)) brightness(1.4) saturate(1.8);}',
+      'body.m-mobile .bless-glow-strong{animation:none !important;filter:drop-shadow(0 0 10px rgba(253,224,71,1)) drop-shadow(0 0 22px rgba(234,180,20,.7)) brightness(1.4) saturate(1.8);}',
+      'body.m-mobile .tri-glow{animation:none !important;filter:drop-shadow(0 0 10px rgba(245,158,11,1)) drop-shadow(0 0 24px rgba(239,68,68,.6)) brightness(1.5) saturate(1.9);}'
     ].join('\n');
     var s = document.createElement('style');
     s.id = 'm-style';

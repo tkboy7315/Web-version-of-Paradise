@@ -64,6 +64,24 @@
             <div id="login-version" class="text-center text-sm text-slate-300 font-medium tracking-wide select-none">v2.4.0</div>
             <div id="login-disclaimer" class="text-center text-xs text-slate-400 leading-relaxed mx-auto">本遊戲為非官方免費同人作品，絕無營利意圖；遊戲內圖片與音樂版權歸原權利方 NCSOFT 所有，其餘程式為獨立開發，嚴禁商業販售。</div>
         </div>
+
+        <div id="login-custom-info">
+            <div>妖精開放四屬性技能學習。</div>
+            <div>卡片掉落機率提高。</div>
+            <div class="mt-2">
+                <table class="border-collapse" style="font-size:clamp(9px,1.05vw,16px);margin:0 auto;">
+                    <thead><tr class="text-yellow-400"><th style="padding-right:0.4ch;text-align:left">倍率檔位</th><th style="padding-right:0.4ch;text-align:left">模式</th><th style="padding-right:0.4ch;text-align:right">EXP</th><th style="padding-right:0.4ch;text-align:right">金幣</th><th style="text-align:right">掉落</th></tr></thead>
+                    <tbody>
+                        <tr><td style="padding-right:0.4ch" rowspan="2">×1</td><td style="padding-right:0.4ch">一般</td><td style="padding-right:0.4ch;text-align:right">×1</td><td style="padding-right:0.4ch;text-align:right">×1</td><td style="text-align:right">×1</td></tr>
+                        <tr><td style="padding-right:0.4ch">經典</td><td style="padding-right:0.4ch;text-align:right">×0.25</td><td style="padding-right:0.4ch;text-align:right">×0.5</td><td style="text-align:right">×0.1</td></tr>
+                        <tr><td style="padding-right:0.4ch" rowspan="2">×2</td><td style="padding-right:0.4ch">一般</td><td style="padding-right:0.4ch;text-align:right">×100</td><td style="padding-right:0.4ch;text-align:right">×20</td><td style="text-align:right">×10</td></tr>
+                        <tr><td style="padding-right:0.4ch">經典</td><td style="padding-right:0.4ch;text-align:right">×5</td><td style="padding-right:0.4ch;text-align:right">×2</td><td style="text-align:right">×1</td></tr>
+                        <tr><td style="padding-right:0.4ch" rowspan="2">×3</td><td style="padding-right:0.4ch">一般</td><td style="padding-right:0.4ch;text-align:right">×500</td><td style="padding-right:0.4ch;text-align:right">×50</td><td style="text-align:right">×30</td></tr>
+                        <tr><td style="padding-right:0.4ch">經典</td><td style="padding-right:0.4ch;text-align:right">×10</td><td style="padding-right:0.4ch;text-align:right">×5</td><td style="text-align:right">×2</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
       </div>
 
         <div id="slot-select-panel" class="hidden flex flex-col gap-4 items-center my-8 w-full">
@@ -701,6 +719,7 @@
 <script src="js/21-relic-book.js?v=v3.1.7"></script>
 <script src="plugins/afk-wiki.js"></script>
 <script src="afk-offline.js"></script>
+<script src="afk-mobile.js"></script>
 <script>
 function setSpeed(v) { if(typeof state !== 'undefined') { v = parseInt(v, 10) || 1; if(v>=1&&v<=3) { state.spd = v; document.getElementById('speed-select').value = v; } } }
 function setRate(v) { if(typeof state !== 'undefined') { v = parseInt(v, 10) || 1; if(v>=1&&v<=3) { state.rateLv = v; document.getElementById('rate-select').value = v; } } }
