@@ -143,6 +143,11 @@
                     <span class="text-amber-300 font-bold shrink-0">經典模式</span>
                     <span class="text-slate-400 text-xs">死亡噴經驗、無祝福/精通/席琳（永久；掉落率、經驗與金幣獲得與一般模式相同）</span>
                 </label>
+                <label id="lbl-create-traditional" class="flex items-center gap-2 mt-2 px-1 cursor-pointer select-none" title="傳統模式可單獨開啟、或與經典模式並用，永久生效">
+                    <input type="checkbox" id="create-traditional-toggle" onchange="onToggleTraditional(this)" class="w-5 h-5 accent-purple-600 shrink-0">
+                    <span class="text-purple-300 font-bold shrink-0">傳統模式</span>
+                    <span class="text-slate-400 text-xs">裝備不可強化、無施法卷軸，改由掉落/製作裝備自帶隨機強化值（永久；可單開或＋經典）</span>
+                </label>
                 <div class="flex gap-4 shrink-0 mt-3">
                     <button onclick="backToMenu()" class="btn w-1/4 py-2.5 text-base">返回</button>
                     <button onclick="startGame()" id="btn-start" class="btn w-3/4 py-2.5 font-bold text-lg text-white shadow-lg" disabled>開始冒險</button>

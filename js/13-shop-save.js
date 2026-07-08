@@ -270,7 +270,7 @@ function _summaryFromRaw(s){
     s = _saveUnwrap(s).payload;   // 🛡️ 先解存檔簽章（摘要顯示不驗章、僅取 payload；舊明文檔原樣回傳）
     try { let d = JSON.parse(s); let p = d.p;
         let clsName = { knight:'騎士', mage:'法師', elf:'妖精', dark:'黑暗妖精', illusion:'幻術士', dragon:'龍騎士', warrior:'戰士', royal:'王族' }[p.cls] || p.cls;
-        return { name: p.name || '', cls: clsName, lv: p.lv || 1, gold: p.gold || 0, classic: !!p.classicMode, avatar: p.avatar || null };   // 🎮 經典模式旗標：供存檔位顯示與傭兵同模式招募限制（🏛️v3.0.83 傳統已取消·未載入過的舊傳統存檔以 classicMode 歸類）；avatar＝職業性別頭像名（assets/character/<avatar>.png）；name 未命名時留空字串（顯示端自行省略）
+        return { name: p.name || '', cls: clsName, lv: p.lv || 1, gold: p.gold || 0, classic: !!p.classicMode, traditional: !!p.traditionalMode, avatar: p.avatar || null };   // 🎮 經典／🏛️ 傳統模式旗標：供存檔位顯示與傭兵同模式招募限制；avatar＝職業性別頭像名（assets/character/<avatar>.png）；name 未命名時留空字串（顯示端自行省略）
     } catch(e){ return null; }
 }
 function slotSummary(n){ return _summaryFromRaw(_lzGet('lineage_idle_save_' + n)); }
@@ -278,7 +278,7 @@ function slotBackupSummary(n){ return _summaryFromRaw(_lzGet('lineage_idle_save_
 let _slotMode = 'new';
 function openSlotSelect(mode){
     _slotMode = mode;
-    { let _ct = document.getElementById('create-classic-toggle'); if (_ct && mode === 'new') _ct.checked = false; }   // 🎮 創角流程重置經典模式開關（預設關閉）
+    { let _ct = document.getElementById('create-classic-toggle'); if (_ct && mode === 'new') _ct.checked = false; let _tt = document.getElementById('create-traditional-toggle'); if (_tt && mode === 'new') _tt.checked = false; }   // 🎮🏛️ 創角流程重置經典＋傳統模式開關（預設皆關閉，兩者獨立）
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('creation-panel').classList.add('hidden');
     document.getElementById('slot-select-panel').classList.remove('hidden');
@@ -286,11 +286,12 @@ function openSlotSelect(mode){
     let list = document.getElementById('slot-list'); list.innerHTML = '';
     for(let n = 1; n <= 8; n++){
         let sum = slotSummary(n);
-        let _classic = !!(sum && sum.classic);   // 🎮 經典模式存檔：以琥珀金顯示（🏛️v3.0.83 傳統已取消·舊傳統存檔依 classicMode 顯示為一般/經典）
-        let _tag = _classic ? '⚔ ' : '';
-        let _modeName = _classic ? '（經典）' : '';
-        let label = sum ? `${_tag}存檔 ${n}　${sum.cls} Lv.${sum.lv}${sum.name ? '　' + sum.name : ''}${_modeName}` : `存檔 ${n}　（空）`;   // 未命名時不顯示名稱（連同前置全形空白一併省略）
-        let _classicStyle = _classic ? 'color:#fbbf24;border-color:#d97706;' : '';   // 🎮 經典＝琥珀金
+        let _classic = !!(sum && sum.classic);   // 🎮 經典模式存檔：以琥珀金顯示
+        let _trad = !!(sum && sum.traditional);  // 🏛️ 傳統模式存檔：以淡紫顯示（傳統角色 classic 亦為 true，故先判 traditional）
+        let _tag = _trad ? '🔮 ' : (_classic ? '⚔ ' : '');
+        let _modeName = _trad ? '（傳統）' : (_classic ? '（經典）' : '');
+        let label = sum ? `${_tag}存檔 ${n}　${sum.cls} Lv.${sum.lv}${sum.name ? '　' + sum.name : ''}${_modeName}` : `存檔 ${n}　（空）`;
+        let _classicStyle = _trad ? 'color:#c084fc;border-color:#9333ea;' : (_classic ? 'color:#fbbf24;border-color:#d97706;' : '');   // 🏛️ 傳統＝淡紫｜🎮 經典＝琥珀金
         let disabled = (mode === 'load' && !sum);
         let bak = (mode === 'load') ? slotBackupSummary(n) : null;
         // 動作區固定寬度：匯入(+復原)鈕各 flex-1。無備份時匯入鈕獨佔整個動作區
@@ -518,6 +519,15 @@ function onToggleClassic(el) {
     let ok = confirm('⚔ 經典模式（硬核挑戰）\n\n開啟後，此角色將「永久」套用下列規則，建立後無法關閉：\n\n‧ 死亡 → 損失該等級 5% 最大經驗（不會降等）\n‧ 無法賦予裝備祝福、無法進行職業精通\n‧ 無法進入「席琳的世界」\n\n（掉落率、經驗值與金幣獲得皆與一般模式相同）\n\n確定要以「經典模式」創建此角色嗎？');   // ⚠️v3.0.82 經驗×0.5／金幣÷2 已移除、v3.0.85 掉落×1/10 已移除 → 文案同步
     if (!ok) { el.checked = false; return; }
 }
+function _setTraditionalToggle(enabled){   // 創角流程重置用：取消傳統勾選（傳統已可獨立勾選、不再受經典鎖定）
+    let _tt = document.getElementById('create-traditional-toggle');
+    if (_tt && !enabled) _tt.checked = false;
+}
+function onToggleTraditional(el) {
+    if (!el.checked) return;   // 取消勾選不需確認
+    let ok = confirm('🏛️ 傳統模式（可單獨開啟，或與「經典模式」並用）\n\n開啟後，此角色將「永久」套用下列規則，建立後無法關閉：\n\n‧ 所有武器/防具/飾品 → 沒有強化選項（隱藏快速強化）\n‧ 怪物不掉落、黑市不販售「對武器/盔甲/飾品施法的卷軸」\n‧ 隱藏肯特城的兌換 NPC（伊賽馬利）\n‧ 取而代之 → 怪物掉落／潘朵拉黑市／製作 的裝備會「隨機自帶已強化值」（商店購買仍為 +0）\n‧ 倉庫與角色 與其他模式組合（一般／經典／經典＋傳統）皆不共通\n\n確定要以「傳統模式」創建此角色嗎？');
+    if (!ok) el.checked = false;   // 取消 → 還原為未勾選
+}
 function startGame() {
     document.getElementById('creation-screen').classList.add('hidden');
     document.getElementById('game-screen').classList.remove('hidden');
@@ -538,7 +548,8 @@ function startGame() {
     player.cls = curCreate.cls;
     // 👑 王族：依性別自動入盟、不可選擇／退出（王子→特羅斯 tros、公主→依詩蒂 esti）
     if (player.cls === 'royal') player.bloodPledge = (curCreate.rawCls && curCreate.rawCls.startsWith('f_')) ? 'esti' : 'tros';
-    player.classicMode = !!(document.getElementById('create-classic-toggle') && document.getElementById('create-classic-toggle').checked);   // 🎮 經典模式：依創角開關決定（此角色永久生效）；🏛️v3.0.83 傳統模式已取消（traditionalMode 由 SAVE_DEFAULTS 恆 false）
+    player.classicMode = !!(document.getElementById('create-classic-toggle') && document.getElementById('create-classic-toggle').checked);   // 🎮 經典模式：依創角開關決定（此角色永久生效）
+    player.traditionalMode = !!(document.getElementById('create-traditional-toggle') && document.getElementById('create-traditional-toggle').checked);   // 🏛️ 傳統模式：依創角開關決定（與經典獨立·可單開或＋經典·此角色永久生效）
     player.name = null;   // 預設未取名，狀態欄顯示「點擊取名」，玩家可點擊命名
     player.enSeed = 'es' + uid() + uid();   // 🎲 強化決定論種子（創角產生一次、存進存檔永久固定）：讓強化成敗由種子決定、不可用 save/load 刷
     player.expMigV = 2;   // ⚠️ 新角色天生在最新經驗刻度（v3.0.82 天堂經典表）→ 標記免遷移
@@ -861,14 +872,7 @@ function loadGame() {
             (player.allies || []).forEach(a => { if (a) a.exp = _mig2(a.lv, a.exp); });
             player.expMigV = 2;
         }
-        // 🏛️ v3.0.83 傳統模式已取消：舊傳統角色一次性併入對應基礎模式（一般+傳統→一般、經典+傳統→經典）。
-        //   共用倉庫/圖鑑桶另由 js/12 _mergeTradBuckets 於頁面載入時合併（'_tradonly'→''、'_trad'→'_classic'）。
-        //   已入血盟的舊傳統角色補發入盟禮（傳統入盟時未發放·現行退盟一律需交還）；王族入盟本無禮物、不補發。
-        if (player.traditionalMode) {
-            player.traditionalMode = false;
-            if (player.bloodPledge && player.cls !== 'royal') PLEDGE_GIFT.forEach(g => gainItem(g.id, g.cnt, true, true));
-            logSys(`<span class="text-amber-300 font-bold">🏛️ 傳統模式已取消：此角色已轉為${player.classicMode ? '「經典模式」' : '「一般模式」'}，裝備強化與施法卷軸恢復可用。</span>`);
-        }
+        // 🏛️ 傳統模式已恢復為可選模式（2026-07 移植），不再自動清除 traditionalMode 旗標。
 
         // ⚔️ v3.0.75 武器強化上限 +20→+15：既有 >+15 武器一律實體降為 +15（數值＝能力·搭配 ENHANCE_CAP.wpn=15＋capWpnEn/enhanceWpnFinalMult 讀取夾擠）。
         //    範圍＝玩家背包／已裝備（含副手 offwpn）／傭兵裝備；每次載入都跑（只夾 >15·冪等·免版本戳）。倉庫武器靠 capEn 顯示 +15、提領後下次載入自動夾。

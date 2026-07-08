@@ -1,4 +1,6 @@
 function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
+    // 🏛️ 僅「經典+傳統」任何來源都不產生施法卷軸（武器/盔甲/飾品＋祝福/詛咒變體）——掉落／黑市／歐西里斯寶箱／血盟入盟禮／兌換等全擋；一般+傳統照常產生（供克里斯特→賦予祝福）
+    if (TRAD_NO_SCROLLS[id] && tradNoScrolls()) return null;
     // 卷軸變祝福／詛咒機率：各 1%（互斥）
     if (!forceNormal && (id === 'scroll_weapon' || id === 'scroll_armor')) {
         let _r = lootRng('scrollvar');   // 🎲 committed RNG（防 SL 重抽卷軸祝福/詛咒變體）
@@ -54,7 +56,8 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
         }
     }
 
-    let _tEn = 0;   // 🏛️ v3.0.83 傳統模式已取消：掉落自帶強化值停用（任何來源恆 +0·手動強化照常）
+    // 🏛️ 傳統模式：掉落／黑市／製作的「裝備」隨機自帶強化值（_tradLootCtx 期間；商店 forceNormal=true 不設→恆 +0；箭矢/材料/消耗品不套）
+    let _tEn = (_tradLootCtx && !forceNormal && d && !d.noEnhance && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && traditionalActive()) ? rollTraditionalEnhance(d) : 0;
     let _probe = { id: id, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
     let ex = player.inv.find(i => sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（itemSig 已含 en→+0 只併 +0、+3 只併 +3，永不誤併不同強化值）；🏛️ 傳統自帶強化：同名同強化值同詞綴自動疊加（移除原 en>0 不疊加限制）
     if(ex) ex.cnt += cnt;   // 不論是否鎖定都疊加；僅加數量、不更動既有堆疊的鎖定/廢品狀態
@@ -322,7 +325,8 @@ function useItem(u, silent = false) {
             let _seteff = _wand.seteff || false;
             item.cnt--; if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);   // 消耗靈魂之球 ×1
             _wand.cnt--; if (_wand.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== _wand.uid);   // 消耗失去魔力魔杖 ×1
-            let _tEn = 0;   // 🏛️ v3.0.83 傳統模式已取消：重獲魔力的魔杖恆 +0（沿用手動強化）
+            // 🏛️ 傳統模式：解封印時才為「重獲魔力的魔杖」附加隨機強化值（封印狀態 noEnhance 恆 +0）；一般/經典模式維持 +0（沿用手動強化）。committed RNG（rollTraditionalEnhance 內走 lootRng）防 SL 重抽
+            let _tEn = traditionalActive() ? rollTraditionalEnhance(DB.items[resultId]) : 0;
             let _probe = { id:resultId, en:_tEn, bless:false, anc:false, attr:false, seteff:_seteff };
             let _ex = _tEn > 0 ? null : player.inv.find(i => (i.en||0)===0 && sameItemSig(i, _probe));   // 🏛️ 自帶強化(en>0)獨立成堆、不併入 +0（比照 gainItem）
             if (_ex) _ex.cnt += 1;
@@ -876,6 +880,7 @@ function openEnhanceModal(scroll) {
 }
 
 function doEnhance(targetUid, isEq = true) {
+    if (traditionalActive()) { logSys('<span class="text-amber-300">🏛️ 傳統模式無法強化裝備。</span>'); return; }
     if(!activeScroll) return;
     
     let target, slot;

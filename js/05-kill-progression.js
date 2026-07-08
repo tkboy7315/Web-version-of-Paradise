@@ -170,7 +170,7 @@ setInterval(() => { try { renderAuditTab(); } catch(e) {} }, 2000);   // 開著�
 // ⚠️v3.0.85 用戶指示：經典模式「掉落率 ×1/10」懲罰移除（歷次：v3.0.82 經驗×0.5／金幣÷2 移除 → v3.0.85 掉落×1/10 移除）。
 //   classicDropMult 恆 1 保留為單一真相掛點（十餘個掉落判定點仍乘它·未來要恢復懲罰只改這裡）；trialItemDropMult（試煉道具豁免）同步恆 1。
 //   經典模式現存差異：死亡損失 5% 經驗、隱藏祝福/精通/席琳、停用武器/盾/騎士特效。
-function classicDropMult() { let r = RATE_PRESETS[state.rateLv]; return r ? (player.classicMode ? r.classicDrop : r.drop) : 1; }
+function classicDropMult() { let r = RATE_PRESETS[state.rateLv]; return r ? (player.classicMode || player.traditionalMode ? r.classicDrop : r.drop) : 1; }
 function trialItemDropMult(id) { return 1; }
 // 🤝 v3.0.86 組隊經驗改「4 人均分」：分經驗人數＝主玩家 ＋ 未倒地傭兵（例：滿隊 3 傭兵→4 人；怪物經驗÷人數＝每人一份·1000exp→各 250）。倒地傭兵不參與、不稀釋其他人。
 function partyExpShareCount() { return 1 + ((player.allies || []).filter(a => a && !a._downed).length); }
@@ -200,7 +200,7 @@ function killMob(idx) {
     // 🤝 v3.0.87 組隊經驗＝先加成再均分：怪物經驗 ×(1+partyExpBonusPct%) ÷ partyExpShareCount()（主玩家＋未倒地傭兵）＝每人一份。
     //   例（王族隊長+1 隊友）：1000 ×1.08 ÷2 ＝ 540／人；主玩家僅得一份（單人時＝全額·無加成）。🪆 魔法娃娃 expBonus% 仍加乘於主玩家該份。
     let _expShare = mob.exp * (1 + partyExpBonusPct() / 100) / partyExpShareCount();
-    player.exp += Math.floor(_expShare * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * (RATE_PRESETS[state.rateLv] ? (player.classicMode ? RATE_PRESETS[state.rateLv].classicExp : RATE_PRESETS[state.rateLv].exp) : 1));
+    player.exp += Math.floor(_expShare * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * (RATE_PRESETS[state.rateLv] ? (player.classicMode || player.traditionalMode ? RATE_PRESETS[state.rateLv].classicExp : RATE_PRESETS[state.rateLv].exp) : 1));
     checkLvUp();
     // 🤝 v3.0.86 協力傭兵各得「均分後的一份」（以自身等級計 getExpGainMult·滿等歸0·不減其他人）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。（原 MERC_EXP_SHARE=0.5 制已廢）
     if (player.allies && player.allies.length && mob.exp) {
@@ -228,7 +228,7 @@ function killMob(idx) {
         let gMax = mob.goldMax || (mob.lv * 10);
         let g = gMin + Math.floor(Math.random() * (gMax - gMin + 1));
         // ⚠️v3.0.82 經典模式金幣÷2 已移除（一般＝經典；歷次：×1/10 → ×1/3 → ×1/2 → ×1）
-        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (RATE_PRESETS[state.rateLv] ? (player.classicMode ? RATE_PRESETS[state.rateLv].classicGold : RATE_PRESETS[state.rateLv].gold) : 1));
+        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * (RATE_PRESETS[state.rateLv] ? (player.classicMode || player.traditionalMode ? RATE_PRESETS[state.rateLv].classicGold : RATE_PRESETS[state.rateLv].gold) : 1));
         player.gold += g;
         // 🔧 金幣不再逐殺輸出於系統日誌；改由 gameLoop 累積、flushAwaySummary 以「掛機期間獲得總金幣」統一顯示。
 

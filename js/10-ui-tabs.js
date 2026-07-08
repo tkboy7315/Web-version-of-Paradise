@@ -288,7 +288,7 @@ player.inv.forEach(i => {
 
     let _qeType = (d.type === 'wpn' && !d.isArrow) ? 'wpn' : ((d.type === 'arm' || d.type === 'acc') ? 'arm' : null);
     let _qjType = (d.type === 'wpn') ? 'wpn' : ((d.type === 'arm' || d.type === 'acc') ? 'arm' : 'item');
-    if (_qeType && quickEnh[_qeType].active && !i.lock) {
+    if (_qeType && quickEnh[_qeType].active && !i.lock && !traditionalActive()) {   // 🏛️ 傳統模式：不顯示快速強化勾選列
         let _checked = !!quickEnh[_qeType].sel[i.uid];
         el.innerHTML = `<div class="flex items-center justify-between gap-2 w-full">${_rowInner}<input type="checkbox" class="pointer-events-none w-4 h-4 mr-1 flex-shrink-0" ${_checked ? 'checked' : ''}></div>`;
         if (_checked) el.className += ' ring-2 ring-blue-500/70';
@@ -893,7 +893,7 @@ function openModal(item, isEq, slot) {
     }
 
     // 👇 修改：為武器、防具、飾品加入專屬的「強化」按鈕 (加入 !d.isArrow 防呆，箭矢不顯示強化按鈕)
-    if (((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && !isMaxEnhanced(item) && !d.noEnhance) {   // 🔧 已達淬鍊（強化上限）：隱藏強化按鈕；🏛️ 無法強化的裝備（古老系列）不顯示強化鈕
+    if (((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && !isMaxEnhanced(item) && !d.noEnhance && !traditionalActive()) {   // 🔧 已達淬鍊（強化上限）：隱藏強化按鈕；🏛️ 無法強化的裝備（古老系列）不顯示強化鈕；🏛️ 傳統模式：所有裝備皆無強化選項
         act += `<button class="col-span-2 w-full btn border-purple-700 bg-purple-900 hover:bg-purple-800 text-purple-200 py-3 text-lg font-bold mt-2" onclick="showEnhanceOptions('${item.uid}', ${isEq})">強化</button>`;
     }
 
@@ -1218,6 +1218,7 @@ function quickEnhanceSelectAll(type, checked) { let st = quickEnh[type]; st.sel 
 function toggleQuickItem(type, uid) { let st = quickEnh[type]; if (st.sel[uid]) delete st.sel[uid]; else st.sel[uid] = true; renderTabs(true); }
 
 function runQuickEnhance(type) {
+    if (traditionalActive()) return;   // 🏛️ 縱深防護：傳統模式不可批次強化
     let st = quickEnh[type];
     let goal = Number((document.getElementById('qe-target-' + type) || {}).value) || st.target || 0;
     let entries = _qeEligibleItems(type).filter(i => st.sel[i.uid]);
@@ -1279,7 +1280,7 @@ function _qjEligibleItems(type) {
 }
 // ⚡🗑️ 分頁頂端快速操作表頭：武器/防具＝[快速強化][快速廢品]；道具＝[快速廢品]（強化進行中沿用原強化表頭）
 function buildQuickHeader(type) {
-    let hasEnh = (type === 'wpn' || type === 'arm');
+    let hasEnh = (type === 'wpn' || type === 'arm') && !traditionalActive();   // 🏛️ 傳統模式：無強化→隱藏「快速強化」按鈕與面板（只保留快速廢品）
     if (hasEnh && quickEnh[type].active) return buildQuickEnhanceHeader(type);   // 強化進行中：沿用原強化表頭
     let jnk = quickJunk[type];
     if (jnk.active) _qjSync(type);   // 🔧 渲染前先同步新掉落物品到面板狀態（新廢品預先勾選），確認時才不會誤取消其標記

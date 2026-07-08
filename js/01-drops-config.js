@@ -663,7 +663,7 @@ function sherineMadActive() { return !!(player && player.sherineMad); }   // �
 function applySherineTheme() { document.body.classList.toggle('sherine-world', sherineWorldActive()); document.body.classList.toggle('sherine-mad', sherineMadActive()); }
 let _sherineLootCtx = null;   // 擊殺掉落上下文：killMob 期間設定（{boss,grace}），供 gainItem 判定詞綴×3 與套裝效果
 let _forceSherineSet = false;   // 🔮 席琳製作：成品必定附帶隨機套裝效果（doCraft 產出期間設定）
-let _tradLootCtx = false;   // 🏛️ 傳統模式「掠奪上下文」（⚠️v3.0.83 傳統模式已取消：旗標已無消費者·僅保留宣告讓各處 set/restore 站點不拋錯）
+let _tradLootCtx = false;   // 🏛️ 傳統模式「掠奪上下文」：在怪物掉落／潘朵拉黑市／製作期間設 true，供 gainItem 為裝備隨機自帶強化值＋抑制施法卷軸（商店購買不設→恆 +0）
 let _noAffixCtx = false;    // 🦴 「白板上下文」：設 true 時 gainItem 不附加詞綴（祝福/詛咒/屬性）但仍放行傳統自帶強化值——供寵物裝備製作（白板＋隨機強化值，機率同飾品）
 let _vfxLootCtx = false;   // ✨ VFX：擊殺掉落期間設 true，供 gainItem 判定稀有(潘朵拉權重=1)掉落閃光
 
@@ -1690,13 +1690,36 @@ function enhanceArmAc(en) {
     return Math.max(0, Number(en) || 0);   // 每 +1 固定 AC−1
 }
 
-// ===== 🏛️ 傳統模式（⚠️v3.0.83 已取消）=====
-//  一般+傳統已併入一般、經典+傳統已併入經典：舊角色 loadGame 時清除 traditionalMode 旗標（js/13）；
-//  共用倉庫/圖鑑桶（'_tradonly'/'_trad'）由 _mergeTradBuckets 一次性併入對應模式桶（js/12）。
-//  舊機制（無強化選項／封鎖施法卷軸／掉落自帶強化值 TRAD_EN_TABLES）全數移除；
-//  兩個判定函式保留恆 false，讓殘留呼叫點安全短路（_tradLootCtx set/restore 站點亦保留但已無消費者）。
-function traditionalActive(){ return false; }
-function tradNoScrolls(){ return false; }
+// ===== 🏛️ 傳統模式（獨立開關，可與經典模式並用）=====
+//  傳統模式：所有裝備無強化選項（隱藏強化／快速強化），怪物不掉落＋黑市不販售施法卷軸；
+//  取而代之——怪物掉落／潘朵拉黑市／製作 的武器/防具/飾品會「隨機自帶已強化值」（商店購買恆 +0）。
+function traditionalActive(){ return !!(player && player.traditionalMode); }
+function tradNoScrolls(){ return traditionalActive() && !!(player && player.classicMode); }
+const TRAD_NO_SCROLLS = { scroll_weapon:1, scroll_armor:1, scroll_acc:1, scroll_weapon_b:1, scroll_armor_b:1, scroll_weapon_c:1, scroll_armor_c:1 };
+const TRAD_EN_TABLES = {
+    wpn6: [[30,1],[29,1],[28,1],[27,1],[26,2],[25,2],[24,3],[23,4],[22,5],[21,7],[20,9],[19,11],[18,13],[17,15],[16,17],[15,19],[14,21],[13,23],[12,25],[11,27],[10,29],[9,31],[8,33],[7,35],[6,45],[5,47],[4,47],[3,47],[2,47],[1,47],[0,46]],
+    wpn0: [[30,1],[29,1],[28,1],[27,1],[26,2],[25,2],[24,3],[23,4],[22,5],[21,7],[20,9],[19,11],[18,13],[17,15],[16,17],[15,19],[14,21],[13,23],[12,25],[11,27],[10,29],[9,31],[8,33],[7,35],[6,37],[5,39],[4,41],[3,43],[2,45],[1,47],[0,151]],
+    arm6: [[20,1],[19,1],[18,2],[17,3],[16,5],[15,7],[14,9],[13,11],[12,13],[11,15],[10,17],[9,19],[8,21],[7,23],[6,30],[5,30],[4,30],[3,30],[2,30],[1,30],[0,246]],
+    arm4: [[20,1],[19,1],[18,2],[17,3],[16,5],[15,7],[14,9],[13,11],[12,13],[11,15],[10,17],[9,19],[8,21],[7,23],[6,25],[5,27],[4,37],[3,37],[2,37],[1,37],[0,243]],
+    arm0: [[20,1],[19,1],[18,2],[17,3],[16,5],[15,7],[14,9],[13,11],[12,13],[11,15],[10,17],[9,19],[8,21],[7,23],[6,25],[5,27],[4,29],[3,31],[2,33],[1,35],[0,301]],
+    acc0: [[5,1],[4,3],[3,5],[2,7],[1,8],[0,476]]
+};
+function _tradEnTableFor(d){
+    if(!d) return null;
+    let safe = d.safe || 0;
+    if(d.type === 'wpn') return (safe >= 6) ? TRAD_EN_TABLES.wpn6 : TRAD_EN_TABLES.wpn0;
+    if(d.type === 'arm') return (safe >= 6) ? TRAD_EN_TABLES.arm6 : (safe >= 4 ? TRAD_EN_TABLES.arm4 : TRAD_EN_TABLES.arm0);
+    if(d.type === 'acc') return TRAD_EN_TABLES.acc0;
+    return null;
+}
+function rollTraditionalEnhance(d){
+    let tbl = _tradEnTableFor(d);
+    if(!tbl) return 0;
+    let total = 0; for(let e of tbl) total += e[1];
+    let r = lootRng('traden') * total, acc = 0, lvl = 0;
+    for(let e of tbl){ acc += e[1]; if(r < acc){ lvl = e[0]; break; } }
+    return capEn(lvl, d);
+}
 
 // ===== 🔧 v3.0.79 物品/裝備說明隱藏骰子公式（使用者要求：XDX 之類公式不顯示；載入時就地改寫 d 文字·不影響實際傷害計算）=====
 {

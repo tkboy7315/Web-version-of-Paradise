@@ -1,9 +1,9 @@
 // ===== 共用倉庫（存檔角色共用，獨立於存檔位的 localStorage 鍵）=====
 // 🎮 經典模式與非經典模式角色的倉庫不共通：依 player.classicMode 切換 localStorage 鍵（傭兵走存檔位、與倉庫無關，仍共通）。
 const WH_KEY = 'lineage_idle_warehouse';
-// 🎮 模式桶鍵後綴（倉庫桶／圖鑑桶／傭兵同模式招募共用·單一真相）：經典→'_classic'、一般→''。
-//   ⚠️v3.0.83 傳統模式已取消：t 參數忽略（一般+傳統→一般、經典+傳統→經典）；舊 '_tradonly'/'_trad' 桶由下方 _mergeTradBuckets 一次性併入。
-function modeSuffix(c, t){ return c ? '_classic' : ''; }
+// 🎮 模式桶鍵後綴（倉庫桶／圖鑑桶／傭兵同模式招募共用·單一真相）：經典+傳統→'_trad'、僅傳統→'_tradonly'、僅經典→'_classic'、一般→''。
+//   🏛️ 傳統模式（2026-07 移植恢復）：使用獨立桶與其他模式隔離。
+function modeSuffix(c, t){ return (c && t) ? '_trad' : t ? '_tradonly' : c ? '_classic' : ''; }
 function whKey(p){ let _p = (p !== undefined) ? p : player; return WH_KEY + modeSuffix(!!(_p && _p.classicMode), !!(_p && _p.traditionalMode)); }   // 🏛️🎮 依模式組合取對應倉庫桶
 const WH_MAX = 5000;   // 倉庫格數上限（🔧 100 → 200 → 500 → 5000）
 const WH_NO_STORE = ['item_dk_insignia','new_item_239','new_item_241','new_item_collar_husky','new_item_238','new_item_184','new_item_185','new_collar_rabbit','new_collar_fox','new_collar_beagle','new_collar_stbernard','item_mastery_proof',
@@ -208,7 +208,8 @@ function _mergeTradBuckets(){
         }
     }
 }
-if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('DOMContentLoaded', function(){ try { _mergeTradBuckets(); } catch(e){} });
+// 🏛️ 傳統模式已恢復（2026-07 移植）：不再自動合併 trad 桶，新傳統角色使用獨立桶與其他模式隔離。
+//   舊一次性遷移（v3.0.83→取消傳統）已完成，_mergeTradBuckets 保留僅供參考。
 // 讀檔／創角時呼叫：把共用桶併進 player.cardDex/equipDex（卡片取較高分·裝備取聯集·只增不減），並回寫共用桶（種子化＋遷移舊存檔 per-character 資料·不丟失）
 function loadSharedCollections(){
     if (!player) return;
