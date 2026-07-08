@@ -123,8 +123,8 @@ function renderClassicSkillBook(sDiv) {
         let learned = (player.skills || []).includes(id);
         let grantedSkill = granted.includes(id);
         let needLv = grantedSkill ? 0 : skillReqLv(sk, id);
-        let elementOk = true;   // !sk.reqEle || player.elfEle === sk.reqEle;（已解除）
-        let elementChosen = true;   // !sk.reqEleAny || !!player.elfEle;（已解除）
+        let elementOk = true;    // 🔓 四屬性解除: !sk.reqEle || player.elfEle === sk.reqEle
+        let elementChosen = true; // 🔓 四屬性解除: !sk.reqEleAny || !!player.elfEle
         let usable = learned && elementOk && elementChosen && (grantedSkill || needLv === undefined || player.lv >= needLv);
         let dim = learned ? (usable ? '' : ' classic-skill-unavailable') : ' classic-skill-unlearned';
         let img = '<img src="' + getIconUrl(sk, true) + '" onerror="this.style.display=\'none\';" alt="' + sk.n + '">';
@@ -173,7 +173,7 @@ function renderTabs(force) {
     renderTabs._sig = _sig;
     // 真的要重建時，先記住各分頁的捲動位置，重建後還原（避免跳回頂端）
     let _scroll = {};
-    ['tab-items','tab-weapons','tab-armors','tab-equip','tab-skill'].forEach(id => { let el = document.getElementById(id); if(el) { let sc=el.querySelector('.classic-inventory-viewport,.classic-skill-grid-scroll'); _scroll[id] = sc ? sc.scrollTop : el.scrollTop; } });   // 🎨 v3.0.40 1.8皮膚：捲動位置存在內層 viewport（技能頁為 .classic-skill-grid-scroll）
+    ['tab-items','tab-weapons','tab-armors','tab-equip','tab-skill'].forEach(id => { let el = document.getElementById(id); if(el) { _scroll[id] = el.scrollTop; } });
 
     let eDiv = document.getElementById('tab-equip'); eDiv.innerHTML = '';
     { let _wd = player.d || {}; let _t = _wd.loadTier || 0; let _hdr = document.createElement('div'); _hdr.className = 'classic-list-toolbar text-center py-0.5 rounded bg-slate-900/60 border border-slate-700 text-sm font-bold leading-tight' + (_t >= 1 ? ' cursor-help' : ''); if (_t >= 1) { _hdr.title = _t === 1 ? '負重50%↑：HP/MP不自然恢復' : (_t === 2 ? '負重82%↑：HP/MP不自然恢復、停自動施法、攻速變慢' : '負重100%↑：HP/MP不自然恢復、停自動施法、攻速大幅變慢'); } _hdr.innerHTML = `<span class="text-slate-400">負重 </span><span class="${getLoadColor(_t)}">${_wd.weightPct||0}%</span>`; eDiv.appendChild(_hdr); }
@@ -214,25 +214,23 @@ function renderTabs(force) {
         let isSherineActive = !!(eq && eq.seteff && player._sherineSetCnt && (player._sherineSetCnt[eq.seteff.slice(0, 2)] || 0) >= 2);
 
         let el = document.createElement('div');
-        // 🔧 底色優先序：席琳套裝(綠) > 舊套裝(琥珀金，原綠色讓給席琳) > 一般
-        el.className = `list-item text-base rounded mb-1 ${isSherineActive
+        el.className = `list-item text-base rounded mb-1 flex items-center px-2 ${isSherineActive
             ? 'bg-green-900 border border-green-400 ring-1 ring-green-400/60 shadow-[0_0_10px_rgba(74,222,128,0.6)]'
             : (isSetActive ? 'bg-amber-900 border border-amber-400 ring-1 ring-amber-400/60 shadow-[0_0_10px_rgba(245,158,11,0.55)]' : 'bg-slate-800')}`;
         if(eq) {
             let d = DB.items[eq.id];
             let imgUrl = getIconUrl(d);
-            // 👇 判斷如果裝備本身是祝福的，或者物品基底(卷軸)是祝福的，就套用螢光特效
             let glowClass = getGlowClass(eq, d);
-            let imgHtml = `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="object-contain pointer-events-none ${glowClass}">`;
-            el.title = `${s.n}：${plainInventoryItemName(eq)}`;
+            let imgHtml = `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="w-6 h-6 object-contain pointer-events-none ${glowClass}">`;
+            el.classList.add('tip-host');
+            el.setAttribute('data-tip-uid', eq.uid); el.setAttribute('data-tip-src', 'eq');
             if (eq.lock) el.classList.add('classic-item-locked');
-            el.innerHTML = `<div class="classic-icon-box">${imgHtml}</div><div class="classic-name-box"><span class="classic-slot-name">${s.n}</span><span class="${getItemColor(eq)} font-bold">${getItemFullName(eq)}</span></div>${eq.lock ? '<span class="classic-item-lock-badge" aria-hidden="true">🔒</span>' : ''}`;
+            el.innerHTML = `<span class="text-slate-400 w-12 shrink-0">${s.n}</span><div class="flex items-center justify-end flex-1 gap-1"><span class="${getItemColor(eq)} text-right font-bold truncate">${getItemFullName(eq)}</span>${imgHtml}${eq.lock ? '<span class="text-xs text-red-500 shrink-0">🔒</span>' : ''}</div>`;
             el.onclick = () => openModal(eq, true, s.k);
         } else {
-            let _rlv = (s.k === 'ring3') ? 55 : (s.k === 'ring4') ? 65 : (s.k === 'ear2') ? 50 : 0;   // 🔧 第3/4戒指欄、第2耳環欄等級需求
+            let _rlv = (s.k === 'ring3') ? 55 : (s.k === 'ring4') ? 65 : (s.k === 'ear2') ? 50 : 0;
             let _locked = _rlv && player.lv < _rlv;
-            el.title = _locked ? `${s.n}（需 Lv${_rlv}）` : `${s.n}（空）`;
-            el.innerHTML = `<div class="classic-icon-box"></div><div class="classic-name-box"><span class="classic-slot-name">${s.n}</span><span class="${_locked ? 'text-red-400' : 'text-slate-500'}">${_locked ? '需 Lv' + _rlv : '- 空 -'}</span></div>`;
+            el.innerHTML = `<span class="text-slate-400 w-12 shrink-0">${s.n}</span><span class="${_locked ? 'text-red-400' : 'text-slate-600'}">${_locked ? '需 Lv' + _rlv : '- 空 -'}</span>`;
         }
         eDiv.appendChild(el);
     });
@@ -254,65 +252,54 @@ player.inv.forEach(i => {
     // ===== 視覺狀態判定 =====
     let statusTag = '';
     let itemBg = 'bg-slate-800'; // 預設背景
+    let dimIcon = false; // 🔅 無法裝備（職業/負重不符）時，圖示黯淡化
 
     if (d.type === 'skillbk') {
         let sk = DB.skills[d.sk];
-        // 檢查該技能是否屬於該職業可學習範圍
-        let isClsPossible = skillReqLv(sk, d.sk) !== undefined;   // 🏅 集中化：含魔導精通特例
-        
+        let isClsPossible = skillReqLv(sk, d.sk) !== undefined;
         if (player.skills.includes(d.sk)) {
-            statusTag = '<span class="text-slate-500 text-[10px] font-bold">[已學習]</span>';
-            itemBg = 'bg-slate-900 opacity-70'; // 已學習變暗
+            statusTag = '<span class="text-slate-500 text-xs font-bold">[已學習]</span>';
+            itemBg = 'bg-slate-900 opacity-70';
         } else if (!isClsPossible) {
-            statusTag = '<span class="text-red-500 text-[10px] font-bold">[無法學習]</span>';
-            itemBg = 'bg-red-950/40'; // 職業不符顯示暗紅色底
+            statusTag = '<span class="text-red-500 text-xs font-bold">[無法學習]</span>';
+            itemBg = 'bg-red-950/40';
         }
-    } 
-    // 2. 裝備職業穿著判定 (修正版)
-    else if (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc') {
-    // 👇 呼叫我們剛剛定義的共用判定函數，這樣就完美支援「負重強化」了！
-    let canEquip = checkCanEquip(i);
-    
-    if (!canEquip) {
-        statusTag = '<span class="text-red-500 text-[10px] font-bold">[無法裝備]</span>';
-        itemBg = 'bg-red-950/40'; // 職業/技能不符，顯示暗紅色底
+    } else if (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc') {
+        let canEquip = checkCanEquip(i);
+        if (!canEquip) {
+            statusTag = '<span class="text-red-500 text-xs font-bold">[無法裝備]</span>';
+            itemBg = 'bg-red-950/40';
+            dimIcon = true;
+        }
     }
-}
 
-    // ===== 渲染物品 =====
-    let el = document.createElement('div'); 
-    // className 這裡移除了 isDisabled 相關的判定，讓所有項目都可以互動
-    el.className = `list-item text-base ${itemBg} rounded mb-1 ${i.lock ? 'border-red-900 border-2' : ''}`;
-    el.title = plainInventoryItemName(i);
+    let el = document.createElement('div');
+    el.className = `list-item tip-host text-base flex items-center px-2 ${itemBg} rounded mb-1 ${i.lock ? 'border-red-900 border-2' : ''}`;
+    el.setAttribute('data-tip-uid', i.uid); el.setAttribute('data-tip-src', 'inv');
     if (i.lock) el.classList.add('classic-item-locked');
     else if (i.junk) el.classList.add('classic-item-junk');
-    
-    // 判斷如果背包裡的物品是祝福的，套用螢光特效
+
     let imgUrl = getIconUrl(d);
     let glowClass = getGlowClass(i, d);
-    let imgHtml = `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="w-6 h-6 object-contain pointer-events-none ${glowClass}">`;
-    
-    // 內容組合 (加入了 statusTag)
-    let _rowInner = `<div class="classic-item-main"><div class="classic-icon-box">${imgHtml}</div><div class="classic-name-box"><span class="${getItemColor(i)} font-bold">${getItemFullName(i)}</span><span class="classic-item-flags">${statusTag}</span></div>${i.lock ? '<span class="classic-item-lock-badge" aria-hidden="true">🔒</span>' : ''}${(i.junk && !i.lock) ? '<span class="classic-item-junk-label">廢品</span>' : ''}</div>`;   // 方格狀態：上鎖右上角；廢品灰階＋底部紅字
+    let _dimStyle = dimIcon ? ' style="opacity:0.3;filter:grayscale(0.6);"' : '';
+    let imgHtml = `<img src="${imgUrl}" onerror="this.style.opacity='0';" class="w-6 h-6 object-contain pointer-events-none ${glowClass}"${_dimStyle}>`;
 
-    // ⚡ 快速強化模式：對應分頁啟用且為可強化裝備（未鎖定）時，右側顯示勾選欄，點整列切換勾選
+    let _rowInner = `<div class="flex items-center gap-2 flex-1 min-w-0">${imgHtml}<span class="${getItemColor(i)} font-bold truncate">${getItemFullName(i)}</span> ${statusTag} ${i.lock ? '<span class="text-xs text-red-500">🔒</span>' : ''} ${(i.junk && !i.lock) ? '<span class="text-xs text-amber-400 font-bold">[廢]</span>' : ''}</div>`;
+
     let _qeType = (d.type === 'wpn' && !d.isArrow) ? 'wpn' : ((d.type === 'arm' || d.type === 'acc') ? 'arm' : null);
-    let _qjType = (d.type === 'wpn') ? 'wpn' : ((d.type === 'arm' || d.type === 'acc') ? 'arm' : 'item');   // 🗑️ 快速廢品分頁歸屬（含箭矢→武器分頁、其餘→道具分頁）
+    let _qjType = (d.type === 'wpn') ? 'wpn' : ((d.type === 'arm' || d.type === 'acc') ? 'arm' : 'item');
     if (_qeType && quickEnh[_qeType].active && !i.lock) {
         let _checked = !!quickEnh[_qeType].sel[i.uid];
-        el.innerHTML = `<div class="flex items-center justify-between gap-2">${_rowInner}<input type="checkbox" class="pointer-events-none w-4 h-4 mr-1 flex-shrink-0" ${_checked ? 'checked' : ''}></div>`;
+        el.innerHTML = `<div class="flex items-center justify-between gap-2 w-full">${_rowInner}<input type="checkbox" class="pointer-events-none w-4 h-4 mr-1 flex-shrink-0" ${_checked ? 'checked' : ''}></div>`;
         if (_checked) el.className += ' ring-2 ring-blue-500/70';
         el.onclick = () => toggleQuickItem(_qeType, i.uid);
     } else if (quickJunk[_qjType].active && !i.lock) {
         let _checked = !!quickJunk[_qjType].sel[i.uid];
-        el.innerHTML = `<div class="flex items-center justify-between gap-2">${_rowInner}<input type="checkbox" class="pointer-events-none w-4 h-4 mr-1 flex-shrink-0" ${_checked ? 'checked' : ''}></div>`;
+        el.innerHTML = `<div class="flex items-center justify-between gap-2 w-full">${_rowInner}<input type="checkbox" class="pointer-events-none w-4 h-4 mr-1 flex-shrink-0" ${_checked ? 'checked' : ''}></div>`;
         if (_checked) el.className += ' ring-2 ring-amber-500/70';
         el.onclick = () => toggleQuickJunkItem(_qjType, i.uid);
     } else {
         el.innerHTML = _rowInner;
-        // 🖱️ v3.0.38 雙擊快速操作（用戶要求）：可使用型道具（藥水/卷軸/技能書/有效果的 misc）雙擊直接使用、
-        //    裝備（武器/防具/飾品）雙擊直接裝備（equipItem 內建 checkCanEquip 職業判定）。
-        //    單擊延遲 230ms 才開 Modal（雙擊時取消·同 js/19 裝備視窗側欄 clickTimer 模式）；回憶蠟燭維持單擊進配點重置（排除雙擊使用）。
         const _dblAct = (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc') ? 'equip'
             : ((i.id !== 'candle' && (d.type === 'pot' || d.type === 'skillbk' || d.type === 'scroll' || (d.type === 'misc' && d.eff && !d.noUse))) ? 'use' : null);
         if (_dblAct) {
@@ -323,29 +310,21 @@ player.inv.forEach(i => {
                 if (_dblAct === 'equip') equipItem(i); else useItem(i.uid);
             };
         } else {
-            // 保留點擊開啟 Modal 功能 (所有項目皆可點擊)
             el.onclick = () => openModal(i, false);
         }
     }
-    
-    // 🎯 物品分流邏輯
-    if (d.type === 'wpn') {
-        wDiv.appendChild(el); 
-    } else if (d.type === 'arm' || d.type === 'acc') {
-        aDiv.appendChild(el); 
-    } else {
-        iDiv.appendChild(el); 
-    }
+
+    if (d.type === 'wpn') { wDiv.appendChild(el); }
+    else if (d.type === 'arm' || d.type === 'acc') { aDiv.appendChild(el); }
+    else { iDiv.appendChild(el); }
 });
-    // 🎨 v3.0.40 1.8 物品介面：保留原清單事件與功能，只把內容搬入八格皮膚的可捲動區。
-    [eDiv,wDiv,aDiv,iDiv].forEach(decorateClassicInventoryTab);
 
     // 🎨 v3.0.55 技能欄改用 1.8 原版風格技能魔法視窗（skill-window-1.8.png 皮膚·tier strip 導覽·底部 S.power=魔法傷害/M.resist=MR）。
     //    取代原「依學習來源分組 ICON」排版；仍走 data-tip-skill tooltip、manualCast、updateSummonLock。
     let sDiv = document.getElementById('tab-skill');
     renderClassicSkillBook(sDiv);
     // 還原各分頁捲動位置
-    ['tab-items','tab-weapons','tab-armors','tab-equip','tab-skill'].forEach(id => { let el = document.getElementById(id); if(el && _scroll[id] != null) { let sc=el.querySelector('.classic-inventory-viewport,.classic-skill-grid-scroll'); if(sc)sc.scrollTop=_scroll[id]; else el.scrollTop=_scroll[id]; } });   // 🎨 v3.0.40 1.8皮膚：捲動位置還原到內層 viewport（技能頁為 .classic-skill-grid-scroll）
+    ['tab-items','tab-weapons','tab-armors','tab-equip','tab-skill'].forEach(id => { let el = document.getElementById(id); if(el && _scroll[id] != null) { let sc=el.querySelector('.classic-skill-grid-scroll'); if(sc)sc.scrollTop=_scroll[id]; else el.scrollTop=_scroll[id]; } });
     updateSummonLock();
     if (typeof refreshEquipmentWindow === 'function') refreshEquipmentWindow();
 }
@@ -511,8 +490,8 @@ function renderSkillSelects() {
         let __granted = player.grantedSkills && player.grantedSkills.includes(sid);
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
-        // if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;（已解除）
-        // if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;（已解除）
+        //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;  // 🔓 四屬性解除
+        //if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;             // 🔓 四屬性解除
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
@@ -573,7 +552,7 @@ const WEAPON_TAGS = {
     wpn_elfsword: ['單手劍'], wpn_27: ['單手劍'], wpn_shortsword: ['單手劍'], wpn_redknight: ['單手劍'],
     wpn_invader: ['單手劍'], wpn_34: ['單手劍'], wpn_35: ['單手劍'],
     wpn_36: ['單手劍'], wpn_rapier: ['單手劍'], wpn_mailbreaker: ['單手劍'], wpn_silversword: ['單手劍'], wpn_37: ['單手劍'],
-    wpn_21: ['矛'], wpn_24: ['矛'], wpn_25: ['矛'], wpn_28: ['矛'], wpn_39: ['矛'], wpn_40: ['矛'], wpn_41: ['矛'], wpn_17: ['矛'], wpn_4: ['矛'],
+    wpn_21: ['矛'], wpn_24: ['矛'], wpn_25: ['矛'], wpn_28: ['矛'], wpn_39: ['矛'], wpn_40: ['矛'], wpn_41: ['矛'], wpn_17: ['矛'], wpn_4: ['矛'], wpn_halberd: ['矛'],   // 🔱 法丘：雙手矛（w2h＋穿透80%）
     wpn_20: ['單手鈍器'], wpn_10: ['單手鈍器'], wpn_13: ['單手鈍器'], wpn_alien: ['單手鈍器'], wpn_1: ['單手鈍器'], wpn_2: ['單手鈍器'], wpn_ancient_axe: ['單手鈍器'], wpn_warrior_trial_axe: ['單手鈍器'], wpn_master_axe: ['單手鈍器'], wpn_demon_axehead: ['單手鈍器'], wpn_iron_axehead: ['單手鈍器'], wpn_giant_axehead: ['單手鈍器'],   // 🔧 古代神之斧／試煉斧頭／大匠的斧頭／魔物的斧頭／鐵斧頭／巨人的斧頭：單手鈍器（鈍擊）
     wpn_2hsword: ['雙手劍'], wpn_dragonslayer: ['雙手劍'], wpn_official_2h: ['雙手劍'],   // 🔧 雙手劍類型標註
     // 🔧 重擊特效武器標註為「雙手鈍器」
@@ -603,7 +582,23 @@ const WEAPON_TAGS = {
     // 🏴‍☠️ 海賊島武器：血紅慾望短劍(匕首/出血)、榮耀之劍/短刀/海賊彎刀(單手劍/反擊)、深淵雙刀(雙刀/雙擊)
     wpn_pirate_dagger:['匕首'], wpn_glory_sword:['單手劍'], wpn_pirate_shortblade:['單手劍'], wpn_pirate_cutlass:['單手劍'], wpn_abyss_dualblade:['雙刀'],
     // ⚡ 元素施放傳說武器：雷神之鎚／歐西斯衝撞錘(單手鈍器·鈍擊)・馬普勒的懲罰(雙手鈍器·重擊)・帕格里奧之怒／伊娃的責罵(單手劍·反擊)
-    wpn_thor_hammer:['單手鈍器'], wpn_osis_hammer:['單手鈍器'], wpn_mapler_punish:['雙手鈍器'], wpn_pagrio_wrath:['單手劍'], wpn_eva_scold:['單手劍']
+    wpn_thor_hammer:['單手鈍器'], wpn_osis_hammer:['單手鈍器'], wpn_mapler_punish:['雙手鈍器'], wpn_pagrio_wrath:['單手劍'], wpn_eva_scold:['單手劍'],
+    // 🏺 遺物武器：石刃(單手劍)／木棍・骨棒(單手鈍器)／犬齒(匕首)（弓・魔杖遺物免 tag：isBow／isWand 自判）
+    relic_goblin_blade:['單手劍'], relic_gremlin_club:['單手鈍器'], relic_husky_bone:['單手鈍器'], relic_doberman_fang:['匕首'],
+    relic_gladiator_scimitar:['單手劍'], relic_icefield_pick:['單手鈍器'], relic_werewolf_mace:['單手鈍器'], relic_orc_nail:['匕首'], relic_pan_staff:['矛'], relic_elastic_rib:['雙刀'],
+    relic_golem_fist:['雙手鈍器'], relic_orc_cleaver:['單手劍'], relic_strong_femur:['單手鈍器'], relic_forgotten_spear:['矛'], relic_spider_claw:['鋼爪'], relic_hobgoblin_grinder:['單手劍'], relic_orc_butcher:['單手劍'], relic_orc_pole:['矛'], relic_sparta_grudge:['雙刀'], relic_shark_teeth:['匕首'],
+    // 🏺 遺物 第二批（v3.1.1）：單手矛/雙手矛(看 w2h)＝矛、鋼爪、雙手劍；鎖鏈劍(chainsword)/奇古獸(qigu)/弓(isBow)/魔杖(isWand) 靠旗標自判免 tag
+    relic_guard_spear:['矛'], relic_crab_claw:['鋼爪'], relic_venom_fang:['雙手劍'], relic_ratman_skewer:['矛'], relic_lizardman_cleaver:['矛'],
+    // 🏺 遺物 第三批（v3.1.2）：弓/十字弓(isBow)、單手魔杖(isWand) 靠旗標自判免 tag
+    relic_ohm_maul:['雙手鈍器'], relic_parrot_beak:['雙手劍'], relic_pirate_scimitar:['單手劍'], relic_scorpion_sting:['匕首'], relic_harvey_claw:['單手劍'], relic_guard_pike:['矛'], relic_ogi_greataxe:['雙手鈍器'],
+    // 🏺 遺物 第四批（v3.1.4）：鎖鏈劍(暗精靈鎖鏈劍)靠 chainsword 旗標自判免 tag
+    relic_darkthief_claw:['鋼爪'], relic_fighter_axe:['雙手鈍器'],
+    // 🏺 遺物 第五批（v3.1.6）：研磨利刃＝單手劍＋武士刀(反擊＋居合)；奇古獸(qigu·夢幻的蘑菇靈魂)靠旗標自判免 tag
+    relic_darkelf_grindblade:['單手劍','武士刀'],
+    // 🏺 遺物 第六批（v3.1.13）：幽光=單手劍+武士刀(反擊+居合)、喚獸鞭=單手鈍器(鈍擊)、獅鷲爪=鋼爪(雙擊)、鱷魚牙=雙手劍(切割靠 eff)、冰石鎚=雙手鈍器(重擊)；殘冰死亡氣息(魔杖·isWand)靠旗標自判免 tag
+    relic_wisp_remnant:['單手劍','武士刀'], relic_summoner_whip:['單手鈍器'], relic_griffin_claw:['鋼爪'], relic_croc_fang:['雙手劍'], relic_icestone_maul:['雙手鈍器'],
+    // 🏺 遺物 第七批（v3.1.18）：蛇女鱗片/刺針=匕首(出血)、牙籤/重型劍=雙手劍(切割靠 eff)、拋投石=雙手鈍器(重擊)、備用刀=雙刀(雙擊)；眼魔凝視(魔杖·isWand)＋雞蛇凝視(鎖鏈劍·chainsword)靠旗標自判免 tag
+    relic_mutant_lamia_scale:['匕首'], relic_thorn_needle:['匕首'], relic_giant_toothpick:['雙手劍'], relic_veteran_greatsword:['雙手劍'], relic_giant_throwstone:['雙手鈍器'], relic_armor_spareblade:['雙刀']
 };
 function getWeaponTags(id){ return WEAPON_TAGS[id] || []; }
 // ⚔️ 雙擊機率 comboRate：未明定者依武器標籤套預設（鋼爪 33% / 雙刀 25%）；個別武器可在 def 寫 comboRate 覆寫（底比斯歐西里斯雙刀30 / 死亡之指20 / 恨之鋼爪50 / 破壞雙刀·破壞鋼爪30）。日後新增 combo 武器自動取得預設機率。
@@ -707,8 +702,8 @@ function buildItemDescHTML(item) {
             if(_ph > 0) _parts.push('額外命中 +' + _ph);
             if(_parts.length) desc += `<br><span class="text-amber-300">夥伴${_parts.join('、')}（每強化 +1，上限 +5）。</span>`;
         }
-        // 🛡️ 臂甲：依強化值動態顯示門檻特效現值＋每強化HP
-        if(d.armguard) {
+        // 🛡️ 臂甲：依強化值動態顯示門檻特效現值＋每強化HP（🏺 遺物臂甲 noEnhance：跳過強化相關文字，特效寫在 d:）
+        if(d.armguard && !d.noEnhance) {
             let en = capEn(item.en, d);
             let ag = d.armguard;
             let tier = en >= 9 ? ag.th[2] : en >= 7 ? ag.th[1] : en >= 5 ? ag.th[0] : 0;
@@ -813,7 +808,7 @@ function buildItemDescHTML(item) {
     if (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc') {
         const _EQ_CLASSES = [['knight','騎士'], ['elf','妖精'], ['mage','法師'], ['dark','黑暗妖精'], ['illusion','幻術士'], ['dragon','龍騎士'], ['warrior','戰士'], ['royal','王族']];
         let _logos = _EQ_CLASSES
-            .filter(([c]) => (c === 'dark') ? darkEquipOk(d, item.id) : (c === 'illusion') ? illusionEquipOk(d, item.id) : (c === 'dragon') ? dragonEquipOk(d, item.id) : (c === 'warrior') ? warriorEquipOk(d, item.id) : (c === 'royal') ? royalEquipOk(d, item.id) : reqAllowsClass(d, c))
+            .filter(([c]) => isRelic(d) ? reqAllowsClass(d, c) : (c === 'dark') ? darkEquipOk(d, item.id) : (c === 'illusion') ? illusionEquipOk(d, item.id) : (c === 'dragon') ? dragonEquipOk(d, item.id) : (c === 'warrior') ? warriorEquipOk(d, item.id) : (c === 'royal') ? royalEquipOk(d, item.id) : reqAllowsClass(d, c))   // 🏺 遺物：職業適用純以 req 白名單判定（同 checkCanEquip 短路）
             .map(([, nm]) => `<img src="assets/logo/${nm}icon.png" alt="${nm}" title="${nm}" class="class-eq-icon" onerror="this.style.display='none';">`)
             .join('');
         if (_logos) desc += `<br><span class="text-slate-400">適用職業：</span>${_logos}`;
@@ -917,7 +912,7 @@ function openModal(item, isEq, slot) {
     // === 旁邊顯示「目前裝備中」對應欄位，方便比對（僅背包中的武器/防具/飾品，箭矢除外）===
     let _cmp = document.getElementById('modal-compare');
     if(_cmp) {
-        const SLOT_LABEL = { wpn:'武器', offwpn:'副手武器', helm:'頭盔', armor:'盔甲', shield:'副手', cloak:'斗篷', tshirt:'內衣', gloves:'手套', boots:'鞋子', ring1:'戒指 1', ring2:'戒指 2', ring3:'戒指 3', ring4:'戒指 4', amulet:'項鍊', ear1:'耳環 1', ear2:'耳環 2', belt:'腰帶', pet:'寵物裝備' };
+        const SLOT_LABEL = { wpn:'武器', offwpn:'副手武器', helm:'頭盔', armor:'盔甲', shin:'脛甲', shield:'副手', cloak:'斗篷', tshirt:'內衣', gloves:'手套', boots:'鞋子', ring1:'戒指 1', ring2:'戒指 2', ring3:'戒指 3', ring4:'戒指 4', amulet:'項鍊', ear1:'耳環 1', ear2:'耳環 2', belt:'腰帶', pet:'寵物裝備' };
         if(!isEq && !d.isArrow && (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc')) {
             let slots = (d.type === 'wpn') ? ['wpn'] : (d.slot === 'ring' ? ['ring1','ring2','ring3','ring4'] : (d.slot === 'ear' ? ['ear1','ear2'] : [d.slot]));
             let cards = slots.map(sl => {
@@ -1810,10 +1805,10 @@ function switchTab(t, btn) {
     Array.from(btn.parentElement.children).forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     // 👇 更新陣列名單
-    ['stats', 'equip', 'weapons', 'skill', 'armors', 'items', 'audit', 'automation', 'attrd', 'search'].forEach(id => { let _e = document.getElementById(`tab-${id}`); if(_e) _e.classList.add('hidden'); });   // 🔧 v2.6.74 自動化設定改分頁內嵌（tab-automation）
+    ['stats', 'equip', 'weapons', 'skill', 'armors', 'items', 'audit', 'automation', 'dropquery', 'equipinfo'].forEach(id => { let _e = document.getElementById(`tab-${id}`); if(_e) _e.classList.add('hidden'); });   // 🔧 v2.6.74 自動化設定改分頁內嵌（tab-automation）
     document.getElementById(`tab-${t}`).classList.remove('hidden');
+    if(t !== 'dropquery') { var _di = document.getElementById('dq-input'); if(_di) _di.value = ''; var _dr = document.getElementById('dq-results'); if(_dr) _dr.innerHTML = ''; }
     if(t === 'audit' && typeof renderAuditTab === 'function') renderAuditTab();
-    if (t !== 'search') document.querySelectorAll('.mob-map-list').forEach(function (el) { el.classList.add('hidden'); });
 }
 
 // ===== 🤝 協力傭兵隊伍面板（Phase 1：顯示血/魔/經驗條＋每傭兵攻擊技能/治癒魔法設定）=====
@@ -1999,118 +1994,3 @@ function toggleAutomationCollapse() {
     try { _lsSet('fb5_automation_collapsed', collapsed ? '1' : '0'); } catch (e) {}
 }
 // 🔧 v2.6.76 傭兵隊伍面板收合已移除（恆展開·用戶要求）：_applySquadCollapse/toggleSquadCollapse 刪除、index.html 標題列改純標題無箭頭。
-
-// ===== 🔍 物品掉落查詢系統 =====
-function _buildDropIndex() {
-    let idx = {};
-    let tables = [typeof MOB_DROPS !== 'undefined' ? MOB_DROPS : null, typeof DRAGON_DROPS !== 'undefined' ? DRAGON_DROPS : null, typeof WARRIOR_DROPS !== 'undefined' ? WARRIOR_DROPS : null, typeof DARK_WEAPON_DROPS !== 'undefined' ? DARK_WEAPON_DROPS : null, typeof MEM_DROPS !== 'undefined' ? MEM_DROPS : null, typeof DARK_CRYSTAL_DROPS !== 'undefined' ? DARK_CRYSTAL_DROPS : null];
-    tables.forEach(tbl => {
-        if (!tbl) return;
-        for (let mobName in tbl) {
-            let drops = tbl[mobName];
-            if (!Array.isArray(drops)) continue;
-            drops.forEach(d => {
-                let iid = Array.isArray(d) ? d[0] : (d.id || d.iid || d);
-                if (!iid) return;
-                if (!idx[iid]) idx[iid] = new Set();
-                idx[iid].add(mobName);
-            });
-        }
-    });
-    window._dropIdx = idx;
-}
-function _buildMobMapIndex() {
-    let idx = {};
-    let mapData = typeof DB !== 'undefined' && DB.maps ? DB.maps : {};
-    if (!mapData) return;
-    let mobData = typeof DB !== 'undefined' && DB.mobs ? DB.mobs : {};
-    for (let mid in mapData) {
-        if (!mapData.hasOwnProperty(mid)) continue;
-        let mobIds = mapData[mid];
-        if (!Array.isArray(mobIds)) continue;
-        let dName = _getMapDisplayName(mid);
-        for (let i = 0; i < mobIds.length; i++) {
-            let mobId = mobIds[i];
-            let mName = mobData[mobId] ? mobData[mobId].n : mobId;
-            if (!idx[mName]) idx[mName] = [];
-            if (idx[mName].indexOf(dName) === -1) idx[mName].push(dName);
-        }
-    }
-    window._mobMapIdx = idx;
-}
-function _getMapDisplayName(mid) {
-    if (typeof HIDDEN_AREA_NAMES !== 'undefined' && HIDDEN_AREA_NAMES[mid]) return HIDDEN_AREA_NAMES[mid];
-    if (typeof MAP_REGIONS !== 'undefined') {
-        for (let r of MAP_REGIONS) {
-            for (let m of r.maps) {
-                if (m.v === mid) return m.t || r.label + ' - ' + mid;
-            }
-        }
-    }
-    return mid;
-}
-function toggleMobMap(btn) {
-    let areas = btn.getAttribute('data-areas');
-    if (!areas) return;
-    let container = btn.parentElement;
-    let existing = container.querySelector('.mob-map-list');
-    if (existing) {
-        if (existing.getAttribute('data-mob') === btn.getAttribute('data-mob')) {
-            existing.classList.toggle('hidden');
-            return;
-        }
-        existing.remove();
-    }
-    let list = document.createElement('div');
-    list.className = 'mob-map-list w-full text-xs text-slate-400 mt-1';
-    list.setAttribute('data-mob', btn.getAttribute('data-mob'));
-    let arr = areas.split('|');
-    for (let i = 0; i < arr.length; i++) {
-        let d = document.createElement('div');
-        d.textContent = '\uD83D\uDCCD ' + arr[i];
-        list.appendChild(d);
-    }
-    container.appendChild(list);
-}
-function onSearchInput() {
-    let q = (document.getElementById('search-item-input')?.value || '').trim().toLowerCase();
-    let container = document.getElementById('search-results');
-    if (!container) return;
-    if (!q) { container.innerHTML = '<div class="text-slate-500">請輸入物品名稱關鍵字。</div>'; return; }
-    let dbItems = typeof DB !== 'undefined' && DB.items ? DB.items : {};
-    let idx = window._dropIdx || {};
-    let mobIdx = window._mobMapIdx || {};
-    let found = 0;
-    let html = '';
-    for (let iid in dbItems) {
-        let item = dbItems[iid];
-        if (!item || !item.n) continue;
-        if (item.n.toLowerCase().includes(q)) {
-            let mobs = idx[iid];
-            if (mobs && mobs.size) {
-                html += '<div class="border-b border-slate-700 pb-2 mb-2"><span class="text-cyan-300 font-bold text-sm">' + item.n + '</span><div class="flex flex-wrap gap-1 mt-1">';
-                mobs.forEach(function (m) {
-                    let areas = mobIdx[m] ? mobIdx[m].join('|') : '';
-                    let mobEsc = m.replace(/"/g, '&quot;');
-                    if (!areas) {
-                        html += '<button class="text-xs bg-slate-700 px-2 py-0.5 rounded hover:bg-slate-600" onclick="toggleMobMap(this)" data-mob="' + mobEsc + '" data-areas="">' + m + '</button>';
-                    } else {
-                        html += '<button class="text-xs bg-slate-700 px-2 py-0.5 rounded hover:bg-slate-600" onclick="toggleMobMap(this)" data-mob="' + mobEsc + '" data-areas="' + areas.replace(/"/g, '&quot;') + '">' + m + '</button>';
-                    }
-                });
-                html += '</div></div>';
-                found++;
-            } else {
-                html += '<div class="border-b border-slate-700 pb-2 mb-2"><span class="text-cyan-300 font-bold text-sm">' + item.n + '</span><span class="text-slate-500 text-xs ml-2">無掉落怪物</span></div>';
-                found++;
-            }
-        }
-    }
-    container.innerHTML = found ? html : '<div class="text-slate-500">未找到符合「' + q + '」的物品。</div>';
-}
-
-// 初始化
-if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { try { _buildDropIndex(); _buildMobMapIndex(); } catch (e) {} });
-    else { try { _buildDropIndex(); _buildMobMapIndex(); } catch (e) {} }
-}

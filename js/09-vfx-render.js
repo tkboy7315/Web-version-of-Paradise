@@ -429,7 +429,7 @@ function _updateMobSkillFx() {
             let startN = a.skillFx.start.length, endN = a.skillFx.end ? a.skillFx.end.length : 0;
             let cfg = MOB_ANIM_SKILL_FX[m.n] || {};
             let total = startN + endN + (cfg.endHoldF || 0);   // ⏸ v2.7.34 endHoldF＝最後一幀額外定格幀數（吐息尾雲消散·讓特效跨過本體動畫尾端）
-            let f = Math.floor((Date.now() - s.t0) / _animTickMs()) - (cfg.delayF || 0);   // ⏳ v2.7.32 delayF＝延遲起噴幀數（安塔瑞斯張嘴幀才開始）
+            let f = Math.floor((Date.now() - s.t0) / (1000 / MOB_ANIM_FPS)) - (cfg.delayF || 0);   // ⏳ v2.7.32 delayF＝延遲起噴幀數（安塔瑞斯張嘴幀才開始）
             let card = ml && ml.querySelector('.mob-target[data-uid="' + uid + '"]');
             if (f >= total || !card) { if (s.el) s.el.remove(); if (s.el2) s.el2.remove(); if (s.el3) s.el3.remove(); delete _mobSkillFx[uid]; continue; }
             if (f < 0) continue;   // ⏳ 尚未到起噴幀（張嘴前不顯示·el 尚未建立）
@@ -683,8 +683,8 @@ function vfxKill(mob) {
                             _fi++;
                             if (_fi < _deathSeq.length) { gh.src = _deathSeq[_fi].src; _ghW.forEach(W => { if (W.seq[_fi]) W.el.src = W.seq[_fi].src; }); }
                             else { clearInterval(_fint); try { gh.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-out' }).onfinish = () => gh.remove(); } catch (e) { gh.remove(); } _ghW.forEach(W => { try { W.el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-out' }).onfinish = () => W.el.remove(); } catch (e) { W.el.remove(); } }); }
-                        }, _animTickMs());
-                        setTimeout(() => { try { clearInterval(_fint); if (gh.isConnected) gh.remove(); _ghW.forEach(W => { if (W.el.isConnected) W.el.remove(); }); } catch (e) {} }, _deathSeq.length * _animTickMs() + 2000);   // 保險回收
+                        }, 1000 / MOB_ANIM_FPS);
+                        setTimeout(() => { try { clearInterval(_fint); if (gh.isConnected) gh.remove(); _ghW.forEach(W => { if (W.el.isConnected) W.el.remove(); }); } catch (e) {} }, _deathSeq.length * (1000 / MOB_ANIM_FPS) + 2000);   // 保險回收
                     }   // 🚫 v2.7.49 移除無死亡序列時的 CSS 白閃殘影 else 分支
                 }
             } catch (e) {}
@@ -703,8 +703,8 @@ function vfxKill(mob) {
                         _dfi++;
                         if (_dfi < _dfCfg.n) { if (_dfF[_dfi]) de.src = _dfF[_dfi].src; }
                         else { clearInterval(_dfint); try { de.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 280, easing: 'ease-out' }).onfinish = () => de.remove(); } catch (e) { de.remove(); } }
-                    }, _animTickMs());
-                    setTimeout(() => { try { clearInterval(_dfint); if (de.isConnected) de.remove(); } catch (e) {} }, _dfCfg.n * _animTickMs() + 2000);   // 保險回收
+                    }, 1000 / MOB_ANIM_FPS);
+                    setTimeout(() => { try { clearInterval(_dfint); if (de.isConnected) de.remove(); } catch (e) {} }, _dfCfg.n * (1000 / MOB_ANIM_FPS) + 2000);   // 保險回收
                 }
             } catch (e) {}
             // 🚫 v2.7.49 移除死亡衝擊波環(vfx-killring)/核心爆閃(vfx-particle) CSS 特效——只保留死亡序列幀 anim
@@ -941,6 +941,7 @@ function _renderMobsImpl() {
     _initMobListGuard();
     if(_mobPointerDown) { _mobRebuildPending = true; return; }   // 🚀 按住怪物卡期間延後重繪→點擊切換目標不被中斷
     let _slotHtmls = [], _forceHit = [];   // 🚀 改差異更新：先各格產生 html 字串，最後只重建有變動的格
+    let _showMobEleFlag = (typeof _relicShowMobEle === 'function') && _relicShowMobEle();   // 🏺 巨大螞蟻的複眼：狀態直接顯示敵人屬性（一次計算·全格共用）
 
     let _back = backSlotsActive();                                   // 🆕 五格模式：原三格(前排)＋後排兩格
     let _order = _back ? [0, 1, 2, 3, 4] : [0, 1, 2];                // 🆕 v2.7.47 前排(0,1,2)由左而右→再後排(3,4)由左而右；視覺左右序＝目標鎖定序一致(不再交錯)
@@ -993,8 +994,8 @@ function _renderMobsImpl() {
             let _weaponFx2 = MOB_ANIM_NAMES.has(m.n) && (typeof MOB_ANIM_WEAPON_FX2 !== 'undefined') && MOB_ANIM_WEAPON_FX2.has(m.n);
             let _weaponLayer2 = _weaponFx2 ? `<img class="mob-anim-weapon2 w-24 h-24 p-1 object-contain pointer-events-none" src="assets/anim/${_animDir(m.n)}/idle_w2_0.png" alt="" aria-hidden="true" onerror="this.style.display='none'">` : '';
             _slotHtmls[_k] = `<div class="mob-target ${act}${_rowCls}${BOSS_BIG_MAPS.includes(mapState.current) ? ' boss-slot' : (m.boss ? ' boss-zoom' : '')}" data-uid="${m.uid}"${_scat}>
-                        <div class="flex justify-center text-sm mb-1 mob-name">
-                            <span class="${getMobNameClass(m)}">${m.n}</span>
+                        <div class="flex justify-center items-center text-sm mb-1 mob-name">
+                            <span class="${getMobNameClass(m)}">${m.n}</span>${(_showMobEleFlag && m.e && m.e !== 'none') ? ` <span class="text-[11px] font-bold" style="margin-left:3px;color:${(typeof RELIC_ELE_COLOR !== 'undefined' && RELIC_ELE_COLOR[m.e]) || '#cbd5e1'};" title="敵人屬性（巨大螞蟻的複眼）">[${(typeof RELIC_ELE_LABEL !== 'undefined' && RELIC_ELE_LABEL[m.e]) || ''}]</span>` : ''}
                         </div>
                         ${badges}
                         <div class="flex justify-center mb-1 mob-img-wrap">
@@ -1056,7 +1057,6 @@ function _renderMobsImpl() {
 //       →不觸發格子重建、不重播受擊動畫）。
 // 效能：8fps interval 掃描場上 ≤5 張卡；分頁背景(document.hidden)自動暫停；探測每怪一次（結果快取）。
 const MOB_ANIM_FPS = 8;            // 全域幀率（動作/秒）
-function _animTickMs() { try { var _b = 125; _b = 1000 / MOB_ANIM_FPS; return _b / ((typeof state !== 'undefined' && state && state.spd) || 1); } catch (e) { return 125; } }   // 🚀 配合遊戲速度加速動畫
 const MOB_ANIM_MAX_FRAMES = 60;    // 每動作幀數探測上限（v2.7.10 30→60：林德拜爾 death 35 幀被 30 截斷·探測逐號載到 404 即止→調高對短動畫零額外成本）
 let _mobAnimCache = {};            // 怪名 → {idle,spawn,attack,skill,death:各[Image]|null} ｜ 'probing' ｜ null（全無）
 // 🎬 有序列幀動畫的怪物名單（單一真相·同步判斷用）：戰鬥/圖鑑靜態顯示點與探測皆據此，避免對 1000+ 無動畫怪發 404。
@@ -1276,7 +1276,7 @@ function _mobAnimTrigger(m, k) {
     if (cur && cur.lock) {   // 鎖定動作播放中？（以快取序列長度判斷是否還沒播完）
         let a = _mobAnimCache[m.n];
         let seq = (a && a !== 'probing') ? a[cur.k] : null;
-        if (seq && (Date.now() - cur.t) < seq.length * _animTickMs()) return;   // 還在播→不打斷、不排隊
+        if (seq && (Date.now() - cur.t) < seq.length * (1000 / MOB_ANIM_FPS)) return;   // 還在播→不打斷、不排隊
     }
     m._animAct = { k: k, t: Date.now(), lock: (k === 'spawn' || k === 'skill') };
     if (k === 'skill' && (typeof MOB_ANIM_SKILL_FX !== 'undefined') && MOB_ANIM_SKILL_FX[m.n]) {   // 🔥 技能觸發同時登記技能特效(start→end·_updateMobSkillFx 推進)
@@ -1305,13 +1305,13 @@ function _mobAnimApply() {
             let seq = a[_ak];
             if (!seq && _ak === 'skill' && a.attack) { _ak = 'attack'; seq = a.attack; }   // 🎞️ v2.7.50 怪施放技能但無 skill_*.png 幀→改播 attack_*.png（_act 一併改 attack→影子/武器層同步；skill_effect 疊層仍由 _mobAnimTrigger 以原技能意圖登記，不受影響）
             if (seq) {
-                let ff = Math.floor((Date.now() - m._animAct.t) / _animTickMs());
+                let ff = Math.floor((Date.now() - m._animAct.t) / (1000 / MOB_ANIM_FPS));
                 if (ff < seq.length) { _act = _ak; _f = ff; } else m._animAct = null;
             } else m._animAct = null;   // 該動作無序列（且無 attack 後備）→直接清（維持待機）
         }
         if (_act === null && a.idle) {
             let _ofs = 0; { let s = String(uid); for (let j = 0; j < s.length; j++) _ofs += s.charCodeAt(j); }   // 同名多隻→依 uid 錯開相位
-            _act = 'idle'; _f = (Math.floor(Date.now() / _animTickMs()) + _ofs) % a.idle.length;
+            _act = 'idle'; _f = (Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) + _ofs) % a.idle.length;
         }
         if (_act !== null) {
             let _bseq = a[_act];
@@ -1457,7 +1457,7 @@ function _pmCurActivePrio() {   // 目前「仍在播放中」動作的權重（
     let seq = (st.act === 'skill' && !st.skGen && a.wskill) ? a.wskill : a[st.act];
     if (!seq || !seq.length) return 0;
     let fms = (st.act === 'attack') ? _atkFrameMs((player.d && player.d.aspd) || 0, seq.length)
-        : (st.act === 'skill') ? _skillFrameMs(seq.length) : _animTickMs();
+        : (st.act === 'skill') ? _skillFrameMs(seq.length) : (1000 / MOB_ANIM_FPS);
     return ((Date.now() - st.t) < seq.length * fms) ? (_PM_PRIO[st.act] || 0) : 0;   // 仍在播→其權重·已播完→0(idle)
 }
 function _playerMorphTrigger(k, skId) {   // js/04 attack／castSkill·manualCast 包裝 skill／HP-delta hurt 呼叫（🗡️ v3.0.67 職業形態亦適用·呼叫端零改動）
@@ -1477,7 +1477,7 @@ function _playerMorphRemove() {
 //   只加速不放慢：慢攻取 min(base,…)＝維持預設 8fps（早播完後待機·不拖成慢動作）；下限 45ms/幀(≈22fps)防過快閃爍。
 //   intervalSec 來源＝各消費者實際攻擊排程用值：玩家＝player.d.aspd(js/03:290·已含加速/勇敢/精通/切割/變身所有倍率)、傭兵＝atkSpdBaseItv(ally)(js/06:1833)。僅套用於 attack 動作·idle/skill/hurt/death 維持 8fps。
 function _atkFrameMs(intervalSec, seqLen) {
-    let base = _animTickMs();   // 預設含遊戲速度倍率
+    let base = 1000 / MOB_ANIM_FPS;   // 預設 125ms/幀（8fps）
     if (!(intervalSec > 0) || !(seqLen > 0)) return base;
     return Math.max(45, Math.min(base, intervalSec * 1000 / seqLen));
 }
@@ -1529,7 +1529,7 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
         if (seq) {
             let _fms = (_pmState.act === 'attack') ? _atkFrameMs((player.d && player.d.aspd) || 0, seq.length)   // ⚔️ v3.0.91 攻擊動畫隨攻速加速
                 : (_pmState.act === 'skill') ? _skillFrameMs(seq.length)   // 🔮 v3.0.94 技能動畫隨施法速度加速（castLock 內播完）
-                : _animTickMs();
+                : (1000 / MOB_ANIM_FPS);
             let ff = Math.floor((Date.now() - _pmState.t) / _fms);
             if (_pmState.act === 'death') { act = 'death'; f = Math.min(ff, seq.length - 1); }
             else if (ff < seq.length) { act = _pmState.act; f = ff; }
@@ -1541,7 +1541,7 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
         } else if (_pmState.act !== 'death') _pmState.act = null;   // 該動作無序列→回待機（death 無序列則維持 idle）
         else act = null;
     }
-    if (act === null && a.idle) { act = 'idle'; f = Math.floor(Date.now() / _animTickMs()) % a.idle.length; _useW = false; }
+    if (act === null && a.idle) { act = 'idle'; f = Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) % a.idle.length; _useW = false; }
     if (act === null) return;
     let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
     let I = _pmState.imgs;
@@ -1643,7 +1643,7 @@ function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphAppl
             if (seq) {
                 let _fms = (st.act === 'attack') ? _atkFrameMs(((ally.d && ally.d.aspd) ? ally.d.aspd : (typeof atkSpdBaseItv === 'function' ? atkSpdBaseItv(ally) : 0)), seq.length)   // ⚔️ v3.0.98 傭兵攻擊動畫用實際排程間隔 ally.d.aspd（含加速等·與 js/06 攻速一致；原用 base 會動畫比攻擊慢）
                     : (st.act === 'skill') ? _skillFrameMs(seq.length, (ally.d && ally.d.castLock) || 12)   // 🔮 v3.0.96 傭兵技能動畫隨自身施法速度（鏡像玩家 v3.0.94）
-                    : _animTickMs();
+                    : (1000 / MOB_ANIM_FPS);
                 let ff = Math.floor((Date.now() - st.t) / _fms);
                 if (st.act === 'death') { act = 'death'; f = Math.min(ff, seq.length - 1); }
                 else if (ff < seq.length) { act = st.act; f = ff; }
@@ -1656,7 +1656,7 @@ function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphAppl
             } else if (st.act !== 'death') st.act = null;
             else act = null;
         }
-        if (act === null && a.idle) { act = 'idle'; f = (Math.floor(Date.now() / _animTickMs()) + i * 3) % a.idle.length; _useW = false; }   // 隊員間錯相（+i*3）
+        if (act === null && a.idle) { act = 'idle'; f = (Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) + i * 3) % a.idle.length; _useW = false; }   // 隊員間錯相（+i*3）
         if (act === null) return;
         let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
         if (st.imgs.bd.src !== seq[f].src) st.imgs.bd.src = seq[f].src;
@@ -1665,7 +1665,7 @@ function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphAppl
         else if (st.imgs.sh.style.visibility !== 'hidden') st.imgs.sh.style.visibility = 'hidden';
     });
 }
-setInterval(() => { if (!document.hidden) { try { _mobAnimApply(); } catch (e) {} try { _updateFreezeFx(); } catch (e) {} try { _updateMobSkillFx(); } catch (e) {} try { _allySpritesApply(); } catch (e) {} try { _playerMorphApply(); } catch (e) {} } }, Math.floor(_animTickMs()));
+setInterval(() => { if (!document.hidden) { try { _mobAnimApply(); } catch (e) {} try { _updateFreezeFx(); } catch (e) {} try { _updateMobSkillFx(); } catch (e) {} try { _allySpritesApply(); } catch (e) {} try { _playerMorphApply(); } catch (e) {} } }, Math.floor(1000 / MOB_ANIM_FPS));
 
 // 🚀 效能：分頁面板重繪保護＋節流。狩獵時扣箭/耗肉/掉寶會每 tick 觸發 renderTabs 重建整個面板，
 //    重建會洗掉按鈕→在 mousedown↔mouseup 間重建使「賣出/強化」點擊失效並造成卡頓。

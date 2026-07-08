@@ -83,6 +83,15 @@ function _sfxVariantKey(base) {
     return key;
 }
 
+// 🗡️ v3.0.111 玩家武器攻擊音改用「天堂正宗揮擊音」（依武器類型→ list.spr `attack <武器>` 動作的攻擊音編號·檔＝assets/sfx/<n>·見 tools/mob-sound-extract.py 同源）。
+//   取代舊 attack_<武器類>（使用者自備檔·仍保留為未載完/缺檔時的後備）。編號共 11 個(部分武器共用同一揮擊音·天堂本即如此·如 斧/鈍器→249、法杖/矛→255)。
+const WPN_ATTACK_SFX = {
+    sword1: 248, sword2: 1540, katana: 248, dagger: 1513,   // 單手劍/大劍(largesword)/武士刀(用單手劍)/匕首
+    blunt1: 249, blunt2: 249, spear: 255, claw: 1517,        // 鈍器(axe)/雙手鈍器/矛(spear)/鋼爪(claw)
+    dual: 1515, chainsword: 6761, bow: 13, xbow: 461,        // 雙刀(double sword)/鎖鏈劍(chain sword)/弓/十字弓(cross bow)
+    wand: 255, qigu: 249, unarmed: 246, wpn_other: 248,      // 法杖(staff)/氣功(借鈍器)/徒手(unarmed)/其他(預設劍)
+};
+
 function playSfx(key) {
     if (!_sfxCfg.on) return;
     var def = SFX_DEFS[key]; if (!def) return;
@@ -91,9 +100,22 @@ function playSfx(key) {
         var _mk = (typeof _morphHurtOverride === 'function') ? _morphHurtOverride() : null;
         if (_mk && _sfxPool[_mk] && _sfxPool[_mk].length) poolKey = _mk;
         else { var vkh = _sfxVariantKey(key); if (vkh && _sfxPool[vkh] && _sfxPool[vkh].length) poolKey = vkh; }
-    } else if (key === 'attack') {   // 依武器類型挑變體；變體未備／未載完 → 退回通用 key
-        var vk = _sfxVariantKey(key);
-        if (vk && _sfxPool[vk] && _sfxPool[vk].length) poolKey = vk;
+    } else if (key === 'attack') {   // 🐲 v3.0.113 變身怪物時攻擊音優先用「該怪攻擊音」；否則 🗡️ 天堂正宗武器揮擊音（依武器類→編號）；未載完→退回舊 attack_<類> 變體→通用
+        var _ma = (typeof _morphAtkOverride === 'function') ? _morphAtkOverride() : null;
+        if (_ma && _sfxPool[_ma] && _sfxPool[_ma].length) poolKey = _ma;   // 變身怪物→該怪攻擊音（MOB_ATTACK_SFX·與怪物本體同音）
+        else {
+            var _wc = _sfxWeaponCat();
+            var _wn = _wc ? WPN_ATTACK_SFX[_wc] : undefined;
+            if (_wn !== undefined) {
+                var _wk = 'wpnatk_' + _wn;
+                if (_sfxPool[_wk] === undefined) _sfxDynLoad(_wk, '' + _wn);   // 首次懶載（載好後下次起出聲）
+                if (_sfxPool[_wk] && _sfxPool[_wk].length) poolKey = _wk;
+                else { var _vk = _sfxVariantKey(key); if (_vk && _sfxPool[_vk] && _sfxPool[_vk].length) poolKey = _vk; }   // 未載完→退舊變體
+            } else {
+                var vk = _sfxVariantKey(key);
+                if (vk && _sfxPool[vk] && _sfxPool[vk].length) poolKey = vk;
+            }
+        }
     }
     var arr = _sfxPool[poolKey]; if (!arr || !arr.length) return;   // 變體與通用皆無 → 靜音
     var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -113,7 +135,8 @@ function playSfx(key) {
 //   音檔放 assets/sfx/，檔名＝音效庫編號：怪物受傷 <編號>.<mp3|ogg|wav>、法術施展 <編號>.<…>（怪物與法術編號不重疊故同名規則安全）。一個編號被多隻怪／多技能共用→只需放一個檔。
 //   playMobHurt(mob)：查 MOB_HURT_SFX[mob.n]→播 <n>（全域節流，避免多目標／連擊洗版）；缺檔靜音。
 //   playSpellCast(skn)：查 SPELL_SFX[skn]→播 <n>；查無對應或缺檔→退回通用 'magic'。檔名懶載（首次需要才嘗試）。
-//   playMobKill(mob)：查 MOB_KILL_SFX[mob.n]→播 <n>（怪物死亡音·全域節流）；查無對應或缺檔→退回通用 'kill'。怪物受傷/死亡/法術三組編號互不重疊。
+//   playMobKill(mob)：查 MOB_KILL_SFX[mob.n]→播 <n>（怪物死亡音·全域節流）；查無對應或缺檔→退回通用 'kill'。
+//   playMobAttack(mob)：查 MOB_ATTACK_SFX[mob.n]→播 <n>（怪物一般攻擊音·全域節流·掛 enemyAttackChooseVictim）；查無→靜音（無通用退回）。怪物 受傷/死亡/攻擊/法術 四組編號各自獨立。
 const MOB_HURT_SFX = {
   "妖魔": 49, "哥布林": 214, "依詩蒂": 24, "阿頓": 23, "朱利安": 704, "歐薇": 25, "喬": 144, "賽尼斯": 405, "肯特守護塔": 63, "肯特城門": 63,
   "海音守護塔": 63, "海音城門": 63, "風木守護塔": 63, "風木城門": 63, "巴列斯": 427, "特羅斯王子": 22, "依詩蒂公主": 21, "鋼鐵阿頓": 23, "月光朱利安": 704,
@@ -249,8 +272,58 @@ const MOB_KILL_SFX = {
   "海賊骷髏刀手": 58, "海賊骷髏首領": 58, "德雷克": 58, "炎魔": 424,
   "巨大牛人": 530, "暴走兔": 84, "果凍怪": 61, "重裝歐姆": 105, "黑暗妖精運送員": 460,   // 🧝 v3.0.58 變身借音：遺忘之島巨大牛人/夢幻之島暴走兔/象牙塔果凍怪/重裝歐姆戰士·v3.0.59 運送員=黑暗妖精警衛
 };
-
-var _sfxDynTried = {}, _mobHurtLast = 0, _spellCastLast = 0, _killLast = 0;
+// === 怪物「攻擊」音效對應（name -> 音效編號·檔名＝<n>·查無/缺檔→靜音·無通用退回）·185 筆·來源天堂 list.spr 動作幀 [NNN（見 tools/mob-sound-extract.py·記憶 lineage-sound-id-by-sprite-action）===
+//   怪物一般攻擊動作觸發時播放（playMobAttack·掛 enemyAttackChooseVictim）。怪物 受傷/死亡/攻擊/法術 四組編號各自獨立；缺檔靜音（優雅降級）。
+const MOB_ATTACK_SFX = {
+  "不死的木乃伊王": 1041, "不滅的巫妖": 917, "亞力安": 263, "傲慢的潔尼斯女王": 983, "克特": 1127, "冰之女王": 740, "冰魔": 422, "冷酷的艾莉絲": 1047,
+  "卡司特": 104, "卡司特王": 104, "卡瑞": 86, "受詛咒的艾爾摩士兵": 698, "受詛咒的艾爾摩將軍": 690, "受詛咒的艾爾摩法師": 1132, "受詛咒的馴獸師": 1191, "古代巨人": 522,
+  "哈士奇": 773, "哈汀之影": 1278, "喚獸師": 1273, "土精靈王": 962, "地之牙": 883, "地元素守護者": 875, "地獄奴隸": 862, "地獄的黑豹": 1053,
+  "地靈之主": 875, "墮落": 1374, "墮落的司祭(一階)": 1402, "墮落的司祭(三階)": 1396, "墮落的司祭(二階)": 1406, "墮落的司祭(五階)": 1064, "墮落的司祭(四階)": 1411, "墳墓守護者": 1415,
+  "墳墓守護者法師": 1415, "墳墓守護者騎士": 1415, "夢幻之島地精靈王": 962, "夢幻之島大鬼火": 980, "夢幻之島暴走兔": 977, "夢幻之島殺人蜂": 1013, "夢幻之島鎧甲守衛": 1010, "夢幻之島閃電球": 956,
+  "夢幻之島風精靈王": 974, "夢幻之島鬼火": 980, "夢魘": 872, "奇異鸚鵡": 1482, "妖魔": 249, "妖魔巡守": 249, "妖魔鬥士": 249, "安塔瑞斯": 445,
+  "小幻象眼魔": 993, "巨人": 522, "巨人戰士": 522, "巨人長老": 522, "巨大墳墓守護者": 1415, "巫師": 34, "巴列斯": 66, "巴拉卡斯": 669,
+  "巴風特": 66, "強盜": 778, "強盜頭目": 786, "恐怖夢魘": 872, "恐怖的殭屍王": 989, "恐怖的鋼鐵高崙": 768, "惡魔": 422, "拉斯塔巴德守門人": 1096,
+  "拉斯塔巴德馴獸師": 1161, "暗黑火焰弓箭手": 665, "暗黑萊肯": 248, "暗黑黑騎士": 1127, "曼波兔": 977, "木乃伊王": 1041, "林德拜爾": 928, "格利芬": 503,
+  "梅杜莎": 923, "歐姆": 1240, "歐姆戰士": 1240, "歐姆民兵": 1240, "歐姆裝甲兵": 1217, "歐熊": 290, "死亡": 1050, "死亡之劍": 900,
+  "死亡的司祭(巴風特)": 1068, "死亡的司祭(思克巴)": 1068, "死亡的殭屍王": 989, "死亡騎士": 86, "死神": 1050, "水之牙": 887, "水元素守護者": 879, "污染的潘": 158,
+  "法利昂": 538, "深淵之主": 422, "深淵地靈": 875, "深淵弓箭手": 11, "深淵水靈": 879, "深淵火靈": 877, "深淵風靈": 881, "深淵食屍鬼": 403,
+  "混沌的司祭(野獸)": 1059, "混沌的司祭(飛翼)": 1059, "火之牙": 885, "火元素守護者": 877, "火焰之影親衛隊(巴風特)": 66, "火焰弓箭手": 665, "火靈之主": 877, "炎魔的小惡魔": 862,
+  "炎魔的巴列斯": 66, "炎魔的巴風特": 66, "炎魔的思克巴女皇": 268, "炎魔的惡魔": 422, "熔岩高崙": 640, "犰狳": 1235, "狂暴的歐姆": 1240, "狂暴的歐姆裝甲兵": 1217,
+  "狂暴蜥蜴人": 1434, "獨眼巨人": 434, "獨角獸": 1018, "甘地妖魔": 249, "羅孚妖魔": 249, "艾爾摩士兵": 698, "艾爾摩將軍": 690, "艾莉絲": 1047,
+  "萊肯": 248, "藍尾蜥蜴": 1486, "西斯": 763, "象牙塔巴列斯之影": 66, "象牙塔巴風特之影": 66, "象牙塔惡魔之影": 422, "象牙塔果凍怪": 908, "象牙塔死亡之劍": 900,
+  "象牙塔死神": 1050, "象牙塔翼魔": 799, "象牙塔鋼鐵高崙": 768, "象牙塔閃電球": 956, "象牙塔黑魔法師": 1132, "遺忘之島亞力安": 263, "遺忘之島卡司特": 104, "遺忘之島卡司特王": 104,
+  "遺忘之島格利芬": 503, "遺忘之島歐熊": 290, "遺忘之島獨眼巨人": 434, "遺忘之島萊肯": 248, "遺忘之島阿魯巴": 275, "遺忘之島黑暗精靈": 491, "那魯加妖魔": 249, "邪惡的鐮刀死神": 1050,
+  "都達瑪拉妖魔": 249, "重裝歐姆戰士": 1217, "重裝蜥蜴人": 1437, "金屬蜈蚣": 1246, "鋼鐵高崙": 768, "闇之精靈": 1083, "闇精靈王": 1099, "闇黑的騎士范德": 1044,
+  "阿吐巴妖魔": 249, "阿魯巴": 275, "雪人": 748, "風之牙": 889, "風元素守護者": 881, "風精靈王": 974, "風靈之主": 881, "馴獸師": 1191,
+  "騎士范德": 1044, "骨龍": 790, "魂騎士": 86, "魔族暗殺團": 422, "魔熊": 1077, "魔狼": 793, "魔獸軍王巴蘭卡": 1285, "魔蝙蝠": 1180,
+  "黑暗妖精士兵": 1096, "黑暗妖精將軍": 1080, "黑暗妖精巡守": 783, "黑暗妖精殘兵(劍)": 1096, "黑暗妖精殘兵(十字弓)": 783, "黑暗妖精殘兵(弓)": 783, "黑暗妖精殘兵(法師)": 1030, "黑暗妖精殘兵(雙手劍)": 1096,
+  "黑暗妖精法師": 1148, "黑暗妖精盜賊": 903, "黑暗妖精警衛(十字弓)": 783, "黑暗妖精警衛(矛)": 1169, "黑暗妖精魔法學徒": 1030, "黑暗棲林者": 1204, "黑暗精靈": 491, "黑暗精靈使": 1086,
+  "黑法師": 1132,
+};
+// 🔗 v3.0.110 攻擊音「名稱相近就套用」：查無精確對應時的借用來源。
+//   ① 明確別名 MOB_ATTACK_ALIAS（跨名借用·非子字串關係·用戶指定）。② 最長「被包含」的已對應怪名子字串（如 遺忘之島鱷魚←鱷魚、妖魔法師←妖魔、小惡魔←惡魔·最長者優先＝最精確）。
+//   ⚠️來源怪本身要有攻擊音才借得到；鱷魚家族(gfx 1572/1574)天堂精靈完全無聲→無來源可借（維持靜音）。結果記憶化 _mobAtkResolveCache。
+const MOB_ATTACK_ALIAS = { "卡魯塔": "風精靈王", "卡瑞": "死亡騎士" };   // 卡瑞 已有精確對應 86(=死亡騎士)·此處僅記錄用戶意圖·精確對應優先故此別名不觸發
+// 🗡️ v3.0.112 持刀劍怪：攻擊時「額外疊一記揮刀聲」(在自身攻擊音之上·重用玩家武器揮擊音池 wpnatk_<n>)。name -> 揮擊音編號(248=單手劍揮擊)。
+const MOB_ATTACK_SWING = { "死亡騎士": 248, "卡瑞": 248 };   // 死亡騎士/卡瑞 同精靈(gfx240)·攻擊 86(本體聲)＋248(揮刀聲)
+// 🧙 v3.0.114 用戶指定：長老/術士系 9 怪 統一音效 攻擊81/受傷79/死亡80（覆蓋三表原值；因怪物本體與玩家變身皆讀此三表→同步生效。名稱相近的變種攻擊音亦由子字串借用同步）。
+["長老", "巫師", "西瑪", "黑長者", "卡士柏", "馬庫爾", "巴土瑟", "火焰之魔法師", "哈汀之影"].forEach(function (n) {
+    MOB_ATTACK_SFX[n] = 81; MOB_HURT_SFX[n] = 79; MOB_KILL_SFX[n] = 80;
+});
+var _sfxDynTried = {}, _mobHurtLast = 0, _spellCastLast = 0, _killLast = 0, _mobAtkLast = 0;
+var _mobAtkKeysByLen = null, _mobAtkResolveCache = {};
+function _mobAtkSfxNum(name) {   // 解析怪名→攻擊音編號（精確→別名→最長子字串借用）·查無回 undefined
+    if (name == null) return undefined;
+    if (Object.prototype.hasOwnProperty.call(_mobAtkResolveCache, name)) return _mobAtkResolveCache[name];
+    var v = MOB_ATTACK_SFX[name];
+    if (v === undefined) { var alias = MOB_ATTACK_ALIAS[name]; if (alias) v = MOB_ATTACK_SFX[alias]; }
+    if (v === undefined) {   // 最長「已對應怪名」子字串借用
+        if (!_mobAtkKeysByLen) _mobAtkKeysByLen = Object.keys(MOB_ATTACK_SFX).sort(function (a, b) { return b.length - a.length; });
+        for (var i = 0; i < _mobAtkKeysByLen.length; i++) { var k = _mobAtkKeysByLen[i]; if (k.length >= 2 && k !== name && name.indexOf(k) >= 0) { v = MOB_ATTACK_SFX[k]; break; } }
+    }
+    _mobAtkResolveCache[name] = v;
+    return v;
+}
 function _sfxPlayPool(poolKey, vol) {   // 直接播放指定 pool key（不查 SFX_DEFS、不額外節流；節流由呼叫端負責）
     var arr = _sfxPool[poolKey]; if (!arr || !arr.length) return false;
     try {
@@ -296,6 +369,20 @@ function playMobKill(mob) {
     if (!_sfxPlayPool(key, 0.60)) playSfx('kill');   // 缺檔(null)→退回通用擊殺音
 }
 
+// 🔊 怪物「一般攻擊」音效（掛 enemyAttackChooseVictim·每次怪物普攻動作觸發一次·不分打玩家/傭兵）。
+//   查 MOB_ATTACK_SFX[mob.n]→播 <n>；查無→靜音（無通用退回·避免亂套，同 playMobHurt）。全域節流避免多怪同回合洗版。
+function playMobAttack(mob) {
+    if (!_sfxCfg.on || !mob) return;
+    var n = _mobAtkSfxNum(mob.n);   // 精確→別名→最長子字串借用（名稱相近就套用）
+    var sw = MOB_ATTACK_SWING[mob.n];   // 🗡️ 持刀劍怪：攻擊額外疊一記揮刀聲
+    if (n === undefined && sw === undefined) return;   // 兩者皆無→不出聲
+    var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (now - _mobAtkLast < 90) return;   // 全域節流：多怪同回合攻擊不洗版
+    _mobAtkLast = now;
+    if (n !== undefined) { var key = 'atk_' + n; if (_sfxPool[key] === undefined) _sfxDynLoad(key, '' + n); else _sfxPlayPool(key, 0.45); }   // 本體攻擊音（檔=<n>·首次懶載）
+    if (sw !== undefined) { var sk = 'wpnatk_' + sw; if (_sfxPool[sk] === undefined) _sfxDynLoad(sk, '' + sw); else _sfxPlayPool(sk, 0.45); }   // 疊加揮刀聲（重用玩家武器音池 wpnatk_<n>）
+}
+
 // ===== 🧝 v3.0.47 變身音效（Phase 3）：變身為 15 動畫形態之一時，玩家「受傷/死亡」改播該原始怪物音效 =====
 //   有怪物音效對應（MOB_HURT_SFX/MOB_KILL_SFX 查得到·克特/卡司特王/思克巴女皇/死亡騎士/艾莉絲/騎士范德）→ 直接用怪物編號音。
 //   無對應（用戶指定）：黃金/白金/銀光/黑暗「騎士」→ 男騎士(hurt_knight_m)；黃金/白金/銀光/黑暗「法師」→ 男法師(hurt_mage_m)。
@@ -312,6 +399,12 @@ function _morphHurtOverride() {   // 回傳受傷音 pool key（並確保已排�
     var v = MORPH_CLASS_VOICE[mn];
     if (v) { var k2 = 'hurt_' + v; if (!_sfxVariantTried[k2]) { _sfxVariantTried[k2] = true; _sfxTryLoad(k2, { file: k2 }); } return k2; }
     return null;
+}
+function _morphAtkOverride() {   // 🐲 v3.0.113 變身怪物時攻擊音 pool key（並確保已排載）＝該怪 MOB_ATTACK_SFX（含名稱相近借用·pool key 'atk_'+n 與怪物本體同池）；無對應→null（退回武器揮擊音）
+    var mn = _morphSfxName(); if (!mn) return null;
+    var n = (typeof _mobAtkSfxNum === 'function') ? _mobAtkSfxNum(mn) : undefined;
+    if (n === undefined) return null;
+    var k = 'atk_' + n; if (_sfxPool[k] === undefined) _sfxDynLoad(k, '' + n); return k;
 }
 function playMorphDeathSfx() {   // js/09 玩家變身死亡動作首次觸發時呼叫：播該怪物死亡音（無對應→職業語音·再無→靜默）
     if (!_sfxCfg.on) return;
@@ -335,7 +428,8 @@ var BGM_SCENE_MAP = {
     town_witon:28,
     town_oren:54, zone_02:29,
     town_aden:41,
-    kent:14, town_kent_castle:9, windwood:52,
+    kent:14, town_kent_castle:9, town_windwood_castle:9, town_heine_castle:9, windwood:52,
+    kent_outer:8, kent_inner:8, ww_outer:8, ww_inner:8, heine_outer:8, heine_inner:8,
     town_gludio:55,
     town_silver_knight:57, silver_knight:82, training:82,
     shadow_temple:60,
@@ -345,27 +439,16 @@ var BGM_SCENE_MAP = {
     zone_34:24, zone_35:24, zone_36:24,
     eva_kingdom:36,
     town_rift:92,
-    town_hyperia:97, town_behemoth:99,
     thebes_desert:94, thebes_pyramid:95, thebes_temple:103,
     giant_tomb:48,
     zone_03:6, zone_13:6, zone_14:6, zone_15:6, zone_16:6, zone_17:6, zone_18:6,
     zone_19:6, zone_20:6, zone_21:6, zone_22:6, zone_23:6, zone_24:6, zone_25:6,
     zone_26:6, zone_27:6, zone_28:6, zone_29:6, zone_30:6, zone_31:6, zone_32:6,
-    zone_33:6, zone_42:6, zone_43:6, zone_44:6, zone_45:6,
-    ant_tunnel:6, sea_of_dust:6, forgotten_island:6,
-    ancient_giant_tomb:48, hidden_valley:6, elven_tomb:6,
-    hidden_dungeon:6, devourer:6,
-    dark_elf_forest:6, dark_elf_dungeon:6, dark_elf_citadel:6,
-    lizardman_village:6, lizardman_temple:6,
-    silent_cavern:60, forgotten_temple:60,
-    pirate_isle:6, pirate_cave:6, pirate_ship:6,
-    slave_quarters:6, torture_chamber:6, orc_stronghold:6,
-    golem_workshop:6, war_workshop:6,
-    training_grounds:6, arena:6, colosseum:6,
-    hell_battlefield:6, abyss:6,
-    kent_outer:8, kent_inner:8, ww_outer:8, ww_inner:8, heine_outer:8, heine_inner:8,
+    zone_33:6,
+    forgotten_island:6, ancient_giant_tomb:48,
+    dark_elf_forest:6, dark_elf_dungeon:6,
+    silent_cavern:60,
     rift:6, rift_boss:6,
-    ancient_temple:6, dark_temple:60,
     dragon_valley_cave:19, dragon_valley_entrance:19
 };
 function _bgmLoadCfg() {
