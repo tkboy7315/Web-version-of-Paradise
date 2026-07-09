@@ -910,6 +910,7 @@
     // 職業成長→裝備養成(裝備/強化/套裝/製作)→日常查找(任務/武器特性/傭兵/娃娃/地圖/席琳)→機制知識→端遊戲區域→一次性閱讀)
     { k: 'equipbook', n: '收藏-裝備' },
     { k: 'miscbook', n: '收藏-道具' },
+    { k: 'relicbook', n: '收藏-遺物' },
     { k: 'card', n: '收藏-怪物' },
     { k: 'magic', n: '職業魔法' },
     { k: 'mastery', n: '職業專精' },
@@ -1091,6 +1092,7 @@
     if (key === 'doll') return renderDoll();
     if (key === 'equipbook') return renderEquipBook();
     if (key === 'miscbook') return renderMiscBook();
+    if (key === 'relicbook') return renderRelicBook();
     if (key === 'equip') return renderEquip();
     if (key === 'enhance') return renderEnhance();
     if (key === 'craft') return renderCraft();
@@ -1130,6 +1132,7 @@
   var SEARCH_SOURCES = [
     { key: 'equipbook', cls: false, label: '收藏-裝備' },
     { key: 'miscbook', cls: false, label: '收藏-道具' },
+    { key: 'relicbook', cls: false, label: '收藏-遺物' },
     { key: 'card', cls: false, label: '收藏-怪物' },
     { key: 'magic', cls: false, label: '職業魔法' },
     { key: 'mastery', cls: true, label: '職業專精' },
@@ -1731,6 +1734,45 @@
     } else {   // 未選模式:只列加成對照(無進度、不爆缺項)
       out += wCard('🧰 各類全收集加成', wTbl(['類別', '整類收集齊 → 永久加成'],
         MISC_CATEGORIES.map(function (c) { var bb = bonus[c.key]; return [esc(c.name), bb ? esc(bb.label) : '—']; })));
+    }
+    return out;
+  }
+
+  // 🏺 收藏-遺物:依裝備分類(EQUIP_CATEGORIES)分組·無全收集加成·共用模式切換與進度桶
+  function renderRelicBook() {
+    if (typeof EQUIP_CATEGORIES === 'undefined' || typeof RELIC_CAT_ITEMS === 'undefined') return '<div class="m-wiki-note">讀不到遺物收集冊資料。</div>';
+    var out = '<div class="m-wiki-note">「遺物收集冊」：<b>獲得遺物即自動登錄</b>（只增不減）。遺物分佈在武器／防具／飾品各部位中，分類與裝備收集冊相同，<b>但沒有全收集加成</b>（遺物本身有效果，收集進度僅供參考）。收集冊本體從畫面上的「<b>收藏</b>」面板翻開（🏺 遺物分頁）。</div>';
+    out += collModeRow();
+    if (state.collMode !== null) {
+      var b = collBuckets();
+      var dex = b.relic || {};
+      var groups = {};
+      EQUIP_CATEGORIES.forEach(function (c) {
+        if (!groups[c.group]) groups[c.group] = [];
+        var arr = RELIC_CAT_ITEMS[c.key] || [];
+        var missing = arr.filter(function (id) { return !dex[id]; });
+        groups[c.group].push({ cat: c, total: arr.length, got: arr.length - missing.length, missing: missing });
+      });
+      var detail = '';
+      Object.keys(groups).forEach(function (grp) {
+        var rows = [];
+        groups[grp].forEach(function (g) {
+          rows.push([esc(g.cat.name), g.got + '／' + g.total,
+            g.missing.length ? '<b style="color:#f87171">缺 ' + g.missing.length + '</b>' : '<b style="color:#22c55e">✓ 完成</b>']);
+          if (g.missing.length) {
+            detail += wCard('📍 ' + esc(g.cat.name) + '（缺 ' + g.missing.length + ' 件）',
+              '<div class="m-wiki-desc">' + g.missing.map(function (id) { var d = DB.items[id]; return wDexLink((d && d.n) || id); }).join('、') + '</div>');
+          }
+        });
+        out += wCard('🏺 ' + grp, wTbl(['部位', '已收集', '狀態'], rows));
+      });
+      out += detail;
+    } else {
+      // 未選模式：只列各組總覽（不爆缺項）
+      var totalRelics = 0;
+      for (var k in RELIC_CAT_ITEMS) totalRelics += RELIC_CAT_ITEMS[k].length;
+      out += wCard('🏺 遺物總覽（共 ' + totalRelics + ' 件）',
+        wDesc('遺物分散在裝備收集冊的各部位中，選擇上方模式查看各部位的收集進度與缺件清單。'));
     }
     return out;
   }
@@ -2607,7 +2649,7 @@
     var modeName = COLL_MODE_CN[suf];
     if (typeof player !== 'undefined' && player && player.cls && typeof modeSuffix === 'function' &&
         modeSuffix(!!player.classicMode, !!player.traditionalMode) === suf) {
-      return { card: player.cardDex || {}, equip: player.equipDex || {}, misc: player.miscDex || {}, mode: modeName };
+      return { card: player.cardDex || {}, equip: player.equipDex || {}, misc: player.miscDex || {}, relic: player.relicDex || {}, mode: modeName };
     }
     function rd(base) { try { var s = _lzGet(base + suf); if (s) { var o = JSON.parse(s); if (o && typeof o === 'object') return o; } } catch (e) {} return {}; }
     var card = rd(typeof CARDDEX_KEY !== 'undefined' ? CARDDEX_KEY : 'lineage_idle_carddex');
@@ -2620,6 +2662,7 @@
       card: card,
       equip: rd(typeof EQUIPDEX_KEY !== 'undefined' ? EQUIPDEX_KEY : 'lineage_idle_equipdex'),
       misc: rd(typeof MISCDEX_KEY !== 'undefined' ? MISCDEX_KEY : 'lineage_idle_miscdex'),
+      relic: rd(typeof RELICDEX_KEY !== 'undefined' ? RELICDEX_KEY : 'lineage_idle_relicdex'),
       mode: modeName
     };
   }

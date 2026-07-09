@@ -534,6 +534,7 @@ function castSkillInner(skId) {
                 if(!res.hit) { hitsLog.push('Miss'); continue; }
                 landed++;
                 if(sk.skillAddDmg) res.dmg = Math.max(1, res.dmg + sk.skillAddDmg);   // ⚔️ 衝擊之暈：一般攻擊傷害 +10
+                if(skId === 'sk_elf_triple' && wpn && wpn.fullHpMultTriple && t.curHp === t.hp) res.dmg = Math.max(1, Math.floor(res.dmg * wpn.fullHpMultTriple));   // 🏺 遺忘者的狙神弓：三重矢對滿血 ×2
                 // 🔮 紅獅 5/5 已於 getPhysicalDmg 內套用（避免重複），此處不再乘
                 // 遠距離物理技能命中滿血被動怪物，賦予 3 秒延遲（整段只觸發一次）
                 if(!delayDone && t.curHp === t.hp && t.beh === '被動' && res.ranged) { t._delayTicks = 30; delayDone = true; }
@@ -633,6 +634,7 @@ function castSkillInner(skId) {
                 if(dmgArray.length > 0) {
                     if (sk.hpCost && player._setDragonblood5) totalDmg = Math.max(1, Math.floor(totalDmg * 1.2));   // 🐉 龍血5/5：HP消耗技傷害+20%
                     totalDmg = illusionMagicDmg(totalDmg, true);   // 🔮 幻覺2/5回MP＋5/5二次傷害（非自動攻擊魔法技能）
+                    totalDmg = Math.max(1, Math.floor(totalDmg * equipSkillDmgMult(sk, skId)));   // 🏺 遺物 特定技能傷害倍率（暴走兔胡蘿蔔=冰錐×1.5、光束強化魔杖=光箭/究極光裂術×1.5）
                     t.curHp -= totalDmg;
                     _burstDmg += totalDmg;   // 🔧 魔爆累計
                     t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic';

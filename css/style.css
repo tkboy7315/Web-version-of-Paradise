@@ -544,7 +544,7 @@
 #main-menu > button:hover { filter:brightness(1.18); }
 #main-menu > p { width:150% !important; margin:1% 0 0 -25% !important; font-size:clamp(9px,.78vw,14px) !important; line-height:1.42; color:#eee2c7; text-shadow:0 1px 3px #000,0 0 3px #000; }
 #login-meta-layer { position:absolute; z-index:3; left:5.8%; top:53%; width:25.4%; color:#d8c8a2; text-shadow:0 1px 3px #000; }   /* 🔧 v3.0.41 用戶：版權文字縮小+寬度縮短不超框 */
-#login-custom-info { position:absolute; z-index:3; left:3.1%; top:28%; width:30.8%; color:#d8c8a2; text-shadow:0 1px 3px #000; font-size:clamp(9px,1.05vw,16px); line-height:1.6; text-align:center; }
+#login-custom-info { position:absolute; z-index:3; left:3.1%; top:24%; width:30.8%; color:#d8c8a2; text-shadow:0 1px 3px #000; font-size:clamp(9px,1.05vw,16px); line-height:1.6; text-align:center; }
 #login-custom-info table { color:#e7d7b5; }
 #login-custom-info th { border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:2px; }
 #login-custom-info td { padding-top:1px; padding-bottom:1px; }

@@ -18,7 +18,10 @@ function recomputeStats() {
     d.crushDr = 0; d.meleeHaste = 0; d.atkSpdPct = 0;   // 🏺 遺物 第二批：受重擊減傷% / 裝近戰武器攻速% / 通用攻速%
     d.thornsDmg = 0; d.instakillFull = 0; d.onDmgHeal = null; d.onDmgHealCd = 0; d.onDmgHealName = '';   // 🏺 遺物 第三批：受擊反傷固定值 / 命中滿血怪即死率 / 受擊自癒技能id（onDmgHealCd=冷卻秒數、onDmgHealName=來源名稱）
     d.hurtExplode = 0;   // 🏺 遺物 第四批 爆彈花蕊：受擊時對自己與全體敵人的火魔傷固定值
+    d.wearerEle = '';    // 🏺 遺物 火焰/冰霜化身：裝備者化身為火/水屬性（v3.1.52）
+    d.fireNullify = false;  // 🏺 遺物 烈焰愛意：抵銷火屬性傷害（每10秒1次）
     d.moveSpeedPct = 0;  // 🏺 遺物 寄居蟹背殼：移動速度%（負=變慢→怪物重生變慢·js/03 重生延遲讀取·與加速buff相乘）
+    d.poisonHealMult = 0;   // 🏺 遺物 劇毒化身：中毒傷害轉為HP倍率
     d.rangedDmg = 0; d.rangedHit = 0; d.rangedCrit = 0;
     d.extraDmg = 0; d.extraHit = 0; d.equipExtraAtk = 0;   // 🐉 d.equipExtraAtk：裝備授予的額外一般攻擊次數（龍鱗臂甲）
     d.magicDmg = 0; d.magicHit = 0; d.magicCrit = 0; d.extraMp = 0; d.mpReduce = 0;
@@ -91,7 +94,7 @@ function recomputeStats() {
     //    故在此(Phase 1 加總完、Phase 2 換算前)把最終屬性夾擠至 ≤80：
     //    ① 讓 HP/MP 線性成長(getConGrowth/getWisGrowth·原本無上限)亦止於 80；② 資訊欄(讀 d.str)顯示不超過 80，避免玩家誤會配更高有加成。
     //    註：只夾「衍生最終值 d.*」，不動 player.base/alloc/panacea(原始配點保留、可回憶蠟燭退還)；各效果自身更低的內部上限(ER封60/MpReduce封45/MR封60)不受影響。
-    { let _ATTR_CAP = 80;
+    { let _ATTR_CAP = 100;
       d.str = Math.min(_ATTR_CAP, d.str); d.dex = Math.min(_ATTR_CAP, d.dex); d.int = Math.min(_ATTR_CAP, d.int);
       d.con = Math.min(_ATTR_CAP, d.con); d.wis = Math.min(_ATTR_CAP, d.wis); d.cha = Math.min(_ATTR_CAP, d.cha); }
 
@@ -204,6 +207,7 @@ function recomputeStats() {
 
     d.aspd = 1.0;
     d.hitstun = hitstunTicks(p);   // ⚔️ 天堂職業硬直（被直接命中→延遲下次攻擊的 tick·職業定·不隨武器）
+    d.hitstunReduce = 0;   // 🏺 遺物 鋼鐵般的重盾：減少硬直時間（tick，0.5秒=5 tick）
     d.castLock = castLockTicks(p); // 🔮 天堂職業施法冷卻下限（攻擊魔法自動施放間隔最小 tick·法師最快）
 
     // ===== Phase 3：非屬性加成（武器傷害 / 裝備防禦 / 套裝 / 增益 / 變身） =====
@@ -230,6 +234,7 @@ function recomputeStats() {
         if(w.mcrit) d.meleeCrit += w.mcrit;   // 🏺 武器近距離爆擊率加成（遺物 蟹人的巨鉗 +5%）
         if(w.mcritDmg) d.meleeCritDmg += w.mcritDmg;   // 🏺 武器近距離爆擊傷害% 加成（遺物 歐姆裝甲兵的超重鎚 +10%）
         if(w.rcrit) d.rangedCrit += w.rcrit;   // 🏺 武器遠距離爆擊率% 加成（遺物 神射手的重弦弓 +3%）
+        if(w.atkSpdPct) d.atkSpdPct += w.atkSpdPct;   // 🏺 武器攻速%（遺物 阿魯巴的加速槌 +20／牛頭獸的狂暴戰斧 +25；防具/飾品 atkSpdPct 走另一迴圈·武器需此處·v3.1.52）
         let _wEn = capWpnEn(p.eq.wpn.en);   // 🔧 超過 +20 一律以 +20 計算所有隨強化提升的能力
         if(w.mpROverSafe && _wEn > (w.safe || 0)) d.mpR += (_wEn - (w.safe || 0)) * w.mpROverSafe;   // 突破安定值：每超過1階，MP自然恢復量 +mpROverSafe
         if(w.extraMpPerEn)  d.extraMp  += _wEn * w.extraMpPerEn;    // 每強化+1 → 額外魔法點數
@@ -303,6 +308,10 @@ d.mr += (baseMr + bonusMr);
         if(ed.crushDr) d.crushDr += ed.crushDr;        // 🏺 遺物 妖魔的兜襠布：受到重擊時傷害減少 crushDr%（於 js/04 受擊路徑套用）
         if(ed.meleeHaste) d.meleeHaste += ed.meleeHaste;  // 🏺 遺物 狂野的鬃毛外套：裝備近距離武器時攻速 +meleeHaste%
         if(ed.atkSpdPct) d.atkSpdPct += ed.atkSpdPct;  // 🏺 遺物 綠色妖鬼的指甲：攻速 +atkSpdPct%（無條件）
+        if(ed.wearerEle) d.wearerEle = ed.wearerEle;   // 🏺 遺物 火焰/冰霜化身：裝備者化為火/水屬性
+        if(ed.fireNullify) d.fireNullify = true;        // 🏺 遺物 烈焰愛意：抵銷火屬性傷害
+        if(ed.hitstunReduce) d.hitstunReduce += ed.hitstunReduce;   // 🏺 遺物 鋼鐵般的重盾：減少硬直時間
+        if(ed.poisonHealMult) d.poisonHealMult = Math.max(d.poisonHealMult, ed.poisonHealMult);   // 🏺 遺物 劇毒化身：中毒轉HP倍率
         if(ed.thorns) d.thornsDmg += ed.thorns;        // 🏺 遺物 犰狳尖刺頭盔：受擊反傷固定值（js/04 受擊路徑套用）
         if(ed.instakillFull) d.instakillFull += ed.instakillFull;  // 🏺 遺物 隱蔽的死亡草葉：一般攻擊命中滿血怪即死率
         if(ed.onDmgHeal) { d.onDmgHeal = ed.onDmgHeal; d.onDmgHealCd = ed.onDmgHealCd || 5; d.onDmgHealName = ed.n; }   // 🏺 遺物 白螞蟻蛋殼(初級/5秒) / 孵育螞蟻精華(中級/8秒)：受擊自癒技能 id＋冷卻秒數＋來源名稱（cd 由 _shellHealCd 節流·僅單一副手槽→無疊加）
@@ -447,7 +456,7 @@ d.mr += (baseMr + bonusMr);
     { let _aw = p.eq.wpn ? getWeaponTags(p.eq.wpn.id) : []; let _ow = p.eq.offwpn ? getWeaponTags(p.eq.offwpn.id) : []; if(p.mastery === 'k_giantaxe' && (_aw.includes('雙手鈍器') || _ow.includes('雙手鈍器'))) spdMult *= (1/1.3); else if(p.mastery === 'k_dualaxe' && _aw.includes('單手鈍器') && p.eq.offwpn && _ow.includes('單手鈍器')) spdMult *= (1/1.3); }   // ⚔️ 巨斧精通(主手或副手任一持雙手鈍器·符合「持雙手鈍器+30%」描述·含混裝)／雙斧精通(主副手皆單手鈍器)：攻速+30%
     { let _rw = p.eq.wpn ? getWeaponTags(p.eq.wpn.id) : []; if(p.mastery === 'k_royal_sword' && (_rw.includes('單手劍') || _rw.includes('雙手劍'))) spdMult *= (1/1.5); }   // 👑 劍術精通：裝單手劍／雙手劍攻速+50%
     { let _iw = p.eq.wpn ? DB.items[p.eq.wpn.id] : null; if(p.cls === 'illusion' && _iw && !_iw.isBow && ((p.mastery === 'i_qigu' && _iw.qigu) || (p.mastery === 'i_magicsword' && !_iw.qigu && !isWandWeapon(_iw)))) spdMult *= (1/1.3); }   // 🔮 奇古獸精通(裝奇古獸)／魔劍精通(裝非奇古獸·排除魔杖)：攻速+30%
-    if(d.atkSpdPct > 0) spdMult *= (1 / (1 + d.atkSpdPct / 100));   // 🏺 遺物 綠色妖鬼的指甲：攻速 +atkSpdPct%（無條件·與其他加速相乘疊加）
+    if(d.atkSpdPct !== 0) spdMult *= (1 / (1 + d.atkSpdPct / 100));   // 🏺 遺物 攻速%（正=加速、負=變慢·v3.1.52 支援負值如聖殿巨劍 -50%）
     { let _mhw = p.eq.wpn ? DB.items[p.eq.wpn.id] : null; if(d.meleeHaste > 0 && _mhw && !_mhw.isBow && !_mhw.ranged) spdMult *= (1 / (1 + d.meleeHaste / 100)); }   // 🏺 遺物 狂野的鬃毛外套：裝備近距離武器時攻速 +meleeHaste%
     if(p.buffs.blue > 0) d.mpR += getWisBlueBonus(d.wis);          // 藍色藥水：依精神提升MP恢復
     if(p.buffs.cautious > 0) { d.magicDmg += 2; d.mpR += 2; }      // 慎重藥水
@@ -509,6 +518,7 @@ d.mr += (baseMr + bonusMr);
         d.mr        += (pf.mr  || 0);                                // MR
         if(pf.spd) spdMult *= (1 - pf.spd/100);                      // 攻速加快%（僅舊存檔的套裝變身可能還有 spd；新設定已改速度覆蓋不帶 spd）
     }
+    if (d.hitstunReduce > 0) d.hitstun = Math.max(0, (d.hitstun || 0) - d.hitstunReduce);   // 🏺 鋼鐵般的重盾：硬直減免（變身速度覆蓋後統一套用·夾下限 0）
     
     if(p.buffs.sk_soul_up > 0) { p.mhp = Math.floor(p.mhp * 1.2); p.mmp = Math.floor(p.mmp * 1.2); }
     if (player.skills.includes('sk_warrior_armorbody')) d.dr += Math.floor((10 - d.ac) / (hasMastery('k_tough') ? 5 : 10));   // ⚔️ 護甲身軀：傷害減免 +[(10-AC)/10]；🏅 堅韌精通改 /5

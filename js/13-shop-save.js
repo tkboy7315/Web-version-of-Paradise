@@ -287,11 +287,11 @@ function openSlotSelect(mode){
     for(let n = 1; n <= 8; n++){
         let sum = slotSummary(n);
         let _classic = !!(sum && sum.classic);   // 🎮 經典模式存檔：以琥珀金顯示
-        let _trad = !!(sum && sum.traditional);  // 🏛️ 傳統模式存檔：以淡紫顯示（傳統角色 classic 亦為 true，故先判 traditional）
-        let _tag = _trad ? '🔮 ' : (_classic ? '⚔ ' : '');
-        let _modeName = _trad ? '（傳統）' : (_classic ? '（經典）' : '');
+        let _trad = !!(sum && sum.traditional);  // 🏛️ 傳統模式存檔：以淡紫顯示
+        let _tag = (_classic && _trad) ? '⚔🏛️ ' : (_trad ? '🏛️ ' : (_classic ? '⚔ ' : ''));
+        let _modeName = (_classic && _trad) ? '（經典＋傳統）' : (_trad ? '（傳統）' : (_classic ? '（經典）' : ''));
         let label = sum ? `${_tag}存檔 ${n}　${sum.cls} Lv.${sum.lv}${sum.name ? '　' + sum.name : ''}${_modeName}` : `存檔 ${n}　（空）`;
-        let _classicStyle = _trad ? 'color:#c084fc;border-color:#9333ea;' : (_classic ? 'color:#fbbf24;border-color:#d97706;' : '');   // 🏛️ 傳統＝淡紫｜🎮 經典＝琥珀金
+        let _classicStyle = (_classic && _trad) ? 'color:#2dd4bf;border-color:#0d9488;' : (_trad ? 'color:#c4b5fd;border-color:#7c3aed;' : (_classic ? 'color:#fbbf24;border-color:#d97706;' : ''));   // 經典＋傳統＝青綠；🏛️ 傳統＝淡紫；🎮 經典＝琥珀金
         let disabled = (mode === 'load' && !sum);
         let bak = (mode === 'load') ? slotBackupSummary(n) : null;
         // 動作區固定寬度：匯入(+復原)鈕各 flex-1。無備份時匯入鈕獨佔整個動作區

@@ -410,6 +410,10 @@ function allyAttackOnce(ally) {
         if (!_grazeA && !ally.classicMode && ally.eq && ally.eq.wpn && getWeaponTags(ally.eq.wpn.id).includes('雙刀') && Math.random() < 0.05) { _dualX2A = true; dmg = Math.max(1, dmg * 2); }
         if (wpn && wpn.hardSkinMult && _hsT > 0) dmg = Math.max(1, Math.floor(dmg * wpn.hardSkinMult));   // 🦀 目標有硬皮→一般攻擊傷害×1.5（傭兵鏡像玩家）
         if (wpn && wpn.raceBonus && t.race === wpn.raceBonus.race) dmg = Math.max(1, Math.floor(dmg * (wpn.raceBonus.mult || 1)));   // 🕷️ 刺針：對特定種族（蜘蛛）傷害×N（傭兵鏡像玩家）
+        if (wpn && wpn.softMult && _hsT <= 0) dmg = Math.max(1, Math.floor(dmg * wpn.softMult));   // 🏺 骸骨將軍的雙手劍：對無硬皮敵人 ×1.3（傭兵鏡像）
+        { let _fhmA = wpn && (_allyInTriple ? (!_allyTripleFhmUsed ? wpn.fullHpMultTriple : null) : wpn.fullHpMult); if (_fhmA && t.curHp === t.hp) { dmg = Math.max(1, Math.floor(dmg * _fhmA)); if (_allyInTriple) _allyTripleFhmUsed = true; } }   // 🏺 遺忘者的狙神弓：滿血×3（傭兵鏡像）
+        if (wpn && wpn.silencedBonusDmg && t.st && t.st.magicseal > 0) dmg += wpn.silencedBonusDmg;   // 🏺 寂靜之毒刃：對沉默敵人額外傷害 +20（傭兵鏡像）
+        if (wpn && wpn.raceFlat && t.race === wpn.raceFlat.race) dmg = dmg + (wpn.raceFlat.add || 0);   // 🏺 遠古巨鐮之爪：對動物額外傷害 +N（傭兵鏡像）
         t.curHp -= dmg; t.justHit = getWpnEle(ally.eq ? ally.eq.wpn : null, wpn); mobWake(t);
         if (ally._setDragonblood2 && dmg > 0) ally.curHp = Math.min(ally.mhp || 1, (ally.curHp || 0) + Math.max(1, Math.floor(dmg * ((ally.curHp < (ally.mhp || 1) * 0.5) ? 0.05 : 0.01))));   // 🐉 v2.6.9 #1b 龍血2/5（傭兵）：造成物理傷害吸血1%（自身HP<50%→5%）·回復戰鬥HP(curHp)
         // 🔧 黑暗妖精傭兵：預設攻擊自動維持附加劇毒（學過 sk_dark_poison 即視為常駐增益）；命中 50%／劇毒精通 100% 使目標中毒（與玩家同規則）
@@ -565,7 +569,7 @@ function allyCastMagic(ally, sk) {
     if (!ally._echoing) {
         let _wi = ally.eq && ally.eq.wpn, _w = _wi ? DB.items[_wi.id] : null;
         if (_w) {
-            if (_w.eff === 'mp_drain' || _w.mpOnHit) { let _en = capWpnEn(_wi.en); ally.mp = Math.min(ally.mmp || 0, (ally.mp || 0) + 1 + Math.max(0, _en - 6)); }   // 命中回 MP（同 allyWeaponProcs·同玩家 1+max(0,強化-6)）
+            if (_w.eff === 'mp_drain' || _w.mpOnHit) { let _en = capWpnEn(_wi.en); ally.mp = Math.min(ally.mmp || 0, (ally.mp || 0) + ((_w.mpOnHitAmt != null) ? _w.mpOnHitAmt : (1 + Math.max(0, _en - 6)))); }   // 命中回 MP（mpOnHitAmt 固定量優先·邪惡蜥蜴的眼瞳 +6）
             if (typeof WAND_LIGHTARROW_IDS !== 'undefined' && WAND_LIGHTARROW_IDS.includes(_wi.id) && !ally.classicMode && !allyHasMastery(ally, 'm_strike') && Math.random() < ((d.int || 0) / 60)) { let _rt = _allyProcTarget(getTarget()); if (_rt) allyProcLightArrow(ally, _rt); }   // 共鳴：int/60 免費光箭回魔（同 allyWeaponProcs）；🏅 v2.6.70 魔擊精通傭兵共鳴已改發魔擊→本補償塊(只補回魔·不套傷害proc)不再施放光箭
         }
     }
@@ -1020,9 +1024,9 @@ function allyWeaponProcs(ally, target, hitInfo) {
             logCombat(`<span class="font-bold" style="color:#60a5fa;text-shadow:0 0 6px #2563eb;">【協力·${ally._allyName}·藍惡靈奪魔】</span>奪取魔力，恢復 ${_mp} 點 MP。`, 'player-special');
         }
     }
-    if (hitInfo && hitInfo.hit && (wpn.eff === 'mp_drain' || wpn.mpOnHit)) {   // 瑪那魔杖/惡魔王魔杖(mpOnHit)：命中恢復MP → 傭兵自身（恢復量同玩家：1 + max(0, 強化-6)）
+    if (hitInfo && hitInfo.hit && (wpn.eff === 'mp_drain' || wpn.mpOnHit)) {   // 瑪那魔杖/惡魔王魔杖(mpOnHit)：命中恢復MP → 傭兵自身
         let en = capWpnEn(wpnInst.en);
-        ally.mp = Math.min(ally.mmp||0, (ally.mp||0) + 1 + Math.max(0, en - 6));
+        ally.mp = Math.min(ally.mmp||0, (ally.mp||0) + ((wpn.mpOnHitAmt != null) ? wpn.mpOnHitAmt : (1 + Math.max(0, en - 6))));   // 🏺 邪惡蜥蜴的眼瞳：mpOnHitAmt 固定量
     }
     {
         let _amk = allyHasMastery(ally, 'm_strike') && !ally.classicMode;   // 🏅 v2.6.70 魔擊精通（傭兵）：共鳴改發魔擊；v2.6.71 觸發率比照原生魔擊＝力量/60（鏡像玩家·經典模式維持光箭吃智力）
@@ -1106,6 +1110,9 @@ function allyOnHitEffects(ally, t, res) {
     let _bleedChance = _allyCanBleed ? ((d.str||0)/60) : 0;
     if (_bleedChance > 0 && t.curHp > 0 && !t._dead && !ally.classicMode && Math.random() < _bleedChance) {   // 🎮 經典模式：傭兵停用出血
         applyBleed(t, res.dmg, allyHasMastery(ally, 'd_bleed') ? 10 : 5, allyHasMastery(ally, 'd_bleed'));   // 🔧 出血精通：上限 10 層 + 每層 +10%
+    }
+    if (wpn.stoneInstakill && t.curHp > 0 && !t._dead && t.st && t.st.stone > 0) {   // 🏺 梅杜莎的蛇髮劍：命中石化敵人必定即死（傭兵鏡像）
+        let ri = mapState.mobs.findIndex(m => m && m.uid === t.uid); if (ri !== -1) tryInstakill(t, { p: 1, tag: null }, `【協力·${ally._allyName}】梅杜莎的蛇髮劍`, ri);
     }
     if (getWeaponTags(wpnInst.id).includes('單手鈍器') && t.curHp > 0 && !t._dead && !ally.classicMode) {   // 鈍擊：延遲目標攻擊 1 秒；🎮 經典模式：傭兵停用鈍擊
         t._bluntShow = state.ticks + 30;
@@ -1217,12 +1224,18 @@ function allyReactIai(mob) {
 }
 
 // 妖精協力：三重矢（3 次物理攻擊）後整體判定一次連射
+let _allyInTriple = false;   // 🏺 遺忘者的狙神弓：三重矢期間旗標（allyAttackOnce 讀取區分 fullHpMult×3／fullHpMultTriple×2）
+let _allyTripleFhmUsed = false;
 function allyTripleShot(ally) {
     logCombat(`<span class="text-sky-300 font-bold">【協力·${ally._allyName}】</span>施放 三重矢！`, 'player');
-    for (let h = 0; h < 3; h++) {
-        let t = getTarget(); if (!t || t.curHp <= 0) break;
-        allyAttackOnce(ally);
-    }
+    _allyInTriple = true;
+    _allyTripleFhmUsed = false;
+    try {
+        for (let h = 0; h < 3; h++) {
+            let t = getTarget(); if (!t || t.curHp <= 0) break;
+            allyAttackOnce(ally);
+        }
+    } finally { _allyInTriple = false; }
     allyRapidfire(ally);
 }
 // 妖精協力一次行動：選定三重矢且裝弓且 MP 足夠→優先施放三重矢；否則一般攻擊；攻擊後判定連射
@@ -2251,9 +2264,10 @@ function renderAllyNPC(div) {
         let active = isAllyActive(n);
         if (!sum) return `<div class="w-full text-left py-2 px-3 text-sm bg-slate-900/60 border border-slate-700 rounded opacity-60">存檔 ${n}：<span class="text-slate-500">（空）</span></div>`;
         let _classic = !!sum.classic;                                  // 🎮 經典模式存檔
-        let _modeMatch = (_classic === !!player.classicMode);          // 🎮 只能招募與自己同模式（一般/經典）的存檔（🏛️v3.0.83 傳統已取消）
-        let _tag = _classic ? '<span style="color:#fbbf24;font-weight:bold;">⚔經典</span> ' : '';
-        let _nameStyle = _classic ? 'style="color:#fbbf24;"' : 'class="text-amber-300"';
+        let _trad = !!sum.traditional;                                 // 🏛️ 傳統模式存檔
+        let _modeMatch = (modeSuffix(_classic, _trad) === modeSuffix(!!player.classicMode, !!player.traditionalMode));   // 🎮🏛️ 只能招募與自己同模式組合（一般/經典/傳統/經典＋傳統）的存檔
+        let _tag = (_classic && _trad) ? '<span style="color:#fbbf24;font-weight:bold;">⚔經典</span> <span style="color:#c4b5fd;font-weight:bold;">🏛️傳統</span> ' : (_trad ? '<span style="color:#c4b5fd;font-weight:bold;">🏛️傳統</span> ' : (_classic ? '<span style="color:#fbbf24;font-weight:bold;">⚔經典</span> ' : ''));
+        let _nameStyle = (_classic && _trad) ? 'style="color:#2dd4bf;"' : (_trad ? 'style="color:#c4b5fd;"' : (_classic ? 'style="color:#fbbf24;"' : 'class="text-amber-300"'));   // 經典＋傳統＝青綠；🏛️ 傳統＝淡紫；🎮 經典＝琥珀金
         let _btn = active
             ? `<button onclick="rehireAlly('${n}')" class="btn py-1 px-4 text-sm font-bold bg-sky-900 border-sky-700 text-sky-200" title="結算累積經驗（記入待領帳本，該角色下次載入或回村時領取）並以最新存檔重建戰力快照">重新招募　${mercRehireCost(sum.lv || 1).toLocaleString()}金</button>`
             : (_modeMatch
@@ -2268,7 +2282,7 @@ function renderAllyNPC(div) {
                 else if (_la.cls !== 'knight' && _la.cls !== 'warrior') _res = `　<span class="text-sky-300 font-bold">MP ${Math.max(0, Math.floor(_la.mp||0))}/${Math.floor(_la.mmp||0)}</span>`;
             }
         }
-        return `<div class="flex items-center justify-between gap-2 bg-slate-800/60 border ${_classic ? 'border-amber-600/70' : 'border-slate-600'} rounded p-3 text-sm">
+        return `<div class="flex items-center justify-between gap-2 bg-slate-800/60 border ${(_classic && _trad) ? 'border-teal-600/70' : (_trad ? 'border-purple-600/70' : (_classic ? 'border-amber-600/70' : 'border-slate-600'))} rounded p-3 text-sm">
             <span>${_tag}存檔 ${n}：<b ${_nameStyle}>${sum.cls} Lv.${sum.lv}</b>　${sum.name}${_res}</span>
             ${_btn}
         </div>`;

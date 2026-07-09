@@ -47,7 +47,7 @@ function playerAttack() {
 
         if (wpn && (wpn.eff === 'mp_drain' || wpn.mpOnHit)) {   // 🔧 mpOnHit：eff 已被其他特效(如惡魔王魔杖魔爆)佔用仍可保留命中回MP
             let en = capWpnEn((player.eq.wpn && player.eq.wpn.en) || 0);
-            let mpGain = 1 + Math.max(0, en - 6);   // +0~+6：恢復1MP；之後每+1多恢復1（+7:2、+8:3…）
+            let mpGain = (wpn.mpOnHitAmt != null) ? wpn.mpOnHitAmt : (1 + Math.max(0, en - 6));   // 🏺 邪惡蜥蜴的眼瞳：mpOnHitAmt 固定恢復量（!= null 判定·6 也算有效覆寫）；否則 +0~+6 恢復1MP、之後每+1多恢復1（+7:2、+8:3…）
             player.mp = Math.min(player.mmp, player.mp + mpGain); updateUI();
         }
 		if (wpn && wpn.eff === 'dice_death') {
@@ -66,6 +66,7 @@ function playerAttack() {
         }
         // 🏺 遺物 隱蔽的死亡草葉：一般攻擊命中「滿血」非BOSS怪，instakillFull 機率即死（斗篷授予·此處 target.curHp 為命中前值）
         if (player.d.instakillFull && target.curHp === target.hp && tryInstakill(target, { p: player.d.instakillFull, tag: null }, '隱蔽的死亡草葉', mapState.targetIdx)) return;
+        if (wpn && wpn.stoneInstakill && target.st && target.st.stone > 0 && tryInstakill(target, { p: 1, tag: null }, '蛇妖的石化刺劍', mapState.targetIdx)) return;   // 🏺 梅杜莎的蛇髮劍：命中石化敵人必定即死
         // === 騎士被動：看破 / 殺戮 / 屠殺（僅對近距離普攻生效，兩者獨立判定，可同時觸發）===
         let killPrefix = '';
         if (player.cls === 'knight' && !result.ranged && !player.classicMode) {   // 🎮 經典模式：騎士無看破/殺戮被動
@@ -110,6 +111,10 @@ function playerAttack() {
         if (player.buffs.sk_royal_bravewill > 0 && Math.random() < (player.mastery === 'k_royal_sword' ? 0.2 : 0.1)) result.dmg = Math.max(1, Math.floor(result.dmg * 1.5));   // 👑 勇猛意志：10%(🏅劍術精通20%)機率一般攻擊傷害×1.5
         if (wpn && wpn.hardSkinMult && _mainHardSkin > 0) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.hardSkinMult));   // 🦀 巨大鱷魚的狩獵牙：目標有硬皮值時一般攻擊傷害 ×1.5（貫穿故傷害未被硬皮扣減）
         if (wpn && wpn.raceBonus && target.race === wpn.raceBonus.race) result.dmg = Math.max(1, Math.floor(result.dmg * (wpn.raceBonus.mult || 1)));   // 🕷️ 刺針：一般攻擊對特定種族（蜘蛛）造成傷害 ×N
+        if (wpn && wpn.softMult && _mainHardSkin <= 0) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.softMult));   // 🏺 骸骨將軍的雙手劍：對無硬皮敵人傷害 ×1.3
+        if (wpn && wpn.fullHpMult && target.curHp === target.hp) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.fullHpMult));   // 🏺 遺忘者的狙神弓：對滿血敵人傷害 ×3
+        if (wpn && wpn.silencedBonusDmg && target.st && target.st.magicseal > 0) result.dmg += wpn.silencedBonusDmg;   // 🏺 寂靜之毒刃：對沉默(magicseal)敵人額外固定傷害
+        if (wpn && wpn.raceFlat && target.race === wpn.raceFlat.race) result.dmg = result.dmg + (wpn.raceFlat.add || 0);   // 🏺 遠古巨鐮之爪：對特定種族（動物）額外固定傷害 +N
         target.curHp -= result.dmg;
         if (result.dmg > 0) { try { playMobHurt(target); } catch(e){} }   // 🔊 音效：怪物受傷（依怪名對應；全域節流）
         if (player._setDragonblood2 && result.dmg > 0) player.hp = Math.min(player.mhp, player.hp + Math.max(1, Math.floor(result.dmg * (player.hp < player.mhp * 0.5 ? 0.05 : 0.01))));   // 🐉 龍血2/5：造成物理傷害吸血1%（自身HP<50%→5%）
@@ -131,6 +136,8 @@ function playerAttack() {
         if (player._flameSlashFire) { target.justHit = 'fire'; player._flameSlashFire = false; logCombat('<span class="font-bold" style="color:#fb923c;text-shadow:0 0 6px #ea580c;">【燃燒擊砍】</span>烈焰隨刃迸發！', 'player'); }   // 🐉 燃燒擊砍：本擊轉火屬性
         // 🔮 麗人 5/5：已改為「未命中→額外命中+10可堆疊，命中歸零」（見 getPhysicalDmg），不再於重擊後給必中
         if (player._setWhiteBird5 && target.curHp > 0) { if (!target.st) target.st = newMobStatus(); target.st.fragile = 30; }   // 🔮 白鳥 5/5：脆弱 3 秒（重複觸發刷新）
+        if (wpn && wpn.onHitEleVuln === 'fire' && target.curHp > 0) target._fireVulnUntil = state.ticks + 30;   // 🏺 蜥蜴勇士的刺劍：命中時附加火屬性弱點（3秒）
+        if (wpn && wpn.hasteStrike && player.buffs && player.buffs.haste > 0) { player.buffs.haste = 0; if (typeof calcStats === 'function') calcStats(); }   // 🏺 殺人蜂的毒針：命中時失去加速狀態
 
 		// 穿透（貝卡合金）：場上有兩名以上敵人時，普攻額外攻擊「主目標以外隨機一名敵人」，
 		// 每個波及目標各自獨立判定是否命中，命中則造成與主目標相同的傷害與屬性；僅一名敵人時與一般近戰相同（不額外攻擊）。
@@ -206,8 +213,8 @@ function playerAttack() {
         if (target.curHp > 0 && !result.ranged) applyPlayerWeakExpose(target);   // 🐉 弱點曝光：近距離命中時依鎖鏈劍/弱點精通附加堆疊
         // 🔧 蕾雅魔杖：近距離一般攻擊命中觸發冰裂術
         if (!result.ranged && target.curHp > 0 && wpn && wpn.meleeHitSpell) laiaWandHitProc(target);
-        // 🏺 遺物 命中附加固定屬性傷害（幽光的殘念 30火／冰石的強襲鎚 10水·不受魔抗/防禦影響）
-        if (target.curHp > 0 && wpn && wpn.onHitEleDmg) { let _oh = wpn.onHitEleDmg; target.curHp -= _oh.dmg; target.justHit = _oh.ele; mobWake(target); logCombat(`<span class="font-bold" style="color:${RELIC_ELE_COLOR[_oh.ele] || '#e2e8f0'};">附加 ${_oh.dmg} 點${RELIC_ELE_LABEL[_oh.ele] || ''}屬性傷害。</span>`, 'player-special'); }
+        // 🏺 遺物 命中附加固定屬性傷害（幽光的殘念 30火／冰石的強襲鎚 10水·灰燼戰士火焰劍 3%機率·不受魔抗/防禦影響）
+        if (target.curHp > 0 && wpn && wpn.onHitEleDmg && (!wpn.onHitEleDmg.rate || Math.random() * 100 < wpn.onHitEleDmg.rate)) { let _oh = wpn.onHitEleDmg; target.curHp -= _oh.dmg; target.justHit = _oh.ele; mobWake(target); logCombat(`<span class="font-bold" style="color:${RELIC_ELE_COLOR[_oh.ele] || '#e2e8f0'};">附加 ${_oh.dmg} 點${RELIC_ELE_LABEL[_oh.ele] || ''}屬性傷害。</span>`, 'player-special'); }
         // 🏺 遺物 弱點洞察（巨大螞蟻的複眼）：以剋制目標屬性的武器屬性命中→額外固定傷害
         if (target.curHp > 0) { let _whb = _relicWeakHitBonus(player); if (_whb > 0) { let _we = getWpnEle(player.eq.wpn, wpn); if (_we && _we !== 'none' && elementCounterMult(_we, target.e) > 1) { target.curHp -= _whb; target.justHit = _we; mobWake(target); logCombat(`<span class="font-bold text-amber-300">【弱點洞察】</span>擊中屬性弱點，額外造成 ${_whb} 點傷害。`, 'player-special'); } } }
         if (target.curHp <= 0) killMob(mapState.targetIdx);
@@ -420,6 +427,12 @@ function weaponSpellProc(target) {
     if (wpn.spellProc) procWeaponSpell(t, wpn.spellProc, en);
     else if (wpn.procSkill) procFreeMagicSkill(t, wpn.procSkill, en);   // 🔧 冰之女王魔杖：免費施放法師技能（冰錐），傷害依強化值 ×(1+強化/20)
 }
+// 🏺 遺物 特定技能傷害倍率：掃描所有裝備欄，若帶 skillDmgMult{skId:倍率} 則相乘
+function equipSkillDmgMult(sk, skId) {
+    let m = 1; if (!player || !player.eq) return m;
+    for (let k in player.eq) { let e = player.eq[k]; if (!e) continue; let dd = DB.items[e.id]; if (!dd || !dd.skillDmgMult) continue; let v = dd.skillDmgMult[skId] || (sk && sk.n && dd.skillDmgMult[sk.n]); if (v) m *= v; }
+    return m;
+}
 // 🔧 免費施放法師單體傷害魔法（不耗MP/不需學習）：套用與一般魔法相同的魔攻係數/法師加成/屬性剋制/魔防；並依武器強化值 ×(1+強化/20)
 function procFreeMagicSkill(t, skId, en) {
     let sk = DB.skills[skId];
@@ -447,6 +460,7 @@ function procFreeMagicSkill(t, skId, en) {
         total += Math.max(1, Math.floor(d * fragileMult(t)));
     });
     total = Math.floor(total * enhanceWpnFinalMult(en, player.eq.wpn && DB.items[player.eq.wpn.id]));   // 🔧 武器強化 +11~+20：最終傷害倍率（取代舊 (1+強化/20)）
+    if (total > 0) total = Math.max(1, Math.floor(total * equipSkillDmgMult(sk, skId)));   // 🏺 遺物 特定技能傷害倍率（觸發路徑亦吃倍率）
     if (total > 0) {
         t.curHp -= total; t.justHit = (sk.ele && sk.ele !== 'none') ? sk.ele : 'magic'; t._spellHurt = true; mobWake(t);   // 🎬 v3.0.14 法術傷害→hurt(含頭目)
         if(typeof playSpellFx === 'function') { try { playSpellFx(sk.n, t); } catch(e){} }   // ⚡ v2.7.16 娃娃/寵物免費施放(如娃娃克特/聖伯納→極道落雷)也疊法術特效
@@ -744,6 +758,7 @@ function enemyPhysicalAttack(mob, idx, stunChance = 0, atkDmg = null, atkDb = nu
 
         resFactor = Math.max(0, Math.min(1, resFactor));
         totalDmg = Math.floor(totalDmg * resFactor);
+        if (player.d.wearerEle && mob.e && mob.e !== 'none') totalDmg = Math.max(1, Math.floor(totalDmg * elementCounterMult(mob.e, player.d.wearerEle)));   // 🏺 火焰/冰霜化身：裝備者化屬性→受剋屬性一般攻擊傷害↑(×1.4)、受剋制屬性傷害↓(×0.6)
 
         // 隨機減免：騎士 (10-AC)/2；妖精/黑暗妖精/龍騎士/戰士 (10-AC)/3；幻術士 (10-AC)/4；王族/法師等 (10-AC)/5
         // 🔧 v2.6.64：取值範圍由「0 ~ (10-AC)/Y」改為「(10-AC)/3Y ~ (10-AC)/Y」（下限=上限的1/3）
@@ -1388,7 +1403,12 @@ function applyMobMagic(mob, sk) {
             dmg = Math.floor(Math.floor((baseMagicDmg + extraMagicDmg) * resFactor) * mrFactor) - player.d.dr - ((mob.st && (mob.st.confuse > 0 || mob.st.panic > 0)) ? 10 : 0) - ((mob.st && mob.st.doom > 0) ? 20 : 0);   // 🔮 混亂/恐慌：怪物技能傷害-10；🐉 驚悚死神：怪物技能傷害-20（下方 Math.max(1,dmg) 保底）
         }
         if(sk.ext_freeze && player.statuses.freeze > 0) { dmg += sk.ext_freeze; if(sk.extUnfreeze) player.statuses.freeze = 0; }   // 🔧 冰裂：對冰凍目標額外傷害，並解除冰凍
-
+        // 🏺 遺物 烈焰愛意：免疫火屬性傷害（每 10 秒最多 1 次）
+        if (sk.ele === 'fire' && player.d.fireNullify && state.ticks >= (player._fireNullCd || 0)) {
+            player._fireNullCd = state.ticks + 100;
+            logCombat(`<span class="font-bold" style="color:#fca5a5;">【烈焰愛意】</span>你化解了 <span class="${getMobColor(mob.lv)}">${mob.n}</span> 的火屬性傷害。`, 'magic');
+            return;
+        }
         if (mob._sherine) dmg = Math.floor(dmg * (mob._sherineMad ? 3 : 2));            // 🔮 席琳的世界：技能最終傷害 ×2（瘋狂×3·增傷）
         if (mob._grace) dmg = Math.floor(dmg * 2);              // 🔮 席琳的恩賜：再 ×2（增傷）
         // 🔧 百分比受傷「減免」統一乘算（多層疊加採乘算：例 鐵衛20%×聖結界30%＝1−0.8×0.7＝44%，非相加 50%）
@@ -1401,6 +1421,7 @@ function applyMobMagic(mob, sk) {
           _drMult *= teamDmgReduceMult();                                                                        // 🛡️ 鋼鐵防護：全隊受傷 -5%（魔法亦適用）
           dmg = Math.floor(dmg * _drMult); }
         dmg = Math.max(1, dmg);
+        if (player.d.wearerEle && sk.ele && sk.ele !== 'none') dmg = Math.max(1, Math.floor(dmg * elementCounterMult(sk.ele, player.d.wearerEle)));   // 🏺 火焰/冰霜化身：裝備者化屬性→受剋屬性魔傷↑(×1.4)、受剋制↓(×0.6)
         dmg = castleGuardAbsorb(dmg, 'magic');   // 🏰 風木城護衛：承擔 10% 魔法攻擊
         dmg = Math.floor(dmg * riftDamageMult());   // 🌀 時空裂痕 30 分後每分鐘 +20% 怪物技能傷害
 
