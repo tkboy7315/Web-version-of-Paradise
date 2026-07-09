@@ -801,25 +801,13 @@
   // ===== 入口按鈕 =========================================================
   function injectButton(menu) {
     if (document.getElementById('m-wiki-open')) return;
-    var row = document.createElement('div');
-    row.className = 'm-wiki-entry-row';
     var b = document.createElement('button');
     b.id = 'm-wiki-open';
     b.type = 'button';
-    b.className = 'btn text-xl py-4 bg-indigo-700 hover:bg-indigo-600 border-indigo-500 m-wiki-entry-main';
+    b.className = 'btn text-xl w-72 py-4 bg-indigo-700 hover:bg-indigo-600 border-indigo-500';
     b.textContent = '📚 小百科';
     b.addEventListener('click', openModal);
-    var nt = document.createElement('button');
-    nt.id = 'm-wiki-newtab';
-    nt.type = 'button';
-    nt.className = 'btn py-4 bg-indigo-700 hover:bg-indigo-600 border-indigo-500 m-wiki-entry-newtab';
-    nt.textContent = '↗';
-    nt.title = '在新分頁開啟小百科';
-    nt.setAttribute('aria-label', '在新分頁開啟小百科');
-    nt.addEventListener('click', function () { window.open(standaloneUrl(), '_blank'); });
-    row.appendChild(b);
-    row.appendChild(nt);
-    menu.appendChild(row);
+    menu.appendChild(b);
   }
 
   // ----- 自動化設定面板「🔌 外掛」列:遊戲中也能開小百科/掉落查詢/木人場 ------
