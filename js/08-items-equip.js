@@ -38,9 +38,12 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
         // 詞綴：怪物掉落/製作走新制(單1%/雙0.1%/三0.01%)；潘朵拉/血盟(affixOld=true)沿用舊制(各1%)。箭矢不附加。
         let _af = affixOld ? rollAffixesOld() : rollAffixesNew();
         attr = _af.attr; bless = _af.bless; anc = _af.anc;
-        if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此裝備詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
-        // 🏛️ 傳統模式：額外 0.5% 機率掉落遠古系（與祝福獨立，可共存）
-        if (traditionalActive() && !anc && lootRng('tradanc') < 0.005) anc = true;
+        if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
+        // 🏛️ 傳統模式：遠古系 4 種變體（遠古/永恆/不朽/太初）各自獨立 0.5%，複數命中取最後一種
+        if (traditionalActive() && !anc) {
+            [['tradanc_base',true],['tradanc_eternal','eternal'],['tradanc_immortal','immortal'],['tradanc_primordial','primordial']]
+                .forEach(p => { if (lootRng(p[0]) < 0.005) anc = p[1]; });
+        }
     }
 
     // 🔮 席琳套裝效果：指定部位（武器/頭盔/盔甲/手套/長靴/斗篷/腰帶）※項鍊已改為腰帶
@@ -269,12 +272,6 @@ function potionHealBase(d) {
         return Math.round(d.valMin + Math.random() * (d.valMax - d.valMin));
     }
     return d.val;
-}
-
-function _forceBless(src, tar) {
-    if (src && tar && src.bless && tar.bless == null) {
-        tar.bless = Object.assign({}, src.bless);
-    }
 }
 
 function useItem(u, silent = false) {
