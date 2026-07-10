@@ -39,6 +39,8 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
         let _af = affixOld ? rollAffixesOld() : rollAffixesNew();
         attr = _af.attr; bless = _af.bless; anc = _af.anc;
         if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此裝備詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
+        // 🏛️ 傳統模式：額外 0.5% 機率掉落遠古系（與祝福獨立，可共存）
+        if (traditionalActive() && !anc && lootRng('tradanc') < 0.005) anc = true;
     }
 
     // 🔮 席琳套裝效果：指定部位（武器/頭盔/盔甲/手套/長靴/斗篷/腰帶）※項鍊已改為腰帶
