@@ -38,6 +38,7 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
         // 詞綴：怪物掉落/製作走新制(單1%/雙0.1%/三0.01%)；潘朵拉/血盟(affixOld=true)沿用舊制(各1%)。箭矢不附加。
         let _af = affixOld ? rollAffixesOld() : rollAffixesNew();
         attr = _af.attr; bless = _af.bless; anc = _af.anc;
+        if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此裝備詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
     }
 
     // 🔮 席琳套裝效果：指定部位（武器/頭盔/盔甲/手套/長靴/斗篷/腰帶）※項鍊已改為腰帶
@@ -261,6 +262,19 @@ function getItemFullName(item) {
     return `${segs}<span class="${getItemColor(item)}">${en}${setPrefix}${d.n}${cnt}</span>`;
 }
 
+function potionHealBase(d) {
+    if (d.valMin != null && d.valMax != null) {
+        return Math.round(d.valMin + Math.random() * (d.valMax - d.valMin));
+    }
+    return d.val;
+}
+
+function _forceBless(src, tar) {
+    if (src && tar && src.bless && tar.bless == null) {
+        tar.bless = Object.assign({}, src.bless);
+    }
+}
+
 function useItem(u, silent = false) {
     let item = player.inv.find(i => i.uid === u);
     if (!item) return;
@@ -358,7 +372,7 @@ function useItem(u, silent = false) {
         }
         if (item.id.includes('potion_heal') || item.id === 'potion_strong' || item.id === 'potion_ult') {
             if (player.cds.pot > 0) return;
-            let h = Math.floor(d.val * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus') + (player._miscPotionBonus || 0)) / 100));   // 🪆 魔法娃娃 potionBonus%（吸血鬼）；🧰 道具收集冊 材料/其他全收集：藥水恢復%
+            let h = Math.floor(potionHealBase(d) * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus') + (player._miscPotionBonus || 0)) / 100));   // 🍶 藥水基準改隨機區間 valMin~valMax（紅10~20/橙30~50/白60~80）；🪆 魔法娃娃 potionBonus%（吸血鬼）；🧰 道具收集冊 材料/其他全收集：藥水恢復%
             if (hasMastery('k_survive')) h = Math.floor(h * 1.25);   // 🏅 生存精通：治癒藥水恢復 +25%
             if (hasMastery('k_tough') && player.hp < player.mhp * 0.4) h = Math.floor(h * 1.5);   // ⚔️ 堅韌精通：HP<40% 時藥水治癒量 +50%
             if (hasMastery('k_dragonblood')) h = Math.floor(h * 1.15);   // 🐉 龍血精通：治癒藥水恢復 +15%

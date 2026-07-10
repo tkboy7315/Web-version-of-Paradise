@@ -551,6 +551,7 @@ function regenTick() {
     if(player.mp < player.mmp && (_loadFreeRegen || (player.d.loadTier||0) < 1)) {
         // 同樣加上 Number() 保護
         let totalMpRegen = Number(player.d.mpR || 0);
+        if (player.d.lowMpRegenBonus && player.mp < player.mmp * 0.15) totalMpRegen += player.d.lowMpRegenBonus;   // 🐍 蛇神的凝視：MP<15% 時 MP自然恢復量額外 +N
         if (totalMpRegen > 0) {
             player.mp = Math.min(player.mmp, player.mp + totalMpRegen);
         }
@@ -569,9 +570,10 @@ const KING_ROOMS = {
     necro_king_room:    { boss: 'de_king_heruby',  minion: 'de_necro_warlock',   name: '冥法軍王之室' },
     assassin_king_room: { boss: 'de_king_slayer',  minion: 'de_gate_soldier',    name: '暗殺軍王之室' },
     // 🏛️ 底比斯歐西里斯祭壇：雙BOSS（賀洛斯＋阿努比斯），兩隻皆亡後 5 秒同時復活；入場與再臨各消耗 1 把祭壇鑰匙
-    thebes_temple:      { dual: true, bosses: ['thebes_horus', 'thebes_anubis'], key: 'item_thebes_altar_key', name: '底比斯歐西里斯祭壇' }
+    thebes_temple:      { dual: true, bosses: ['thebes_horus', 'thebes_anubis'], key: 'item_thebes_altar_key', name: '底比斯歐西里斯祭壇' },
+    tikal_altar:        { boss: 'tikal_guardian', key: 'item_tikal_altar_key', name: '提卡爾祭壇' }
 };
-const PURE_BOSS_MAPS = ['antaras_lair', 'fafurion_lair', 'valakas_lair', 'king_baranka_room', 'law_king_room', 'necro_king_room', 'assassin_king_room', 'thebes_temple'];
+const PURE_BOSS_MAPS = ['antaras_lair', 'fafurion_lair', 'valakas_lair', 'king_baranka_room', 'law_king_room', 'necro_king_room', 'assassin_king_room', 'thebes_temple', 'tikal_altar'];
 const BOSS_BIG_MAPS = ['antaras_lair', 'fafurion_lair', 'valakas_lair'];   // 👑 方案B放大版面只套用這3個龍窟(不含底比斯祭壇等其餘純BOSS房)
 
 // 🆕 後排雙格：一般狩獵地圖在原本三格(前排)之外，再追加兩格「後排」小怪→場上最多同時 5 隻。
@@ -912,8 +914,10 @@ function getPhysicalDmg(diceStr, target, wpn, arrowData, forceHeavy, forceHit, f
     if (_cw && _cw.finalMult) _outDmg = Math.max(1, Math.floor(_outDmg * _cw.finalMult));   // 🏛️ 武器最終傷害倍率（古老武器 ×2）
     _outDmg = Math.max(1, Math.floor(_outDmg * rlFuryMult()));   // 🔮 紅獅5/5(×1.2)＋😡狂怒5/5：最終傷害（普攻及所有走本函式的物理攻擊：反擊/居合/看破/連擊/連射/穿透/魔擊/物理技能）
     _outDmg = Math.max(1, Math.floor(_outDmg * elementCounterMult(_wAff && _wAff.ele, target.e)));   // ⚔️ 屬性剋制：武器屬性詞綴剋怪 ×1.4、被剋 ×0.6（無屬性詞綴→×1）
+    if (target && target._fireVulnUntil > state.ticks && (_wAff ? _wAff.ele : getWpnEle(null, DB.items[_swingId])) === 'fire') _outDmg = Math.max(1, Math.floor(_outDmg * 1.3));   // 🏺 遺物 灼熱蜥蜴長舌：目標帶火屬性弱點時受火屬性攻擊 +30%
     if (heavy && player.mastery === 'k_cleave' && _cw && _cw.eff === 'cleave') _outDmg = Math.max(1, Math.floor(_outDmg * 1.5));   // 🏅 切割精通：觸發重擊時傷害 ×1.5
     if (heavy && _cw && _cw.heavyMult) _outDmg = Math.max(1, Math.floor(_outDmg * _cw.heavyMult));   // 🏺 遺物 聖殿騎士的榮耀巨劍：觸發重擊時傷害 ×heavyMult（1.5）
+    if (player.statuses && player.statuses.broken > 0) _outDmg = Math.max(1, Math.floor(_outDmg * 0.8));   // 🐍 壞物術（特產易碎泥偶自傷）：期間玩家一般攻擊物理傷害 -20%
     let _dualX2 = false;   // ⚔️ 雙刀內建特性：一般攻擊命中(非擦傷) 5% 機率最終傷害×2（🎮 經典模式停用）
     if (_natRoll && !graze && !player.classicMode && getWeaponTags(_swingId).includes('雙刀') && Math.random() < 0.05) { _dualX2 = true; _outDmg = Math.max(1, _outDmg * 2); }
     return { dmg: _outDmg, hit: true, heavy: heavy, crit: isCrit, graze: graze, crush: crush, dualx2: _dualX2, ranged: isRanged };
@@ -950,7 +954,7 @@ function consumeArrow() {
     
     // 扣除 1 根箭，並回傳箭矢資料提供傷害判定
     let arrowId = player.eq.arrow.id;
-    if (arrowId !== 'wpn_shaha_arrow') {   // 🏝️ 沙哈之箭：彈藥無限，不扣減
+    if (arrowId !== 'wpn_shaha_arrow' && !(DB.items[arrowId] && DB.items[arrowId].noConsume)) {   // 🏝️ 沙哈之箭：彈藥無限，不扣減；🏺 遺物 改造便利箭筒(noConsume)：視同箭矢但不消耗
         player.eq.arrow.cnt--;
         if (player.eq.arrow.cnt <= 0) {
             player.eq.arrow = null; // 耗盡時清空欄位
@@ -1419,7 +1423,7 @@ function illuLvMult(a){ return 1; }   // 🔧 幻術士等級加成 (1+等級/50
 function qiguPlayerAttack(target, wpn) {
     let d = player.d;
     if (target.curHp === target.hp && target.beh === '被動') target._delayTicks = 30;   // 命中滿血被動怪：3秒延遲（同魔法攻擊）
-    if (wpn && wpn.procInstakill) { let _pk = wpn.procInstakill; if ((!_pk.maxLv || target.lv <= _pk.maxLv) && tryInstakill(target, { p: _pk.p, tag: _pk.tag || null }, wpn.n, mapState.targetIdx)) return; }   // 🏺 遺物 曼陀羅之靈：奇古獸即死 proc（playerAttack 的 procInstakill 早退在 qigu 分支前→此處補上·傭兵版走 allyWeaponProcs 已含）
+    if (wpn && wpn.procInstakill) { let _pk = wpn.procInstakill; let _thp = target.hp || 1; if ((!_pk.maxLv || target.lv <= _pk.maxLv) && tryInstakill(target, { p: _pk.p, tag: _pk.tag || null }, wpn.n, mapState.targetIdx)) { if (_pk.healPct) { player.hp = Math.min(player.mhp, player.hp + Math.max(1, Math.floor(_thp * _pk.healPct))); updateUI(); } return; } }   // 🏺 遺物 曼陀羅之靈：奇古獸即死 proc（playerAttack 的 procInstakill 早退在 qigu 分支前→此處補上·傭兵版走 allyWeaponProcs 已含）；🐍 阿茲特獻祭亡靈 healPct：即死恢復被消滅敵人 HP%
     if (player.d.instakillFull && target.curHp === target.hp && tryInstakill(target, { p: player.d.instakillFull, tag: null }, '隱蔽的死亡草葉', mapState.targetIdx)) return;   // 🏺 遺物 隱蔽的死亡草葉：奇古獸普攻命中滿血怪即死（斗篷 req:all·幻術士亦可穿）
     let dice = (target.s === 'L') ? wpn.dmgL : wpn.dmgS;
     let core = roll(1, dice) * (1 + (d.magicDmg || 0) / 16);

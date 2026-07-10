@@ -66,6 +66,8 @@ const CRAFT_RECIPES = {
         { result: 'mat_crack_core', req: [{ id: 'mat_rift_shard', cnt: 100 }] },
         { result: 'item_osiris_box_basic', req: [{ id: 'mat_osiris_basic_up', cnt: 1 }, { id: 'mat_osiris_basic_down', cnt: 1 }] },
         { result: 'item_osiris_box_high', req: [{ id: 'mat_osiris_high_up', cnt: 1 }, { id: 'mat_osiris_high_down', cnt: 1 }] },
+        { result: 'item_kukulkan_box_basic', req: [{ id: 'mat_kukulkan_basic_up', cnt: 1 }, { id: 'mat_kukulkan_basic_down', cnt: 1 }] },
+        { result: 'item_kukulkan_box_high', req: [{ id: 'mat_kukulkan_high_up', cnt: 1 }, { id: 'mat_kukulkan_high_down', cnt: 1 }] },
         { result: 'wpn_qigu_obsidian', req: [
             { id: 'new_item_153', cnt: 10 }, { id: 'new_item_159', cnt: 10 }, { id: 'new_item_162', cnt: 10 }, { id: 'new_item_156', cnt: 10 },
             { id: 'mat_crack_core', cnt: 2 }, { id: 'mat_rough_stone', cnt: 30 }, { id: 'new_item_170', cnt: 30 }, { id: 'gold', cnt: 1000000 }
@@ -497,7 +499,7 @@ function doDemonKingCraft(idx) {
     if (lack.length) { logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">（尚缺：${lack.join('、')}）</span>`); return; }
     DEMONKING_MATS.forEach(m => ensureMaterial(m.id, m.cnt, 0));   // 🔧 先自動補製可合成的中間物（黑色米索莉金屬板等），玩家不需先手動製作金屬板
     DEMONKING_MATS.forEach(m => consumeMaterialById(m.id, m.cnt));
-    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless || false, anc: src.anc || false, seteff: src.seteff || false };
+    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless ? src.bless : rollAffixesNew().bless, anc: src.anc || false, seteff: src.seteff || false };   // 🔧 v3.1.27 祝福傳承：來源祝福/詛咒→沿用；來源無詞綴→1% 重骰祝福（rollAffixesNew·committed RNG·與一般製作一致）
     if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 🔧 來源武器在倉庫：自倉庫精準消耗該實例
     else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 把來源惡魔武器（背包）
     let inst = { id: r.result, uid: uid(), cnt: 1, en: inherit.en, attr: inherit.attr, bless: inherit.bless, anc: inherit.anc, seteff: inherit.seteff, lock: false };
@@ -560,7 +562,7 @@ function doLumielCraft(idx) {
     if (lack.length) { logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">（尚缺：${lack.join('、')}）</span>`); return; }
     r.mats.forEach(m => ensureMaterial(m.id, m.cnt, 0));   // 🔧 先自動補製可合成的中間物，玩家不需先手動製作
     r.mats.forEach(m => consumeMaterialById(m.id, m.cnt));
-    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless || false, anc: src.anc || false, seteff: src.seteff || false };
+    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless ? src.bless : rollAffixesNew().bless, anc: src.anc || false, seteff: src.seteff || false };   // 🔧 v3.1.27 祝福傳承：來源祝福/詛咒→沿用；來源無詞綴→1% 重骰祝福（rollAffixesNew·committed RNG·與一般製作一致）
     if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 來源裝備在倉庫：自倉庫精準消耗
     else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 件來源戰士團裝備（背包）
     let inst = { id: r.result, uid: uid(), cnt: 1, en: inherit.en, attr: inherit.attr, bless: inherit.bless, anc: inherit.anc, seteff: inherit.seteff, lock: false };
@@ -736,7 +738,7 @@ function whConsumeId(id, n) {   // 自倉庫扣除最多 n 個（白板/低強�
         let w = loadWarehouse();
         let need = n, stacks = w.items.filter(i => i.id === id);
         stacks.sort((a, b) => (((a.en||0)*100)+(a.anc?10:0)+(a.bless?10:0)+(a.attr?10:0)+(a.seteff?50:0)) - (((b.en||0)*100)+(b.anc?10:0)+(b.bless?10:0)+(b.attr?10:0)+(b.seteff?50:0)));
-        for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); st.cnt -= d; need -= d; }
+        for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); if (d > 0 && st.bless === true) _craftBlessCount += d; st.cnt -= d; need -= d; }   // 🔧 v3.1.27 倉庫祝福裝備材料件數累加
         w.items = w.items.filter(i => i.cnt > 0);
         saveWarehouse(w);
         return n - need;
@@ -810,7 +812,7 @@ function consumeMaterialById(id, n) {
     if (id === 'gold') { player.gold -= n; return; }
     let need = n, stacks = player.inv.filter(i => i.id === id);
     stacks.sort((a, b) => ((a.en*100)+(a.anc?10:0)+(a.bless?10:0)+(a.attr?10:0)) - ((b.en*100)+(b.anc?10:0)+(b.bless?10:0)+(b.attr?10:0)));
-    for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); st.cnt -= d; need -= d; }
+    for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); if (d > 0 && st.bless === true) _craftBlessCount += d; st.cnt -= d; need -= d; }   // 🔧 v3.1.27 祝福裝備材料件數累加（供 doCraft 逐件強制祝福）
     player.inv = player.inv.filter(i => i.cnt > 0);
     if (need > 0) whConsumeId(id, need);   // 🔧 背包不足：自倉庫扣除
 }
@@ -898,6 +900,7 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine=true：席琳製
     }
 
     // 前置：自動補製不足的中間物品（maxMakeRecipe 已確認整體可行）
+    _craftBlessCount = 0;   // 🔧 v3.1.27 歸零：本次製作消耗到的「祝福裝備」材料件數（ensureMaterial 中間物消耗＋下方直接消耗都會累加·含倉庫）
     for (let r of recipe.req) ensureMaterial(r.id, r.cnt * makeCount, 0);
 
     // 扣除材料 × makeCount（跨堆疊、白板/低強化優先；🔧 背包不足時自動扣共用倉庫，統一走 consumeMaterialById）
@@ -913,11 +916,13 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine=true：席琳製
     try {
         for (let k = 0; k < makeCount; k++) {
             _forceSherineSet = !!sherine;   // 🔮 席琳製作：每件成品必定附帶隨機一種席琳套裝效果（寵物裝備 slot 非席琳適用部位，gainItem 自然不附）
+            _forceBless = (k < _craftBlessCount);   // 🔧 v3.1.27 消耗幾件祝福裝備材料→前幾件成品必定祝福（其餘照常 1% 擲·防「1 件祝福材料→整批祝福」的批量漏洞）
             gainItem(recipe.result, recipe.yield || 1, true, false);   // 🦴 forceNormal=false → 傳統自帶強化值生效；詞綴/套裝由 _noAffixCtx 擋（寵物裝備白板）
-            _forceSherineSet = false;
+            _forceSherineSet = false; _forceBless = false;
         }
-    } finally { _tradLootCtx = false; _forceSherineSet = false; _noAffixCtx = false; }   // try/finally：例外也必清旗標，杜絕殘留洩漏
+    } finally { _tradLootCtx = false; _forceSherineSet = false; _noAffixCtx = false; _forceBless = false; }   // try/finally：例外也必清旗標，杜絕殘留洩漏
     let totalOut = (recipe.yield || 1) * makeCount;
+    if (_craftBlessCount > 0 && !_isPetGear) logSys(`<span class="c-blessed font-bold">✦ 使用了祝福的裝備作為材料，${Math.min(_craftBlessCount, makeCount)} 件成品獲得了祝福！</span>`);   // 🔧 v3.1.27 祝福材料傳承提示（寵物白板不祝福→不提示）
     logSys(`${sherine ? '<span class="c-sherine font-bold">席琳製作</span>' : '製作'}完成：<span class="${getItemColor({ id: recipe.result })} font-bold">${DB.items[recipe.result].n}</span> ×${totalOut}${sherine ? `（消耗 席琳結晶 ×${makeCount}）` : ''}`);
 
     // 重新渲染介面與左側狀態列

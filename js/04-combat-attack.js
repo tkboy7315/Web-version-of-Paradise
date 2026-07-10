@@ -114,8 +114,12 @@ function playerAttack() {
         if (wpn && wpn.softMult && _mainHardSkin <= 0) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.softMult));   // 🏺 骸骨將軍的雙手劍：對無硬皮敵人傷害 ×1.3
         if (wpn && wpn.fullHpMult && target.curHp === target.hp) result.dmg = Math.max(1, Math.floor(result.dmg * wpn.fullHpMult));   // 🏺 遺忘者的狙神弓：對滿血敵人傷害 ×3
         if (wpn && wpn.silencedBonusDmg && target.st && target.st.magicseal > 0) result.dmg += wpn.silencedBonusDmg;   // 🏺 寂靜之毒刃：對沉默(magicseal)敵人額外固定傷害
-        if (wpn && wpn.raceFlat && target.race === wpn.raceFlat.race) result.dmg = result.dmg + (wpn.raceFlat.add || 0);   // 🏺 遠古巨鐮之爪：對特定種族（動物）額外固定傷害 +N
+        if (wpn && wpn.poisonedBonusDmg && target.st && target.st.poison > 0) result.dmg += wpn.poisonedBonusDmg;   // 🐍 艾庫卡伊拉的毒牙：對中毒狀態敵人額外固定傷害 +15
+        if (wpn && wpn.slowedBonusDmg && target.st && target.st.slow > 0) result.dmg += wpn.slowedBonusDmg;   // 🐍 艾庫艾托的鞭笞藤：對緩速狀態敵人額外固定傷害 +10
+        if (wpn && wpn.selfBreakProc && Math.random() < 0.03) { result.dmg = Math.max(1, Math.floor(result.dmg * 1.5)); if (player.statuses) player.statuses.broken = (wpn.selfBreakProc.dur || 5) * 10; }   // 🐍 特產易碎泥偶：一般攻擊 3% 機率傷害×1.5，並使自身陷入壞物術（下方 getPhysicalDmg 期間傷害 -20%）
+        if (wpn && wpn.raceFlat && target.race === wpn.raceFlat.race) result.dmg = result.dmg + (wpn.raceFlat.add || 0);   // 🏺 遺物 上古蜘蛛之爪：一般攻擊對特定種族（動物）造成額外固定傷害 +N
         target.curHp -= result.dmg;
+        if (target.curHp > 0) consumeStrawCurse(target);   // 🐍 詛咒稻草人：受到攻擊時額外扣 80 水魔傷（每次消耗 1 層·最多 3 層）
         if (result.dmg > 0) { try { playMobHurt(target); } catch(e){} }   // 🔊 音效：怪物受傷（依怪名對應；全域節流）
         if (player._setDragonblood2 && result.dmg > 0) player.hp = Math.min(player.mhp, player.hp + Math.max(1, Math.floor(result.dmg * (player.hp < player.mhp * 0.5 ? 0.05 : 0.01))));   // 🐉 龍血2/5：造成物理傷害吸血1%（自身HP<50%→5%）
         if (wpn && wpn.vampPct && result.dmg > 0) player.hp = Math.min(player.mhp, player.hp + Math.floor(result.dmg * wpn.vampPct));   // 🐉 嗜血者鎖鏈劍：吸取一般攻擊傷害的 % 為 HP
@@ -123,7 +127,7 @@ function playerAttack() {
         if (player.buffs && player.buffs.sk_dark_poison > 0 && target.curHp > 0 && Math.random() < (hasMastery('d_poison') ? 1 : 0.5)) {
             if (!target.st) target.st = newMobStatus();
             let _pPct = hasMastery('d_poison') ? 2.0 : 0.6;   // 🔧 劇毒精通：每秒 200%；否則 60%
-            let _pUnit = Math.max(1, Math.floor(result.dmg * _pPct));
+            let _pUnit = Math.max(1, Math.floor(result.dmg * _pPct * ((wpn && wpn.poisonMult) || 1)));   // 🏺 暗黑蠍的雙鉗：poisonMult 放大觸發的附加劇毒傷害（×1.2）
             // 🔧 新規則：未中毒、或新傷害「高於」現有時才上毒（取代傷害並刷新5秒）；新傷害未更高則完全不更新，須等舊毒5秒跑完、敵人脫離中毒後才能再上毒
             if ((target.st.poison || 0) <= 0 || _pUnit > (target.st.poisonUnit || 0)) {
                 target.st.poison = 50; target.st.poisonTick = 10;   // 持續 5 秒、每秒一次
@@ -138,6 +142,7 @@ function playerAttack() {
         if (player._setWhiteBird5 && target.curHp > 0) { if (!target.st) target.st = newMobStatus(); target.st.fragile = 30; }   // 🔮 白鳥 5/5：脆弱 3 秒（重複觸發刷新）
         if (wpn && wpn.onHitEleVuln === 'fire' && target.curHp > 0) target._fireVulnUntil = state.ticks + 30;   // 🏺 蜥蜴勇士的刺劍：命中時附加火屬性弱點（3秒）
         if (wpn && wpn.hasteStrike && player.buffs && player.buffs.haste > 0) { player.buffs.haste = 0; if (typeof calcStats === 'function') calcStats(); }   // 🏺 殺人蜂的毒針：命中時失去加速狀態
+        if (wpn && wpn.strawCurse && target.curHp > 0 && Math.random() * 100 < wpn.strawCurse.rate) { if (!target.st) target.st = newMobStatus(); target.st.strawCurse = Math.max(target.st.strawCurse || 0, wpn.strawCurse.stacks || 3); }   // 🐍 庫庫爾坎之矛/鐵手甲/蛇神獠牙：命中 rate% 種下詛咒稻草人（3 層）
 
 		// 穿透（貝卡合金）：場上有兩名以上敵人時，普攻額外攻擊「主目標以外隨機一名敵人」，
 		// 每個波及目標各自獨立判定是否命中，命中則造成與主目標相同的傷害與屬性；僅一名敵人時與一般近戰相同（不額外攻擊）。
@@ -427,6 +432,14 @@ function weaponSpellProc(target) {
     if (wpn.spellProc) procWeaponSpell(t, wpn.spellProc, en);
     else if (wpn.procSkill) procFreeMagicSkill(t, wpn.procSkill, en);   // 🔧 冰之女王魔杖：免費施放法師技能（冰錐），傷害依強化值 ×(1+強化/20)
 }
+// 🐍 詛咒稻草人：目標帶 st.strawCurse 層數時，受到攻擊即消耗 1 層並額外承受 80 點水屬性魔法固定傷害（無視魔抗/防禦·比照 onHitEleDmg）。3 把武器種下(庫庫爾坎之矛/鐵手甲/蛇神倒勾獠牙)。掛玩家主攻擊(js/04)與傭兵主攻擊(js/06)兩處主命中。
+function consumeStrawCurse(m) {
+    if (!m || m.curHp <= 0 || !m.st || !(m.st.strawCurse > 0)) return;
+    m.st.strawCurse--;
+    m.curHp -= 80; m.justHit = 'water'; mobWake(m);
+    logCombat(`<span class="font-bold" style="color:#60a5fa;">【詛咒稻草人】</span>對 <span class="${getMobColor(m.lv)}">${m.n}</span> 額外造成 80 點水屬性魔法傷害。`, 'player-special');
+    if (m.curHp <= 0) { let ri = mapState.mobs.findIndex(x => x && x.uid === m.uid); if (ri !== -1) killMob(ri); }
+}
 // 🏺 遺物 特定技能傷害倍率：掃描所有裝備欄，若帶 skillDmgMult{skId:倍率} 則相乘
 function equipSkillDmgMult(sk, skId) {
     let m = 1; if (!player || !player.eq) return m;
@@ -489,7 +502,7 @@ function playerEquipStatusResist(field) {
 // 🪆 統一玩家狀態抵抗/免疫（含魔法娃娃 freezeResist/stunResist/immParalyze/immSlow/abnormalResist…）：
 //    kind ∈ freeze|stun|paralyze|sleep|slow|poison；掃 WEIGHT_COUNT_SLOTS（含 doll 槽）取免疫旗標/抵抗%＋通用 abnormalResist，回傳 true=本次抵抗/免疫。
 function playerStatusResisted(kind) {
-    let immF = { freeze: 'immFreeze', stun: 'immStun', paralyze: 'immParalyze', sleep: 'immSleep', slow: 'immSlow', poison: 'immPoison' }[kind];
+    let immF = { freeze: 'immFreeze', stun: 'immStun', paralyze: 'immParalyze', sleep: 'immSleep', slow: 'immSlow', poison: 'immPoison', burn: 'immBurn' }[kind];   // 🏺 遺物 詛咒三頭獸的犄角：immBurn→免疫灼燒
     let resF = { freeze: 'freezeResist', stun: 'stunResist', paralyze: 'paralyzeResist', sleep: 'sleepResist', slow: 'slowResist', poison: 'poisonResist' }[kind];
     let pct = 0;
     WEIGHT_COUNT_SLOTS.forEach(k => {
@@ -504,7 +517,7 @@ function playerStatusResisted(kind) {
 }
 // 🆕 v2.6.11 [傭兵能力補完 #4] 傭兵版裝備狀態抵抗/免疫（比照 playerStatusResisted·讀 ally.eq/skills/d；WEIGHT_COUNT_SLOTS 含 doll 槽→同時涵蓋娃娃 immFreeze/stunResist…）。kind ∈ freeze|stun|paralyze|sleep|slow|poison。
 function allyStatusResisted(ally, kind) {
-    let immF = { freeze: 'immFreeze', stun: 'immStun', paralyze: 'immParalyze', sleep: 'immSleep', slow: 'immSlow', poison: 'immPoison' }[kind];
+    let immF = { freeze: 'immFreeze', stun: 'immStun', paralyze: 'immParalyze', sleep: 'immSleep', slow: 'immSlow', poison: 'immPoison', burn: 'immBurn' }[kind];   // 🏺 遺物 詛咒三頭獸的犄角：immBurn→免疫灼燒
     let resF = { freeze: 'freezeResist', stun: 'stunResist', paralyze: 'paralyzeResist', sleep: 'sleepResist', slow: 'slowResist', poison: 'poisonResist' }[kind];
     let pct = 0;
     WEIGHT_COUNT_SLOTS.forEach(k => {
@@ -539,7 +552,7 @@ function allyDollDamageReduced(ally, dmg) {
 function _procWeaponSpellHit(t, sp, en) {
     if (!t || t.curHp <= 0) return false;
     let base = roll(sp.dice[0], sp.dice[1]) + (sp.flat || 0);   // 🔧 基礎傷害（含 sp.flat 固定加值·如電光衝擊/水之矛/火焰之陣的 +5/+6；強化改吃 +11 最終倍率·原 ×(1+強化/20) 移除）
-    let core = base * (1 + 3 * (player.d.magicDmg || 0) / 16);            // 受魔法傷害影響（同一般魔法的魔攻係數）
+    let core = sp.noMagicDmg ? base : base * (1 + 3 * (player.d.magicDmg || 0) / 16);   // 受魔法傷害影響（同一般魔法的魔攻係數）；🧊⚡ noMagicDmg：酷寒之矛/雷雨之劍用固定骰值，不吃魔法傷害加成
     let effMr = (t.st && t.st.mrhalf > 0) ? (t.mr / 2) : t.mr;
     let mrFactor = mrMult(effMr);
     let _cm = elementCounterMult(sp.ele, t.e);   // ⚔️ 屬性剋制倍率 ×1.4(剋)/×0.6(被剋)/×1
@@ -791,6 +804,7 @@ function enemyPhysicalAttack(mob, idx, stunChance = 0, atkDmg = null, atkDb = nu
           if (player._setFury5) _drMult *= (1 - furyRageRatio());        // 😡 狂怒 5/5：依失血最多 -20%
           _drMult *= teamDmgReduceMult();                                // 🛡️ 鋼鐵防護：全隊受傷 -5%（玩家自身也套）
           if (heavy && player.d.crushDr > 0) _drMult *= (1 - Math.min(80, player.d.crushDr) / 100);   // 🏺 遺物 妖魔的兜襠布：受到重擊(敵人骰20)時傷害 -crushDr%（上限 80%）
+          if (player.d.physDrGated > 0 && state.ticks >= (player._physDrCd || 0)) { _drMult *= (1 - Math.min(90, player.d.physDrGated) / 100); player._physDrCd = state.ticks + 30; }   // 🐍 祭祀儀式陶罐：受一般攻擊傷害 -physDrGated%，每 3 秒(30 ticks)最多觸發 1 次
           totalDmg = Math.max(0, Math.floor(totalDmg * _drMult)); }
 
         // 常駐被動：看破（敵人版）— 命中時依機率造成兩倍傷害（5 + 等級/10 %）
@@ -894,12 +908,14 @@ function enemyPhysicalAttack(mob, idx, stunChance = 0, atkDmg = null, atkDb = nu
 // 🤝 仇恨權重（玩家與傭兵同規則，不分身分）：法師/幻術士、或持弓/遠程武器(弓・十字弓)者＝1；近戰 騎士/戰士/龍騎士＝4；近戰 妖精/黑暗妖精/王族＝3；其餘＝1。（v2.6.30 近戰重裝 3→4・近戰輕裝 2→3）
 function mercAggroWeight(c) {
     if (!c) return 0;
-    if (c.cls === 'mage' || c.cls === 'illusion') return 1;   // 施法者：恆 1
+    let _agB = 0;   // 🐍 艾庫卡伊拉的華麗兜帽：裝備 aggroWeight → 提高被攻擊權重（玩家/傭兵通用）
+    if (c.eq) for (let k in c.eq) { let e = c.eq[k]; if (e) { let d = DB.items[e.id]; if (d && d.aggroWeight) _agB += d.aggroWeight; } }
+    if (c.cls === 'mage' || c.cls === 'illusion') return 1 + _agB;   // 施法者：恆 1
     let w = (c.eq && c.eq.wpn) ? DB.items[c.eq.wpn.id] : null;
-    if (w && (w.isBow || w.ranged)) return 1;   // 持弓/遠程：恆 1（弓・十字弓）
-    if (c.cls === 'knight' || c.cls === 'warrior' || c.cls === 'dragon') return 4;   // 近戰重裝
-    if (c.cls === 'elf' || c.cls === 'dark' || c.cls === 'royal') return 3;          // 近戰輕裝
-    return 1;
+    if (w && (w.isBow || w.ranged)) return 1 + _agB;   // 持弓/遠程：恆 1（弓・十字弓）
+    if (c.cls === 'knight' || c.cls === 'warrior' || c.cls === 'dragon') return 4 + _agB;   // 近戰重裝
+    if (c.cls === 'elf' || c.cls === 'dark' || c.cls === 'royal') return 3 + _agB;          // 近戰輕裝
+    return 1 + _agB;
 }
 // 🏺 聖甲蟲的孵育巢（aggroHide 旗標）：掃 entity 全部裝備欄是否裝備「迴避仇恨」物品（玩家/傭兵通用）。
 function _hasAggroHide(c) {
@@ -1060,7 +1076,9 @@ function killPlayer() {
 function castMobMagic(mob, sk) {
     if (!sk) return;
     if (mob && mob.curHp > 0 && typeof _mobAnimTrigger === 'function') _mobAnimTrigger(mob, 'skill');   // 🎞️ 序列幀：技能動作（🔒 鎖定·強制放完·播放中的新觸發被忽略）
-    let redirectable = !!sk.dmg || ['stone', 'paralyze', 'silence', 'magicseal', 'freeze', 'scald', 'stun', 'slowatk', 'poison', 'burn'].includes(sk.type);
+    if (mob && mob.curHp > 0) { try { if (typeof playMobSkill === 'function') playMobSkill(mob); } catch (e) {} }   // 🔊 怪物技能(施法)音（查 MOB_SKILL_SFX·查無/缺檔靜音·冰之女王 3564）
+    if (mob && mob.curHp > 0 && mob.n === '死亡騎士') { try { if (typeof vfxCastShake === 'function') vfxCastShake(); } catch (e) {} }   // ✨ 死亡騎士施法→整個戰場震動（cosmetic·吃 __vfxOff）
+    let redirectable = !!sk.dmg || ['stone', 'paralyze', 'silence', 'magicseal', 'freeze', 'scald', 'stun', 'slowatk', 'poison', 'burn', 'frost_breath'].includes(sk.type);   // ❄️ v3.1.54 寒冰吐息(frost_breath)納入可轉向→'寒冰吐息' 已在 MOB_PARTY_AOE_SKILLS→全體(玩家+傭兵)驅散增益＋緩速
     if (!redirectable) { applyMobMagic(mob, sk); return; }
     let allies = (player.allies || []).filter(a => a && !a._downed && (a.curHp || 0) > 0);
     if ((typeof MOB_PARTY_AOE_SKILLS !== 'undefined') && MOB_PARTY_AOE_SKILLS.has(sk.skn)) {   // 全體：玩家＋全部非倒地傭兵

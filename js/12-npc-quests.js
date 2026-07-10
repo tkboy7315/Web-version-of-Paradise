@@ -766,8 +766,8 @@ const TRIAL_Q = {
     elf15:      { cls:'elf',      lv:15, npc:'歐斯',         reqs:[['new_item_199',1],['new_item_200',1],['new_item_201',1],['new_item_202',1]], rewards:['arm_50','arm_51'] },
     elf30:      { cls:'elf',      lv:30, npc:'迷幻森林之母', reqs:[['new_item_213',1]], rewards:['bk_elf_summon','arm_85'] },
     elf45:      { cls:'elf',      lv:45, npc:'馬沙',         reqs:[['item_blueflute',1],['item_ancientkey',1]], rewards:['arm_102','bk_elf_summon2'] },   // 🔧 v3.1.23 修：原 acc_guardian/bk_elf_wisdom 從未定義→整個馬沙介面崩潰。還原參考版正確獎勵＝保護者手套(arm_102)＋精靈水晶(召喚強力屬性精靈)(bk_elf_summon2)
-    dark15:     { cls:'dark',     lv:15, npc:'倫得',         reqs:[['item_death_oath',1]], rewards:['arm_shadowglove'] },
-    dark30:     { cls:'dark',     lv:30, npc:'康',           reqs:[['item_orc_elder_head',1]], rewards:['arm_shadowmask'] },
+    dark15:     { cls:'dark',     lv:30, npc:'倫得',         reqs:[['item_death_oath',1]], rewards:['arm_shadowglove'] },   // 🔁 v3.1.39 需求等級與 dark30 交換（15→30·NPC倫得/獎勵暗影手套/需求死亡誓約不變）
+    dark30:     { cls:'dark',     lv:15, npc:'康',           reqs:[['item_orc_elder_head',1]], rewards:['arm_shadowmask'] },   // 🔁 v3.1.39 需求等級與 dark15 交換（30→15·NPC康/獎勵暗影面具/需求妖魔長老之首不變）
     dark45:     { cls:'dark',     lv:45, npc:'布魯迪卡',     reqs:[['item_yeti_head',1]], rewards:['arm_shadowboots'] },
     illusion15: { cls:'illusion', lv:15, npc:'希蓮恩',       reqs:[['item_ant_fruit',1],['item_ant_branch',1],['item_ant_bark',1]], rewards:['wpn_illu_wand','mem_cube_burn'] },
     illusion30: { cls:'illusion', lv:30, npc:'希蓮恩',       reqs:[['item_elmore_heart',1]], rewards:['shd_illu_book','mem_cube_shock'] },
@@ -1001,7 +1001,7 @@ function doRedExchange() {
     let _c = document.getElementById('interaction-content'); if (_c) renderRedQuest(_c);   // 就地重渲染（可連續兌換、更新材料數）
 }
 
-// 🔧 黑暗妖精限定試煉（v3.0.78 接取制）：倫得=15級/康=30級/布魯迪卡=45級＋50級試煉
+// 🔧 黑暗妖精限定試煉（v3.0.78 接取制）：倫得=30級/康=15級（v3.1.39 交換·key 名 dark15/dark30 未動故與 lv 不對應屬正常）/布魯迪卡=45級＋50級試煉
 const DARK_TRIAL_NPC = { npc_runde: { npc: '倫得', key: 'dark15' }, npc_kang: { npc: '康', key: 'dark30' }, npc_brudica: { npc: '布魯迪卡', key: 'dark45' } };
 let _darkTrialNpc = 'npc_runde';   // 供重繪用（renderDarkTrial 需第二參數）
 function renderDarkTrialR(div) { renderDarkTrial(div, _darkTrialNpc); }
@@ -1022,7 +1022,7 @@ const TRIAL_50_CFG = {
     knight: { npc: '迪嘉勒廷',
         stages: [ {id:'item_dantes_letter', nm:'丹特斯的召書', cnt:1, hint:'擊殺黑暗妖精將軍'},
                   {id:'item_elf_whisper', nm:'精靈的私語', cnt:10, hint:'擊殺精靈墓穴的怪物'} ],
-        exMat:'mat_flame_sword', exMatNm:'炎魔之劍', rewards:[{id:'wpn_blackflame_sword',nm:'黑焰之劍'},{id:'bot_courage',nm:'勇氣長靴'}] },
+        exMat:'mat_flame_sword', exMatNm:'炎魔之劍', rewards:[{id:'wpn_blackflame_sword',nm:'黑燄之劍'},{id:'bot_courage',nm:'勇氣長靴'}] },
     elf: { npc: '迪嘉勒廷',
         stages: [ {id:'item_ancient_book', nm:'古代黑妖之秘笈', cnt:1, hint:'擊殺巨大兵蟻'},
                   {id:'item_sealed_intel', nm:'密封的情報書', cnt:1, hint:'於大洞穴隱遁者村莊地區擊殺魔族暗殺團'} ],
