@@ -989,6 +989,7 @@ function startGame() {
     startGameTimers();
     logSys(`===== 歡迎來到天堂放置冒險 =====`);
     if (typeof applyGlobalAutoSellSettings === 'function') applyGlobalAutoSellSettings();   // 🔧 v2.6.91 功能5：新角色套用全域自動販賣設定（若已啟用共用）
+    { let el = document.getElementById('drop-rate-select'); if (el) el.value = '1'; }
     saveGame();   // 🔧 創角完成立即存檔：先前要等 5 分鐘自動存檔，期間關閉頁面角色會直接消失
 }
 
@@ -1320,6 +1321,7 @@ function loadGame() {
         state.running = true;
         // 自然恢復（每 16 秒）已由主迴圈 tick() 內的 state.ticks % 160 統一驅動，不再額外 setInterval。
         // 計時器統一由 startGameTimers() 註冊（內含去重），含每 5 分鐘自動存檔。
+        { let el = document.getElementById('drop-rate-select'); if (el) el.value = String(player.dropRate || 1); }
         startGameTimers();
         logSys(`===== 歡迎回來 =====`);
     }

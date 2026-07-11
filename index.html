@@ -251,6 +251,11 @@
         <select id="map-select" class="bg-slate-800 border border-slate-600 text-white px-3 py-1.5 text-base rounded outline-none" onchange="changeMap()"></select>
 
         <span id="pride-floor-indicator" class="hidden text-rose-200 font-bold text-base px-3 py-1.5 whitespace-nowrap"></span>
+        <select id="drop-rate-select" class="bg-slate-800 border border-slate-600 text-white px-3 py-1.5 text-base rounded outline-none" onchange="setDropRate(this.value)" title="掉寶倍率">
+            <option value="1">倍率 ×1</option>
+            <option value="2">倍率 ×2</option>
+            <option value="3">倍率 ×3</option>
+        </select>
                 </div>
             </div> <!-- 👈 就是少了這個標籤！它是用來把 panel-header 關閉的 -->
             

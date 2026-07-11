@@ -72,40 +72,22 @@ function _injectSpeedUI() {
   if (!mapSel || !mapSel.parentNode) return;
   var parent = mapSel.parentNode;
 
-  // 檢查是否已有加速 label 在 map-select 旁
-  var existingLabel = mapSel.nextSibling;
-  var hasLabel = existingLabel && existingLabel.nodeType === 1 && existingLabel.textContent === '加速';
-
   // 已有完整 UI → 略過
   var existingSel = document.getElementById('speed-select');
-  if (existingSel && hasLabel) return;
+  if (existingSel) return;
 
-  // 已有 dropdown 但缺 label → 補 label
-  if (existingSel && !hasLabel) {
-    var label = document.createElement('span');
-    label.className = 'text-slate-300 text-base whitespace-nowrap';
-    label.textContent = '加速';
-    parent.insertBefore(label, existingSel);
-    return;
-  }
-
-  // 都沒有 → 全部注入
-  var label = document.createElement('span');
-  label.className = 'text-slate-300 text-base whitespace-nowrap';
-  label.textContent = '加速';
-
+  // 注入（無 label，選項文字含「加速」＝同「倍率 ×N」格式）
   var sel = document.createElement('select');
   sel.id = 'speed-select';
   sel.className = 'bg-slate-800 border border-slate-600 text-white px-2 py-1.5 text-base rounded outline-none';
-  [1,2,3,4,5,10].forEach(function(v) {
+  [1,2,3].forEach(function(v) {
     var opt = document.createElement('option');
     opt.value = String(v);
-    opt.textContent = '\u00D7' + v;
+    opt.textContent = '\u52A0\u901F \u00D7' + v;
     sel.appendChild(opt);
   });
   sel.onchange = function() { setSpeed(this.value); };
 
-  parent.insertBefore(label, mapSel.nextSibling);
   parent.insertBefore(sel, mapSel.nextSibling);
 }
 
