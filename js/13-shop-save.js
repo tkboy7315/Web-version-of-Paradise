@@ -294,7 +294,8 @@ function slotBackupSummary(n){ return _summaryFromRaw(_lzGet('lineage_idle_save_
 let _slotMode = 'new';
 function openSlotSelect(mode){
     _slotMode = mode;
-    { let _ct = document.getElementById('create-classic-toggle'); if (_ct && mode === 'new') _ct.checked = false; }   // 🎮 創角流程重置經典模式開關（預設關閉）
+    { let _ct = document.getElementById('create-classic-toggle'); if (_ct && mode === 'new') _ct.checked = false; }   // 🎮🏛️ 創角流程重置模式開關（預設關閉）
+    { let _tt = document.getElementById('create-traditional-toggle'); if (_tt && mode === 'new') _tt.checked = false; }
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('creation-panel').classList.add('hidden');
     document.getElementById('slot-select-panel').classList.remove('hidden');
