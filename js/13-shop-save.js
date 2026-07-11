@@ -277,6 +277,7 @@ function _summaryFromRaw(s){
             lv: p.lv || 1,
             gold: p.gold || 0,
             classic: !!p.classicMode,
+            traditional: !!p.traditionalMode,
             avatar: p.avatar || null,
             pledge: p.bloodPledge || '',
             hp: p.hp || 0,
@@ -285,7 +286,7 @@ function _summaryFromRaw(s){
             mmp: p.mmp || p.maxMp || 0,
             ac: p.d && typeof p.d.ac === 'number' ? p.d.ac : '',
             base: p.base || {}
-        };   // 🎮 經典模式旗標：供存檔位顯示與傭兵同模式招募限制（🏛️v3.0.83 傳統已取消·未載入過的舊傳統存檔以 classicMode 歸類）；avatar＝職業性別頭像名（assets/character/<avatar>.png）；name 未命名時留空字串（顯示端自行省略）
+        };   // 🎮🏛️ 經典／傳統模式旗標：供存檔位顯示與傭兵同模式招募限制；avatar＝職業性別頭像名（assets/character/<avatar>.png）；name 未命名時留空字串（顯示端自行省略）
     } catch(e){ return null; }
 }
 function slotSummary(n){ return _summaryFromRaw(_lzGet('lineage_idle_save_' + n)); }
@@ -301,9 +302,10 @@ function openSlotSelect(mode){
     let list = document.getElementById('slot-list'); list.innerHTML = '';
     for(let n = 1; n <= 8; n++){
         let sum = slotSummary(n);
-        let _classic = !!(sum && sum.classic);   // 🎮 經典模式存檔：以琥珀金顯示（🏛️v3.0.83 傳統已取消·舊傳統存檔依 classicMode 顯示為一般/經典）
-        let _tag = _classic ? '⚔ ' : '';
-        let _modeName = _classic ? '（經典）' : '';
+        let _classic = !!(sum && sum.classic);
+        let _trad = !!(sum && sum.traditional);
+        let _tag = (_classic && _trad) ? '⚔ 🏛️ ' : _trad ? '🏛️ ' : _classic ? '⚔ ' : '';
+        let _modeName = (_classic && _trad) ? '（經典+傳統）' : _trad ? '（傳統）' : _classic ? '（經典）' : '';
         let label = sum ? `${_tag}存檔 ${n}　${sum.cls} Lv.${sum.lv}${sum.name ? '　' + sum.name : ''}${_modeName}` : `存檔 ${n}　（空）`;   // 未命名時不顯示名稱（連同前置全形空白一併省略）
         let _classicStyle = _classic ? 'color:#fbbf24;border-color:#d97706;' : '';   // 🎮 經典＝琥珀金
         let disabled = (mode === 'load' && !sum);
@@ -558,7 +560,7 @@ function updateLoadInfo(){
     set('load-info-name', empty ? '' : (sum.name || '未命名'));
     set('load-info-pledge', empty ? '' : ({ tros:'特羅斯', esti:'依詩蒂' }[sum.pledge] || sum.pledge || '-'));
     set('load-info-class', empty ? '' : sum.cls);
-    set('load-info-alignment', empty ? '' : (sum.classic ? '經典' : '一般'));
+    set('load-info-alignment', empty ? '' : (sum.classic && sum.traditional ? '經典+傳統' : sum.traditional ? '傳統' : sum.classic ? '經典' : '一般'));
     set('load-info-hp', empty ? '' : `${Math.floor(sum.hp || 0)} / ${Math.floor(sum.mhp || 0)}`);
     set('load-info-mp', empty ? '' : `${Math.floor(sum.mp || 0)} / ${Math.floor(sum.mmp || 0)}`);
     set('load-info-ac', empty ? '' : (sum.ac === '' ? '-' : sum.ac));
