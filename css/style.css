@@ -129,6 +129,54 @@
             0%, 100% { filter: drop-shadow(0 0 4px rgba(74,222,128,0.5)); }
             50%      { filter: drop-shadow(0 0 8px rgba(74,222,128,0.95)) drop-shadow(0 0 16px rgba(34,197,94,0.5)); }
         }
+        /* ===== 🦴 v3.1.73 席琳遺骸裝備欄（8 格·js/10 依件數掛 class）=====
+           ⚠️ 1.8 皮膚 `.classic-inventory-viewport > .list-item` 以 !important 鎖 background/border/box-shadow，
+              Tailwind 的 bg-green-900 / ring-* / shadow-[...] 在此天生無效（實測 computed 與空格完全相同）。
+              故「已觸發」的框光必須用同等特異性選擇器 + !important 才蓋得過。
+           ・未觸發(.rem-slot-dim)：只把圖示的綠光壓弱（覆寫共用的 sherineIcon 動畫，不影響背包/其他頁的遺骸圖示）。
+           ・已觸發(.rem-slot-lit)：綠框 + ::after 反光遮罩（沿格子斜掃過的光澤），依 2/3/5 件三階增強。 */
+        .rem-slot-dim .sherine-glow-icon { animation: sherineIconDim 2.8s ease-in-out infinite; }
+        @keyframes sherineIconDim {
+            0%, 100% { filter: drop-shadow(0 0 1px rgba(74,222,128,0.20)); }
+            50%      { filter: drop-shadow(0 0 2.5px rgba(74,222,128,0.34)); }
+        }
+        .classic-inventory-viewport > .list-item.rem-slot-lit { border-color: #4ade80 !important; box-shadow: inset 0 0 6px #000, 0 0 7px rgba(74,222,128,0.40) !important; }
+        .classic-inventory-viewport > .list-item.rem-slot-lit.rem-tier-3 { border-color: #6ee7a8 !important; box-shadow: inset 0 0 6px #000, 0 0 11px rgba(74,222,128,0.60) !important; }
+        .classic-inventory-viewport > .list-item.rem-slot-lit.rem-tier-5 { border-color: #bbf7d0 !important; box-shadow: inset 0 0 6px #000, 0 0 16px rgba(134,239,172,0.85), 0 0 26px rgba(34,197,94,0.45) !important; }
+        /* 反光遮罩：父層(.list-item)已 position:relative + overflow:hidden（1.8 皮膚），故光澤條自動被裁在格子內。
+           z-index 4＝壓在圖示上、但低於鎖定徽章(z-index 6)。pointer-events:none 不擋點擊。 */
+        .rem-slot-lit::after {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+            z-index: 4; pointer-events: none; mix-blend-mode: screen;
+            background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.22) 38%, rgba(190,255,214,0.55) 50%, rgba(255,255,255,0.22) 62%, transparent 100%);
+            transform: translateX(-130%);
+            animation: remSheen 3.6s ease-in-out infinite;
+        }
+        .rem-slot-lit.rem-tier-3::after { animation-duration: 2.9s; background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.30) 38%, rgba(190,255,214,0.72) 50%, rgba(255,255,255,0.30) 62%, transparent 100%); }
+        .rem-slot-lit.rem-tier-5::after { animation-duration: 2.1s; width: 62%; background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.42) 34%, rgba(220,255,235,0.95) 50%, rgba(255,255,255,0.42) 66%, transparent 100%); }
+        @keyframes remSheen { 0% { transform: translateX(-130%); } 55%, 100% { transform: translateX(290%); } }
+        /* ===== 🛡️ v3.1.74 一般套裝裝備欄（同上格式·顏色改琥珀金）=====
+           與遺骸欄同一套結構（框光 + ::after 反光遮罩 + 2/3/5 件三階），沿用 remSheen 關鍵影格，只換配色。
+           階數依「實際裝備件數」而非套裝門檻：套裝亮起(達門檻)後，件數越多光越強。 */
+        .classic-inventory-viewport > .list-item.set-slot-lit { border-color: #fbbf24 !important; box-shadow: inset 0 0 6px #000, 0 0 7px rgba(245,158,11,0.40) !important; }
+        .classic-inventory-viewport > .list-item.set-slot-lit.set-tier-3 { border-color: #fcd34d !important; box-shadow: inset 0 0 6px #000, 0 0 11px rgba(245,158,11,0.60) !important; }
+        .classic-inventory-viewport > .list-item.set-slot-lit.set-tier-5 { border-color: #fde68a !important; box-shadow: inset 0 0 6px #000, 0 0 16px rgba(252,211,77,0.85), 0 0 26px rgba(217,119,6,0.45) !important; }
+        .set-slot-lit::after {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 55%;
+            z-index: 4; pointer-events: none; mix-blend-mode: screen;
+            background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.22) 38%, rgba(255,231,170,0.55) 50%, rgba(255,255,255,0.22) 62%, transparent 100%);
+            transform: translateX(-130%);
+            animation: remSheen 3.6s ease-in-out infinite;
+        }
+        .set-slot-lit.set-tier-3::after { animation-duration: 2.9s; background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.30) 38%, rgba(255,225,150,0.72) 50%, rgba(255,255,255,0.30) 62%, transparent 100%); }
+        .set-slot-lit.set-tier-5::after { animation-duration: 2.1s; width: 62%; background: linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.42) 34%, rgba(255,240,205,0.95) 50%, rgba(255,255,255,0.42) 66%, transparent 100%); }
+        /* 無障礙：使用者要求減少動態 → 停掃光與呼吸，改為靜態微光。
+           ⚠️ filter 必須 !important：`#game-screen img{filter:contrast(1.06) saturate(1.05)}`(本檔 488 行)是 ID 選擇器，
+              特異性高於 class；平時靠「動畫關鍵影格的 filter 凌駕一般宣告」才蓋得過，動畫一關掉靜態 filter 就會輸給它。 */
+        @media (prefers-reduced-motion: reduce) {
+            .rem-slot-lit::after, .set-slot-lit::after { animation: none; transform: none; opacity: .18; width: 100%; }
+            .rem-slot-dim .sherine-glow-icon { animation: none; filter: drop-shadow(0 0 1.5px rgba(74,222,128,0.26)) !important; }
+        }
         /* 區域背景：背景圖由 JS 依地圖/分類設為 inline 樣式（特殊地圖逐張不同）；卡片較不透明，使背景不過於顯眼 */
         #battle-view.has-bg { background-size: cover; background-position: center; background-repeat: no-repeat; background-color: #0b1220; border-radius: 0.5rem; }   /* no-repeat：條狀背景(沙漠)用 contain 時留白處不平鋪；background-color：留白填深色(像電影黑邊)。16:9 圖維持 cover 滿版、看不到底色 */
         #battle-view.has-bg .mob-target { background: transparent !important; border-color: transparent !important; box-shadow: none; text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.85); }   /* 🔧 狩獵區去框：怪物原圖直接呈現於背景，只保留名稱/血量/狀態(加字陰影保可讀) */
@@ -421,6 +469,8 @@
         }
         .vfx-particle { position: absolute; border-radius: 50%; transform: translate(-50%,-50%); will-change: transform,opacity; }
         .vfx-blood { position: absolute; border-radius: 50%; transform: translate(-50%,-50%); will-change: transform,opacity; pointer-events: none; }   /* 🩸 命中濺血小血滴：小顆、不上發光陰影→不搶眼 */
+        /* 🏹 弓箭投射物（playArrowFx）：原生像素尺寸、不旋轉（左上/右上兩張方向圖）、飛行由 element.animate 驅動 */
+        .vfx-arrow { position: absolute; transform: translate(-50%,-50%); will-change: transform,opacity; pointer-events: none; image-rendering: crisp-edges; image-rendering: pixelated; filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
         /* ✨ 怪物死亡：衝擊波環 + 白閃殘影（vfxKill 以 element.animate 驅動·邊框色/尺寸由 JS 內聯指定） */
         .vfx-killring { position: absolute; border-radius: 50%; transform: translate(-50%,-50%); border: 4px solid #ff8a5c; pointer-events: none; will-change: transform,opacity; }
         .vfx-ghost { position: absolute; transform: translate(-50%,-50%); object-fit: contain; pointer-events: none; will-change: transform,opacity,filter; }
@@ -542,16 +592,30 @@
 #login-title-layer { position:absolute; z-index:3; left:3.1%; top:14%; width:30.8%; color:#f7df91; text-shadow:0 2px 4px #000,0 0 6px #000; }
 #login-title-layer h1 { margin:0 0 2.5%; font-size:clamp(14px,2.05vw,31px); line-height:1.15; color:#f5d46c; }
 #login-title-layer p { margin:0; font-size:clamp(9px,1.05vw,16px); color:#e7d7b5; }
-#main-menu { position:absolute; z-index:4; left:50.4%; top:48.5%; width:25%; margin:0 !important; display:flex; flex-direction:column; align-items:stretch; gap:clamp(4px,.8vw,11px) !important; }
+#main-menu { position:absolute; z-index:4; left:50.4%; top:48.5%; width:25%; margin:0 !important; display:flex; flex-direction:column; align-items:stretch; gap:clamp(10px,1.45vw,22px) !important; }
 #main-menu.hidden { display:none !important; }
-#main-menu > button { width:100% !important; padding:clamp(5px,.72vw,11px) 4px !important; font-size:clamp(9px,1.03vw,16px) !important; line-height:1.1; border-color:#b68a39; background:linear-gradient(180deg,rgba(35,55,83,.94),rgba(10,22,42,.96)); color:#f8e7bb; text-shadow:0 1px 2px #000; box-shadow:inset 0 0 9px rgba(116,165,219,.35),0 2px 5px #000; }
-#main-menu > button:hover { filter:brightness(1.18); }
+#main-menu > button {
+    width:100% !important;
+    padding:clamp(8px,1.08vw,17px) 4px !important;
+    border:1px solid rgba(198,156,74,.82) !important;
+    border-radius:2px !important;
+    background:linear-gradient(180deg, rgba(29,22,12,.96), rgba(7,5,3,.98)) !important;
+    color:#f7e79d !important;
+    font-family:Georgia, "Times New Roman", "Microsoft JhengHei", serif;
+    font-size:clamp(11px,1.22vw,20px) !important;
+    font-weight:700;
+    line-height:1.12;
+    text-shadow:0 1px 2px #000, 0 0 7px rgba(231,194,91,.45);
+    box-shadow:inset 0 1px 0 rgba(255,232,167,.13), inset 0 -14px 18px rgba(0,0,0,.34), 0 0 12px rgba(0,0,0,.75);
+}
+#main-menu > button:hover {
+    color:#fff1ba !important;
+    border-color:rgba(241,199,92,.95) !important;
+    background:linear-gradient(180deg, rgba(42,32,16,.98), rgba(12,8,4,.98)) !important;
+    box-shadow:inset 0 1px 0 rgba(255,232,167,.22), inset 0 -14px 18px rgba(0,0,0,.28), 0 0 16px rgba(216,179,80,.36);
+}
 #main-menu > p { width:150% !important; margin:1% 0 0 -25% !important; font-size:clamp(9px,.78vw,14px) !important; line-height:1.42; color:#eee2c7; text-shadow:0 1px 3px #000,0 0 3px #000; }
-#login-meta-layer { position:absolute; z-index:3; left:5.8%; top:53%; width:25.4%; color:#d8c8a2; text-shadow:0 1px 3px #000; }   /* 🔧 v3.0.41 用戶：版權文字縮小+寬度縮短不超框 */
-#login-custom-info { position:absolute; z-index:3; left:3.1%; top:24%; width:30.8%; color:#d8c8a2; text-shadow:0 1px 3px #000; font-size:clamp(9px,1.05vw,16px); line-height:1.6; text-align:center; }
-#login-custom-info table { color:#e7d7b5; }
-#login-custom-info th { border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:2px; }
-#login-custom-info td { padding-top:1px; padding-bottom:1px; }
+#login-meta-layer { position:absolute; z-index:3; left:5.8%; top:41.5%; width:25.4%; color:#d8c8a2; text-shadow:0 1px 3px #000; }   /* 🔧 v3.0.41 用戶：版權文字縮小+寬度縮短不超框 */
 #login-version { margin-bottom:3%; font-size:clamp(12px,1.05vw,18px) !important; font-weight:700; color:#f2d77f; }
 #login-disclaimer { max-width:none !important; padding:0 !important; margin:0 !important; font-size:clamp(8px,.6vw,11px) !important; line-height:1.45; color:#eee2c7; }
 
@@ -627,3 +691,686 @@ button.classic-skill-cell { cursor:pointer; }
 /* 📵 v3.0.74 移植參考版 UI 時移除其手機 media query（@media pointer:coarse）：本專案為「桌機專用」設計（見記憶 desktop-only-layout·手機改 viewport-meta 等比縮小），不再引入手機響應式版面。 */
 #slot-select-panel:not(.hidden) { position:absolute; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,92vw); max-height:92vh; overflow:auto; margin:0 !important; padding:22px; border:2px solid #b89243; border-radius:14px; background:rgba(15,23,42,.96); box-shadow:0 20px 70px #000; }
 #creation-panel:not(.hidden) { position:absolute; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%); width:min(1000px,96vw); max-height:96vh; overflow:auto; padding:20px; border:2px solid #b89243; border-radius:14px; background:rgba(15,23,42,.96); box-shadow:0 20px 70px #000; }
+
+/* ===== 824.png 創角畫面：底圖框架、序列幀角色、原圖配點熱區 ===== */
+#creation-panel:not(.hidden) {
+    position:absolute; z-index:20; left:50%; top:50%; transform:translate(-50%,-50%);
+    display:block !important; width:min(100vw,calc(100vh * 4 / 3)); aspect-ratio:4 / 3;
+    max-height:none; overflow:hidden; padding:0; border:0; border-radius:0; background:#050505; box-shadow:0 0 45px #000;
+}
+#creation-bg-image { position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:contain; pointer-events:none; user-select:none; }
+/* 🖋️ v3.2.5 創角職業介紹排版重整（用戶要求）：①上下左右內距加大 ②行高 1.1 → 1.5、字距 +0.03em ③中文字體改正黑體系
+   （原 Georgia serif → CJK fallback 細明體難讀）。
+   ⚠️幾何陷阱：本框 position:absolute → padding/margin 的 % 相對「#creation-panel 寬 1440」而非框自身寬（492）——原 4.6% 就已是 66px。
+   佈局改 flex column：#class-desc 高度＝框內容高減標題（原 height:calc(100%-.25em) 會溢出框底 padding 蓋到美術）。
+   字級自動適配：js/13 selectClassBase 設完文案後若 scrollHeight 超框則逐步縮小（騎士 20 行最長）→ 任何視窗都不會無聲裁切。 */
+#creation-class-desc-frame {
+    position:absolute; z-index:4; left:7.4%; top:12.5%; width:34.2%; height:54.3%;
+    padding:5.6% 5.2% 4.1%; color:#efe1bd; text-shadow:0 1px 2px #000,0 0 5px #000;
+    font-family:Georgia,'Times New Roman',serif; overflow:hidden;
+    display:flex; flex-direction:column;
+}
+#creation-class-title { flex:0 0 auto; margin:0 0 4%; color:#f4d583; font-size:clamp(18px,1.9vw,26px); line-height:1.05; text-align:center; font-weight:700; letter-spacing:.1em; }
+#class-desc {
+    flex:1 1 auto;
+    min-height:0;
+    max-height:none;
+    overflow:hidden;
+    color:#f0e3c4;
+    font-family:'Microsoft JhengHei','微軟正黑體','PingFang TC','Noto Sans TC',sans-serif;
+    font-size:clamp(12px,1.05vw,15px);
+    line-height:1.5;
+    letter-spacing:.03em;
+    white-space:pre-line;
+}
+#creation-avatar-stage {
+    position:absolute; z-index:3; left:43.7%; top:18.2%; width:32%; height:44.5%;
+    display:flex; align-items:flex-end; justify-content:center; pointer-events:none; overflow:visible;
+}
+#class-preview-img { display:block; width:auto !important; height:100% !important; max-width:100%; object-fit:contain !important; object-position:center bottom; border:0 !important; border-radius:0 !important; filter:drop-shadow(0 12px 12px rgba(0,0,0,.85)) contrast(1.05) saturate(1.08); }
+#creation-class-list {
+    position:absolute; z-index:5; left:44.5%; top:5.6%; width:43%;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(2px,.35vw,5px);
+}
+.creation-class-btn {
+    min-width:0; height:clamp(15px,2.35vw,25px); padding:0 2px; border:1px solid rgba(174,132,56,.8); border-radius:2px;
+    background:linear-gradient(180deg,rgba(41,34,25,.88),rgba(11,12,16,.92)); color:#d9c796;
+    font-size:clamp(7px,.83vw,12px); font-weight:700; line-height:1; text-shadow:0 1px 2px #000; box-shadow:inset 0 0 5px rgba(238,198,95,.15),0 1px 2px #000;
+}
+.creation-class-btn:hover,.creation-class-btn.active { color:#fff0b8; border-color:#e1b45b; background:linear-gradient(180deg,rgba(91,63,25,.95),rgba(37,23,10,.95)); box-shadow:0 0 7px rgba(221,170,70,.55), inset 0 0 6px rgba(255,220,128,.2); }
+#stat-allocation { position:absolute; inset:0; z-index:6; width:100%; height:100%; padding:0; border:0; border-radius:0; background:transparent; pointer-events:none; }
+#creation-pts {
+    position:absolute; left:72.35%; top:68.72%; width:3.85%; height:5.05%; display:flex; align-items:center; justify-content:center;
+    color:#f3f6ff; font-size:clamp(9px,1.05vw,15px); font-weight:700; text-shadow:0 1px 2px #000; pointer-events:none;
+}
+.creation-stat-control { position:absolute; display:grid; grid-template-columns:1.45em 1.05em 1.05em; align-items:center; gap:.18em; height:3%; pointer-events:auto; }
+.creation-stat-value { color:#f3f6ff; font-size:clamp(8px,.92vw,13px); font-weight:700; line-height:1; text-align:right; text-shadow:0 1px 2px #000,0 0 3px #000; }
+.creation-stat-btn {
+    width:100%; aspect-ratio:1 / 1; min-width:0; padding:0; border:1px solid rgba(117,139,176,.85); border-radius:1px;
+    display:flex; align-items:center; justify-content:center; background:rgba(9,22,43,.74); color:#dfeeff;
+    font-size:clamp(7px,.75vw,11px); font-weight:700; line-height:1; box-shadow:inset 0 0 4px rgba(148,189,255,.35),0 1px 2px #000;
+}
+.creation-stat-btn:hover { color:#fff; border-color:#d5e5ff; background:rgba(25,55,96,.9); }
+.creation-stat-control.stat-str { left:62.6%; top:66.18%; }
+.creation-stat-control.stat-dex { left:62.6%; top:69.32%; }
+.creation-stat-control.stat-con { left:62.6%; top:72.35%; }
+.creation-stat-control.stat-wis { left:75.9%; top:66.18%; }
+.creation-stat-control.stat-cha { left:75.9%; top:69.32%; }
+.creation-stat-control.stat-int { left:75.9%; top:72.35%; }
+#classic-mode-control {
+    position:absolute; z-index:7; left:52.5%; top:78.9%; display:flex; align-items:center; gap:.35em;
+    color:#d8c08a; font-size:clamp(8px,.86vw,12px); font-weight:700; text-shadow:0 1px 2px #000; cursor:pointer; user-select:none;
+}
+#classic-mode-control input { width:clamp(9px,1vw,14px); height:clamp(9px,1vw,14px); accent-color:#8b5e22; }
+#creation-back-button {
+    position:absolute; z-index:7; left:52.5%; top:84.0%; width:11%; height:4.1%; padding:0; border:1px solid #7e6330; border-radius:2px;
+    background:linear-gradient(180deg,rgba(39,31,20,.92),rgba(11,10,9,.96)); color:#d7c293; font-size:clamp(8px,.9vw,13px); font-weight:700; text-shadow:0 1px 2px #000;
+}
+#creation-back-button:hover { color:#ffe7a6; border-color:#d3a64d; }
+#btn-start.creation-start-button {
+    position:absolute; z-index:7; left:68.25%; top:78.7%; width:16.65%; height:4.45%; padding:0; border:1px solid #9f7b36; border-radius:2px;
+    background:linear-gradient(180deg,rgba(60,42,17,.72),rgba(13,10,6,.75)); color:#f5e7bd;
+    font-size:clamp(9px,1.02vw,15px); font-weight:700; line-height:1; text-shadow:0 1px 2px #000,0 0 4px #000; box-shadow:inset 0 0 8px rgba(234,184,83,.18);
+}
+#btn-start.creation-start-button:hover:not(:disabled) { color:#fff3c7; border-color:#d7ae57; background:linear-gradient(180deg,rgba(96,65,24,.82),rgba(31,20,8,.82)); }
+#btn-start.creation-start-button:disabled { opacity:.52; cursor:not-allowed; filter:grayscale(.45); }
+/* ===== 創角配置調整：職業 logo 環繞動圖、性別獨立於第 2 區 ===== */
+#creation-avatar-stage { left:52.4%; top:17.8%; width:25.8%; height:43.4%; }
+#creation-class-list {
+    position:absolute; z-index:6; left:43.3%; top:11.5%; width:46.2%; height:49.8%;
+    display:block; pointer-events:none;
+}
+.creation-class-btn {
+    position:absolute; width:15.2%; height:18%; min-width:0; padding:0; border:0; border-radius:50%;
+    background:radial-gradient(circle,rgba(255,232,160,.25) 0%,rgba(69,45,13,.22) 42%,rgba(0,0,0,0) 72%);
+    box-shadow:none; pointer-events:auto; display:flex; align-items:center; justify-content:center;
+    transition:filter .15s ease, transform .15s ease;
+}
+.creation-class-btn img { width:100%; height:100%; object-fit:contain; pointer-events:none; filter:drop-shadow(0 0 7px rgba(255,221,135,.42)) drop-shadow(0 2px 4px #000); }
+.creation-class-btn:hover,.creation-class-btn.active { transform:scale(1.08); background:radial-gradient(circle,rgba(255,241,190,.42) 0%,rgba(110,74,20,.34) 44%,rgba(0,0,0,0) 76%); }
+.creation-class-btn.active img { filter:drop-shadow(0 0 12px rgba(255,232,151,.9)) drop-shadow(0 2px 5px #000) brightness(1.18); }
+.creation-class-btn.class-left { left:2.2%; }
+.creation-class-btn.class-right { right:2.2%; }
+.creation-class-btn.class-pos-1 { top:1%; }
+.creation-class-btn.class-pos-2 { top:26%; }
+.creation-class-btn.class-pos-3 { top:51%; }
+.creation-class-btn.class-pos-4 { top:76%; }
+#creation-gender-panel {
+    position:absolute; z-index:7; left:50.5%; top:60.9%; width:35.7%; height:6.6%;
+    display:flex; align-items:center; justify-content:space-between; padding:0 7.4%; pointer-events:none;
+}
+.creation-gender-btn {
+    width:clamp(30px,4.6vw,54px); height:clamp(30px,4.6vw,54px); padding:0; border:1px solid rgba(224,183,88,.58); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; pointer-events:auto;
+    background:radial-gradient(circle,rgba(250,236,178,.26),rgba(32,25,13,.82) 66%,rgba(0,0,0,.3)); color:#f8edcb;
+    font-family:Georgia,'Times New Roman',serif; font-size:clamp(22px,3.2vw,42px); line-height:1; text-shadow:0 0 8px rgba(255,231,168,.72),0 2px 3px #000;
+    box-shadow:0 0 9px rgba(218,167,61,.25), inset 0 0 8px rgba(255,226,151,.14);
+}
+.creation-gender-btn:hover,.creation-gender-btn.active { color:#fff8d7; border-color:#f2c766; box-shadow:0 0 14px rgba(243,196,88,.72), inset 0 0 9px rgba(255,230,164,.24); transform:scale(1.04); }
+#classic-mode-control { left:52.2%; top:83.5%; }
+#creation-back-button { left:52.5%; top:87.0%; }
+#btn-start.creation-start-button { left:68.25%; top:78.7%; }
+
+/* ===== 創角右側介面微調：整組往右上、補能力名稱、拉開配點控制 ===== */
+#creation-avatar-stage { left:56.1%; top:13.6%; width:25.8%; height:43.4%; }
+#creation-class-list { left:47.0%; top:7.3%; width:46.2%; height:49.8%; }
+#creation-gender-panel { left:54.2%; top:56.7%; width:35.7%; }
+#creation-pts { left:75.95%; top:64.85%; }
+.creation-stat-control {
+    grid-template-columns:1.9em 1.24em 1.24em;
+    gap:.46em;
+    overflow:visible;
+}
+.creation-stat-control::before {
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    color:#f0df9f;
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:clamp(12px,1.58vw,22px);
+    font-weight:700;
+    line-height:1;
+    letter-spacing:0;
+    white-space:nowrap;
+    pointer-events:none;
+    text-shadow:
+        0 0 3px #000,
+        0 0 5px rgba(255,239,177,.9),
+        0 0 12px rgba(228,177,76,.55),
+        1px 2px 2px #000;
+}
+.creation-stat-control.stat-str::before { content:"Strength"; }
+.creation-stat-control.stat-dex::before { content:"Dexterity"; }
+.creation-stat-control.stat-con::before { content:"Constitution"; }
+.creation-stat-control.stat-wis::before { content:"Wisdom"; }
+.creation-stat-control.stat-cha::before { content:"Charisma"; }
+.creation-stat-control.stat-int::before { content:"Intelligence"; }
+.creation-stat-control.stat-str,
+.creation-stat-control.stat-dex,
+.creation-stat-control.stat-con { left:65.65%; }
+.creation-stat-control.stat-wis,
+.creation-stat-control.stat-cha,
+.creation-stat-control.stat-int { left:76.75%; }
+.creation-stat-control.stat-str { top:62.35%; }
+.creation-stat-control.stat-dex { top:65.45%; }
+.creation-stat-control.stat-con { top:68.55%; }
+.creation-stat-control.stat-wis { top:62.35%; }
+.creation-stat-control.stat-cha { top:65.45%; }
+.creation-stat-control.stat-int { top:68.55%; }
+.creation-stat-control.stat-str::before,
+.creation-stat-control.stat-dex::before,
+.creation-stat-control.stat-con::before { right:calc(100% + .6em); text-align:right; }
+.creation-stat-control.stat-wis::before,
+.creation-stat-control.stat-cha::before,
+.creation-stat-control.stat-int::before { left:calc(100% + .55em); text-align:left; }
+.creation-stat-value {
+    min-width:1.9em;
+    text-align:center;
+}
+.creation-stat-btn {
+    width:1.24em;
+    height:1.24em;
+}
+#classic-mode-control { left:55.9%; top:79.25%; }
+#creation-back-button { left:56.2%; top:82.85%; }
+#btn-start.creation-start-button { left:71.9%; top:74.55%; }
+
+/* ===== 創角右側控制區二次微調：人物去黑底、按鈕縮小、底部控制重排 ===== */
+#class-preview-img {
+    mix-blend-mode:screen;
+    filter:drop-shadow(0 12px 12px rgba(0,0,0,.72)) contrast(1.08) saturate(1.08);
+}
+.creation-class-btn {
+    width:12.6%;
+    height:14.9%;
+}
+.creation-class-btn.class-left { left:5.3%; }
+.creation-class-btn.class-right { right:5.3%; }
+.creation-class-btn.class-pos-1 { top:3.2%; }
+.creation-class-btn.class-pos-2 { top:28.2%; }
+.creation-class-btn.class-pos-3 { top:53.2%; }
+.creation-class-btn.class-pos-4 { top:78.2%; }
+#creation-gender-panel {
+    left:56.0%;
+    top:57.0%;
+    width:31.8%;
+    padding:0 8.2%;
+}
+.creation-gender-btn {
+    width:clamp(25px,3.8vw,46px);
+    height:clamp(25px,3.8vw,46px);
+    font-size:clamp(19px,2.65vw,35px);
+}
+#creation-pts {
+    left:72.95%;
+    top:65.25%;
+}
+#classic-mode-control {
+    left:62.7%;
+    top:75.55%;
+    width:8.5%;
+    justify-content:flex-end;
+    font-size:clamp(7px,.78vw,11px);
+}
+#btn-start.creation-start-button {
+    left:71.9%;
+    top:74.55%;
+    width:16.65%;
+}
+#creation-back-button {
+    left:71.9%;
+    top:80.15%;
+    width:16.65%;
+}
+
+/* ===== 創角最終排版：右側資訊區依參考圖對齊 ===== */
+#creation-avatar-stage {
+    left:63.2%;
+    top:15.2%;
+    width:22.8%;
+    height:39.6%;
+}
+#creation-class-list {
+    left:53.1%;
+    top:8.5%;
+    width:43.7%;
+    height:47.4%;
+}
+.creation-class-btn {
+    width:11.2%;
+    height:13.4%;
+}
+.creation-class-btn.class-left { left:2.6%; }
+.creation-class-btn.class-right { right:3.5%; }
+.creation-class-btn.class-pos-1 { top:2.5%; }
+.creation-class-btn.class-pos-2 { top:28.0%; }
+.creation-class-btn.class-pos-3 { top:53.5%; }
+.creation-class-btn.class-pos-4 { top:79.0%; }
+#creation-gender-panel {
+    left:64.0%;
+    top:56.9%;
+    width:24.1%;
+    padding:0 6.5%;
+}
+.creation-gender-btn {
+    width:clamp(22px,3.4vw,42px);
+    height:clamp(22px,3.4vw,42px);
+    font-size:clamp(17px,2.35vw,31px);
+}
+#creation-pts {
+    left:73.05%;
+    top:66.75%;
+    width:3.2%;
+    height:3.8%;
+    font-size:clamp(10px,1.15vw,16px);
+}
+.creation-stat-control {
+    grid-template-columns:1.75em 1.12em 1.12em;
+    gap:.5em;
+}
+.creation-stat-control::before {
+    font-size:clamp(11px,1.43vw,20px);
+}
+.creation-stat-control.stat-str,
+.creation-stat-control.stat-dex,
+.creation-stat-control.stat-con { left:66.35%; }
+.creation-stat-control.stat-wis,
+.creation-stat-control.stat-cha,
+.creation-stat-control.stat-int { left:77.7%; }
+.creation-stat-control.stat-str,
+.creation-stat-control.stat-wis { top:63.72%; }
+.creation-stat-control.stat-dex,
+.creation-stat-control.stat-cha { top:67.02%; }
+.creation-stat-control.stat-con,
+.creation-stat-control.stat-int { top:70.32%; }
+.creation-stat-control.stat-str::before,
+.creation-stat-control.stat-dex::before,
+.creation-stat-control.stat-con::before { right:calc(100% + .85em); }
+.creation-stat-control.stat-wis::before,
+.creation-stat-control.stat-cha::before,
+.creation-stat-control.stat-int::before { left:calc(100% + .85em); }
+.creation-stat-btn {
+    width:1.12em;
+    height:1.12em;
+}
+.creation-stat-value {
+    min-width:1.75em;
+}
+#classic-mode-control {
+    left:65.85%;
+    top:77.35%;
+    width:7.0%;
+    height:3.1%;
+    justify-content:flex-start;
+    font-size:clamp(7px,.72vw,10px);
+}
+#classic-mode-control input {
+    width:clamp(8px,.82vw,12px);
+    height:clamp(8px,.82vw,12px);
+}
+#btn-start.creation-start-button {
+    left:72.55%;
+    top:76.95%;
+    width:20.2%;
+    height:4.65%;
+}
+#creation-back-button {
+    left:72.55%;
+    top:82.65%;
+    width:20.2%;
+    height:4.35%;
+}
+
+/* ===== 創角底部按鈕與性別對稱微調 ===== */
+#creation-gender-panel {
+    left:68.7%;
+    top:56.45%;
+    width:20.0%;
+    height:5.7%;
+    padding:0 2.9%;
+}
+.creation-gender-btn {
+    width:clamp(20px,3.0vw,38px);
+    height:clamp(20px,3.0vw,38px);
+    font-size:clamp(16px,2.1vw,28px);
+}
+#classic-mode-control {
+    left:68.05%;
+    top:77.95%;
+    width:6.2%;
+    height:3.0%;
+}
+#btn-start.creation-start-button {
+    left:74.5%;
+    top:77.55%;
+    width:16.1%;
+    height:4.25%;
+}
+#creation-back-button {
+    left:74.5%;
+    top:83.3%;
+    width:16.1%;
+    height:4.05%;
+}
+
+/* ===== 創角性別與底部按鈕整組左移 ===== */
+#creation-gender-panel {
+    left:65.25%;
+}
+#classic-mode-control {
+    left:64.6%;
+}
+#btn-start.creation-start-button {
+    left:70.95%;
+}
+#creation-back-button {
+    left:70.95%;
+}
+
+/* ===== 創角底部控制再左移對齊配點 ===== */
+#classic-mode-control {
+    left:61.6%;
+}
+#btn-start.creation-start-button {
+    left:67.95%;
+}
+#creation-back-button {
+    left:67.95%;
+}
+
+/* ===== 開始遊戲角色選擇畫面 ===== */
+#load-select-panel:not(.hidden) {
+    position:fixed;
+    z-index:24;
+    inset:0;
+    transform:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100vw;
+    height:100vh;
+    max-width:none;
+    aspect-ratio:auto;
+    overflow:hidden;
+    background:#030303;
+    box-shadow:0 0 48px rgba(0,0,0,.95);
+}
+#load-art-stage {
+    position:relative;
+    flex:0 0 auto;
+    width:min(100vw, calc(100vh * 4 / 3));
+    aspect-ratio:4 / 3;
+    overflow:hidden;
+    background:#030303;
+    box-shadow:0 0 45px #000;
+}
+#load-select-bg {
+    position:absolute;
+    inset:0;
+    z-index:1;
+    width:100%;
+    height:100%;
+    object-fit:fill;
+    pointer-events:none;
+    user-select:none;
+}
+#load-select-overlay {
+    position:absolute;
+    inset:0;
+    z-index:3;
+    width:100%;
+    height:100%;
+    object-fit:fill;
+    pointer-events:none;
+    user-select:none;
+}
+#load-slot-grid {
+    position:absolute;
+    z-index:3;
+    left:1.7%;
+    top:5.2%;
+    width:96.6%;
+    height:48.2%;
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1.15%;
+}
+#load-page-tabs {
+    position:absolute;
+    z-index:7;
+    left:46.6%;
+    top:56.9%;
+    width:7.2%;
+    height:6.1%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    pointer-events:auto;
+}
+#load-page-tabs button {
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    width:42%;
+    aspect-ratio:1;
+    border:0;
+    border-radius:50%;
+    background:transparent;
+    color:transparent;
+    cursor:pointer;
+}
+#load-page-1 { left:0%; }
+#load-page-2 { right:-8%; }
+#load-page-tabs button.active {
+    background:radial-gradient(circle, rgba(255,241,178,.24) 0%, rgba(232,185,75,.14) 42%, rgba(255,220,105,.045) 68%, transparent 82%);
+    box-shadow:
+        inset 0 0 10px rgba(255,245,190,.32),
+        0 0 9px rgba(255,237,162,.46),
+        0 0 20px rgba(230,177,70,.34),
+        0 0 36px rgba(190,124,32,.18);
+    filter:brightness(1.12) saturate(1.06);
+}
+#load-page-tabs button:hover {
+    box-shadow:
+        inset 0 0 12px rgba(255,236,177,.32),
+        0 0 16px rgba(235,196,93,.55);
+}
+.load-slot-card {
+    position:relative;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    border:0;
+    padding:0;
+    background:transparent;
+    overflow:hidden;
+    cursor:pointer;
+}
+.load-slot-card img {
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    object-position:center bottom;
+    transform:scale(1.04);
+    transform-origin:center bottom;
+    filter:drop-shadow(0 14px 12px rgba(0,0,0,.84)) contrast(1.08) saturate(1.05);
+}
+.load-slot-card[data-key="m_warrior"] img,
+.load-slot-card[data-key="f_warrior"] img {
+    transform:scale(1.20);   /* 戰士幀為200x270，其餘職業為160x270；補回 contain 因較寬畫布造成的高度縮小 */
+}
+.load-slot-card.filled:not(.selected) img {
+    filter:grayscale(1) brightness(.48) contrast(1.08) drop-shadow(0 12px 10px rgba(0,0,0,.9));
+    opacity:.78;
+}
+.load-slot-card.empty img {
+    opacity:.72;
+    filter:drop-shadow(0 0 14px rgba(235,207,130,.28)) brightness(.86);
+}
+.load-slot-card.selected::after {
+    display:none;
+}
+#load-info-panel {
+    position:absolute;
+    z-index:4;
+    left:4.2%;
+    top:58.4%;
+    width:60.2%;
+    height:35.7%;
+    color:#f2e6c1;
+    font-family:Georgia, "Times New Roman", "Microsoft JhengHei", serif;
+    font-weight:700;
+    text-shadow:0 0 4px #000, 0 0 9px rgba(232,198,112,.55);
+}
+.load-info-row {
+    position:absolute;
+    height:5.7%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:3%;
+    font-size:clamp(8px,1.2vw,16px);
+    line-height:1;
+    white-space:nowrap;
+}
+.load-info-row strong {
+    display:block;
+    min-width:39%;
+    height:100%;
+    padding:0 .42em;
+    color:#f8f3e4;
+    font-family:Arial, "Microsoft JhengHei", sans-serif;
+    font-size:clamp(8px,1.0vw,14px);
+    font-weight:700;
+    text-align:left;
+    text-shadow:0 0 3px #000;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.load-info-row.name { left:4.2%; top:4.2%; width:39.2%; }
+.load-info-row.pledge { left:4.2%; top:15.9%; width:39.2%; }
+.load-info-row.class { left:4.2%; top:27.8%; width:39.2%; }
+.load-info-row.alignment { left:4.2%; top:42.6%; width:39.2%; }
+.load-info-row.hp { left:4.2%; top:61.1%; width:39.2%; }
+.load-info-row.mp { left:4.2%; top:73.1%; width:39.2%; }
+.load-info-row.ac { left:4.2%; top:85.1%; width:39.2%; }
+.load-info-row.lv { left:54.1%; top:4.2%; width:38.6%; }
+.load-info-row.str { left:54.1%; top:20.0%; width:38.6%; }
+.load-info-row.dex { left:54.1%; top:31.9%; width:38.6%; }
+.load-info-row.con { left:54.1%; top:43.8%; width:38.6%; }
+.load-info-row.wis { left:54.1%; top:55.7%; width:38.6%; }
+.load-info-row.cha { left:54.1%; top:67.6%; width:38.6%; }
+.load-info-row.int { left:54.1%; top:79.5%; width:38.6%; }
+#load-action-panel {
+    position:absolute;
+    z-index:5;
+    left:70.0%;
+    top:59.4%;
+    width:23.2%;
+    display:flex;
+    flex-direction:column;
+    gap:clamp(5px,1.0vw,11px);
+}
+#load-action-panel button {
+    height:clamp(24px,4.1vw,46px);
+    border:1px solid rgba(198,156,74,.68);
+    background:linear-gradient(180deg, rgba(28,23,15,.9), rgba(7,5,3,.95));
+    color:#d8bf79;
+    font-family:Georgia, "Times New Roman", "Microsoft JhengHei", serif;
+    font-size:clamp(10px,1.35vw,18px);
+    font-weight:700;
+    text-shadow:0 1px 2px #000, 0 0 8px rgba(228,187,87,.38);
+    box-shadow:inset 0 1px 0 rgba(255,232,167,.16), 0 0 12px rgba(0,0,0,.55);
+    cursor:pointer;
+}
+#load-action-panel button:hover:not(:disabled) {
+    color:#fff1ba;
+    border-color:rgba(244,205,107,.9);
+    box-shadow:inset 0 1px 0 rgba(255,232,167,.25), 0 0 16px rgba(216,179,80,.35);
+}
+#load-action-panel button:disabled {
+    opacity:.42;
+    cursor:not-allowed;
+}
+#load-btn-restore.hidden {
+    display:none !important;
+}
+
+/* ===== 載入畫面資訊與右側按鈕校準 ===== */
+#load-info-panel {
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+}
+.load-info-row {
+    height:3.8%;
+    justify-content:center;
+    gap:0;
+}
+.load-info-row span {
+    display:none;
+}
+.load-info-row strong {
+    min-width:0;
+    width:100%;
+    padding:0 .36em 0 .72em;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    color:#f4edda;
+    font-size:clamp(8px,1.0vw,14px);
+    line-height:1.05;
+    text-align:left;
+}
+.load-info-row.name { left:28.75%; top:65.00%; width:14.55%; }
+.load-info-row.pledge { left:28.75%; top:69.38%; width:14.55%; }
+.load-info-row.class { left:28.75%; top:73.75%; width:14.55%; }
+.load-info-row.alignment { left:28.75%; top:78.14%; width:14.55%; }
+.load-info-row.hp { left:28.75%; top:83.54%; width:14.55%; }
+.load-info-row.mp { left:28.75%; top:87.92%; width:14.55%; }
+.load-info-row.ac { left:28.75%; top:92.29%; width:14.55%; }
+.load-info-row.lv { left:64.06%; top:65.00%; width:14.55%; }
+.load-info-row.str { left:64.06%; top:69.38%; width:14.55%; }
+.load-info-row.dex { left:64.06%; top:73.75%; width:14.55%; }
+.load-info-row.con { left:64.06%; top:78.13%; width:14.55%; }
+.load-info-row.wis { left:64.06%; top:82.50%; width:14.55%; }
+.load-info-row.cha { left:64.06%; top:86.88%; width:14.55%; }
+.load-info-row.int { left:64.06%; top:91.25%; width:14.55%; }
+#load-action-panel {
+    left:81.0%;
+    top:59.8%;
+    width:15.4%;
+    gap:clamp(7px,1.14vw,14px);
+}
+#load-action-panel button {
+    height:clamp(14px,2.25vw,26px);
+    font-size:clamp(8px,.84vw,11px);
+}
+
+/* ===== 載入畫面欄位與右側按鈕位置微調 ===== */
+.load-info-row.name { top:64.15%; }
+.load-info-row.pledge { top:68.18%; }
+.load-info-row.class { top:73.42%; }
+.load-info-row.alignment { top:77.72%; }
+.load-info-row.hp { top:83.02%; }
+.load-info-row.mp { top:87.07%; }
+.load-info-row.ac { top:91.10%; }
+.load-info-row.lv { top:65.00%; }
+.load-info-row.str { top:70.18%; }
+.load-info-row.dex { top:74.48%; }
+.load-info-row.con { top:78.74%; }
+.load-info-row.wis { top:82.92%; }
+.load-info-row.cha { top:87.25%; }
+.load-info-row.int { top:91.25%; }
+#load-action-panel {
+    left:80.95%;
+    top:64.25%;
+    width:7.45%;
+    gap:clamp(8px,1.05vw,14px);
+}
+#load-action-panel button {
+    height:clamp(18px,2.55vw,32px);
+    font-size:clamp(8px,.9vw,12px);
+}

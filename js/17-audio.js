@@ -13,9 +13,24 @@ const SFX_DEFS = {
     hurt:    { file: 'hurt',    vol: 0.50, throttle: 120 },  // 玩家受到傷害
     levelup: { file: 'levelup', vol: 0.85, throttle: 0 },    // 升級
 };
+// 創角動畫：charsound.def 的「觸發 PNG 幀 → 音效編號」。鍵名須與 creationAnimKey() 一致。
+const CREATION_FRAME_SFX = {
+    f_dark: { frame: 25, sound: 1603 }, m_dark: { frame: 90, sound: 1604 },
+    f_elf: { frame: 166, sound: 1595 }, m_elf: { frame: 245, sound: 1596 },
+    f_knight: { frame: 315, sound: 1601 }, m_knight: { frame: 378, sound: 1602 },
+    f_mage: { frame: 452, sound: 1599 }, m_mage: { frame: 531, sound: 1600 },
+    princess: { frame: 629, sound: 1597 }, prince: { frame: 714, sound: 1598 },
+    m_Dknight: { frame: 841, sound: 4764 }, f_Dknight: { frame: 908, sound: 4765 },
+    m_illusionist: { frame: 968, sound: 4766 }, f_illusionist: { frame: 1039, sound: 4767 },
+    m_warrior: { frame: 1992, sound: 6779 }, f_warrior: { frame: 1908, sound: 6787 }
+};
+Object.keys(CREATION_FRAME_SFX).forEach(function (key) {
+    SFX_DEFS['creation_' + key] = { file: '' + CREATION_FRAME_SFX[key].sound, vol: 0.65, throttle: 0 };
+});
 var _sfxCfg = { on: true, vol: 50 };          // 預設開啟、音量 50%
 var _sfxPool = {}, _sfxIdx = {}, _sfxLast = {}, _sfxInited = false;
 var SFX_POOL_N = 4;
+var _creationSfxActiveKey = null;
 
 function _sfxLoadCfg() {
     try {
@@ -58,7 +73,7 @@ function _sfxSyncUI() {
     var v = document.getElementById('set-sfx-vol'); if (v) v.value = _sfxCfg.vol;
 }
 
-function setSfxOn(on) { _sfxCfg.on = !!on; _sfxSaveCfg(); if (on) playSfx('attack'); }   // 開啟時試播回饋（toggle 點擊即 user gesture，解鎖播放）
+function setSfxOn(on) { _sfxCfg.on = !!on; _sfxSaveCfg(); if (on) playSfx('attack'); else stopCreationFrameSfx(); }   // 開啟時試播回饋（toggle 點擊即 user gesture，解鎖播放）
 function setSfxVol(v) { _sfxCfg.vol = Math.max(0, Math.min(100, parseInt(v, 10) || 0)); _sfxSaveCfg(); }
 
 // 🔊 攻擊音效依「武器類型」分檔(attack_<weaponcat>·用 equipCatKey)；受傷依「職業群組+性別」分檔(hurt_<group>_<m|f>)；其餘事件共用單檔。缺對應變體檔→自動退回通用 key(attack/hurt)。
@@ -131,6 +146,22 @@ function playSfx(key) {
     } catch (e) {}
 }
 
+function stopCreationFrameSfx() {
+    if (!_creationSfxActiveKey) return;
+    var arr = _sfxPool[_creationSfxActiveKey];
+    if (arr && arr.length) arr.forEach(function (a) {
+        try { a.pause(); a.currentTime = 0; } catch (e) {}
+    });
+    _creationSfxActiveKey = null;
+}
+function playCreationFrameSfx(animKey, frame) {
+    var cfg = CREATION_FRAME_SFX[animKey];
+    if (!_sfxCfg.on || !cfg || cfg.frame !== frame) return;
+    stopCreationFrameSfx();
+    _creationSfxActiveKey = 'creation_' + animKey;
+    playSfx(_creationSfxActiveKey);
+}
+
 // ===== 🔊 怪物受傷 / 法術施展（依「名稱」對應使用者音效庫編號 · 2026-06-30）=====
 //   音檔放 assets/sfx/，檔名＝音效庫編號：怪物受傷 <編號>.<mp3|ogg|wav>、法術施展 <編號>.<…>（怪物與法術編號不重疊故同名規則安全）。一個編號被多隻怪／多技能共用→只需放一個檔。
 //   playMobHurt(mob)：查 MOB_HURT_SFX[mob.n]→播 <n>（全域節流，避免多目標／連擊洗版）；缺檔靜音。
@@ -145,7 +176,7 @@ const MOB_HURT_SFX = {
   "冰原狼人": 513, "怪手": 93, "狼人": 70, "侏儒戰士": 441, "骷髏": 57, "妖魔殭屍": 57, "甘地妖魔": 49, "污染的潘": 159, "鱷魚": 629, "巨蟻": 213,
   "妖魔法師": 505, "骷髏弓箭手": 57, "蟑螂人": 610, "石頭高崙": 770, "羅孚妖魔": 49, "骷髏斧手": 57, "骷髏槍兵": 57, "夏洛伯": 55, "妖魔巡守": 49,
   "哈柏哥布林": 432, "阿吐巴妖魔": 49, "都達瑪拉妖魔": 49, "歐熊": 291, "蜥蜴人": 494, "穴居人": 547, "史巴托": 57, "食屍鬼": 72, "鯊魚": 623, "黑騎士": 26,
-  "黑騎士搜索隊": 26, "人魚": 616, "那魯加妖魔": 49, "萊肯": 70, "楊果里恩": 55, "蟹人": 625,   "巨人": 1219, "巨人戰士": 1219, "巨人長老": 1219,
+  "黑騎士搜索隊": 26, "人魚": 616, "那魯加妖魔": 49, "萊肯": 70, "楊果里恩": 55, "蟹人": 625, "巨人": 1219, "巨人戰士": 1219, "巨人長老": 1219,
   "古代巨人": 1220, "巨大兵蟻": 212, "鼠人": 614, "海星": 623, "長老": 35, "卡司特": 106, "食人妖精": 75, "蛇女": 615, "地獄犬": 427, "希爾黛斯": 727,
   "龍龜": 611, "毒蠍": 216, "哈維": 244, "骷髏神射手": 57, "骷髏警衛": 44, "黑暗精靈": 156, "歐吉": 195, "多羅": 254, "伊萊克頓": 617, "強盜": 26,
   "雪人": 750, "紙人": 732, "骷髏鬥士": 57, "奎斯坦修": 618, "爆彈花": 653, "食人妖精王": 75, "莫妮亞": 55, "艾爾摩士兵": 700, "格利芬": 278,
@@ -154,7 +185,7 @@ const MOB_HURT_SFX = {
   "卡瑞": 57, "火焰弓箭手": 676, "思克巴": 282, "火蜥蜴": 635, "火炎蛋": 682, "夢幻之島閃電球": 156, "夢幻之島鎧甲守衛": 156, "獨眼巨人": 438, "思克巴女皇": 282,
   "影魔": 57, "鬼魂": 499, "巫師": 35, "熔岩高崙": 642, "紅鬼魂": 499, "夢幻之島火精靈王": 156, "夢幻之島水精靈王": 156, "夢幻之島風精靈王": 156,
   "夢幻之島地精靈王": 156, "獨角獸": 291, "夢魘": 427, "夢幻之島蘑菇": 162, "夢幻之島鬼火": 499, "夢幻之島火蜥蜴": 635, "夢幻之島殺人蜂": 213, "夢幻之島暴走兔": 83,
-  "夢幻之島火炎蛋": 682, "夢幻之島冰石高崙": 723, "夢幻之島大鬼火": 499, "冰人": 727, "冰之女王侍女": 727,   "冰之女王": 741,   "冰魔": 3557, "巴土瑟": 727,
+  "夢幻之島火炎蛋": 682, "夢幻之島冰石高崙": 723, "夢幻之島大鬼火": 499, "冰人": 727, "冰之女王侍女": 727, "冰之女王": 741, "冰魔": 3557, "巴土瑟": 727,
   "卡士柏": 727, "馬庫爾": 727, "阿西塔基奧": 650, "死神": 765, "伊弗利特": 638, "烈炎獸": 646, "飛龍": 278, "黑長者": 35, "變形怪首領": 60, "巴風特": 67,
   "克特": 29, "死亡騎士": 88, "巨蟻女皇": 509, "不死鳥": 678, "惡魔": 427, "安塔瑞斯": 226, "法利昂": 611, "巴拉卡斯": 635, "林德拜爾": 278,
   "牧羊犬": 175, "夢幻之島冰人": 727, "西瑪": 727, "底比斯 曼陀羅草(白)": 162, "底比斯 曼陀羅草": 653, "底比斯 聖甲蟲": 213, "底比斯 聖甲蟲(藍)": 213,
@@ -165,8 +196,8 @@ const MOB_HURT_SFX = {
   "黑暗妖精警衛(矛)": 458, "黑暗妖精巡守": 458, "黑暗妖精士兵": 458, "黑暗妖精將軍": 458, "黑虎": 168, "拉斯塔巴德馴獸師": 79, "受詛咒的馴獸師": 79, "地獄束縛犬": 427,
   "魂騎士": 79, "地獄奴隸": 79, "喚獸師": 79, "拉斯塔巴德守門人": 458, "魔獸軍王巴蘭卡": 79, "地元素守護者": 770, "水元素守護者": 770, "風元素守護者": 770,
   "火元素守護者": 770, "黑暗妖精法師": 458, "黑法師": 458, "黑暗復仇者": 79, "血色術士": 79, "歐姆戰士": 106, "闇黑君王": 79, "血騎士": 79, "重裝歐姆戰士": 106,
-  "拉斯塔巴德近衛隊": 79, "拉斯塔巴德近衛隊隊長": 79, "長老隨從": 79,   "長老．琪娜": 3583, "長老．安迪斯": 79, "長老．巴塔斯": 79, "長老．巴洛斯": 79, "長老．巴陸德": 79,
-  "長老．拉曼斯": 79, "長老．泰瑪斯": 79, "長老．艾迪爾": 79,   "法令軍王蕾雅": 3565, "冥法軍王海露拜": 79, "暗殺軍王史雷佛": 79, "往上層的樓梯": 63, "變種蛇女": 615,
+  "拉斯塔巴德近衛隊": 79, "拉斯塔巴德近衛隊隊長": 79, "長老隨從": 79, "長老．琪娜": 3583, "長老．安迪斯": 79, "長老．巴塔斯": 79, "長老．巴洛斯": 79, "長老．巴陸德": 79,
+  "長老．拉曼斯": 79, "長老．泰瑪斯": 79, "長老．艾迪爾": 79, "法令軍王蕾雅": 3565, "冥法軍王海露拜": 79, "暗殺軍王史雷佛": 79, "往上層的樓梯": 63, "變種蛇女": 615,
   "變種楊果里恩": 55, "梅杜莎": 615, "奇美拉": 278, "扭曲的潔尼斯女王": 427, "魔狼": 513, "邪惡密密": 735, "邪惡多眼怪": 295, "死亡之劍": 732,
   "不幸的幻象眼魔": 39, "恐怖的火炎蛋": 682, "恐怖夢魘": 427, "恐怖的地獄犬": 427, "小惡魔": 427, "恐怖的伊弗利特": 638, "恐怖的吸血鬼": 427, "殘暴的骷髏斧兵": 57,
   "殘暴的食屍鬼": 72, "殘暴的骷髏槍兵": 57, "殘暴的史巴托": 57, "殘暴的骷髏神射手": 57, "殘暴的骷髏鬥士": 57, "死亡的殭屍王": 72, "幼龍": 611, "火焰之靈魂(紅)": 57,
@@ -224,7 +255,7 @@ const MOB_KILL_SFX = {
   "冰原狼人": 757, "怪手": 94, "狼人": 71, "侏儒戰士": 442, "骷髏": 58, "妖魔殭屍": 58, "甘地妖魔": 50, "污染的潘": 160, "鱷魚": 554, "巨蟻": 196,
   "妖魔法師": 506, "骷髏弓箭手": 58, "蟑螂人": 571, "石頭高崙": 772, "羅孚妖魔": 50, "骷髏斧手": 58, "骷髏槍兵": 58, "夏洛伯": 56, "妖魔巡守": 50,
   "哈柏哥布林": 433, "阿吐巴妖魔": 50, "都達瑪拉妖魔": 50, "歐熊": 293, "蜥蜴人": 496, "穴居人": 548, "史巴托": 58, "食屍鬼": 73, "鯊魚": 575, "黑騎士": 27,
-  "黑騎士搜索隊": 27, "人魚": 583, "那魯加妖魔": 50, "萊肯": 71, "楊果里恩": 56, "蟹人": 661,   "巨人": 1221, "巨人戰士": 1221, "巨人長老": 1221,
+  "黑騎士搜索隊": 27, "人魚": 583, "那魯加妖魔": 50, "萊肯": 71, "楊果里恩": 56, "蟹人": 661, "巨人": 1221, "巨人戰士": 1221, "巨人長老": 1221,
   "古代巨人": 1221, "巨大兵蟻": 197, "鼠人": 560, "海星": 575, "長老": 36, "卡司特": 105, "食人妖精": 76, "蛇女": 586, "地獄犬": 424, "希爾黛斯": 730,
   "龍龜": 600, "毒蠍": 217, "哈維": 245, "骷髏神射手": 58, "骷髏警衛": 45, "黑暗精靈": 157, "歐吉": 191, "多羅": 256, "伊萊克頓": 551, "強盜": 27,
   "雪人": 751, "紙人": 733, "骷髏鬥士": 58, "奎斯坦修": 557, "爆彈花": 654, "食人妖精王": 76, "莫妮亞": 56, "艾爾摩士兵": 720, "格利芬": 274,
@@ -233,7 +264,7 @@ const MOB_KILL_SFX = {
   "卡瑞": 58, "火焰弓箭手": 667, "思克巴": 283, "火蜥蜴": 634, "火炎蛋": 663, "夢幻之島閃電球": 157, "夢幻之島鎧甲守衛": 157, "獨眼巨人": 436, "思克巴女皇": 283,
   "影魔": 58, "鬼魂": 507, "巫師": 36, "熔岩高崙": 643, "紅鬼魂": 507, "夢幻之島火精靈王": 157, "夢幻之島水精靈王": 157, "夢幻之島風精靈王": 157,
   "夢幻之島地精靈王": 157, "獨角獸": 293, "夢魘": 424, "夢幻之島蘑菇": 163, "夢幻之島鬼火": 507, "夢幻之島火蜥蜴": 634, "夢幻之島殺人蜂": 196, "夢幻之島暴走兔": 84,
-  "夢幻之島火炎蛋": 663, "夢幻之島冰石高崙": 724, "夢幻之島大鬼火": 507, "冰人": 730, "冰之女王侍女": 730,   "冰之女王": 743, "冰魔": 3562, "巴土瑟": 730,
+  "夢幻之島火炎蛋": 663, "夢幻之島冰石高崙": 724, "夢幻之島大鬼火": 507, "冰人": 730, "冰之女王侍女": 730, "冰之女王": 743, "冰魔": 3562, "巴土瑟": 730,
   "卡士柏": 730, "馬庫爾": 730, "阿西塔基奧": 651, "死神": 767, "伊弗利特": 639, "烈炎獸": 647, "飛龍": 274, "黑長者": 36, "變形怪首領": 61, "巴風特": 68,
   "克特": 30, "死亡騎士": 89, "巨蟻女皇": 501, "不死鳥": 658, "惡魔": 424, "安塔瑞斯": 258, "法利昂": 600, "巴拉卡斯": 634, "林德拜爾": 274,
   "牧羊犬": 176, "夢幻之島冰人": 730, "西瑪": 730, "底比斯 曼陀羅草(白)": 163, "底比斯 曼陀羅草": 654, "底比斯 聖甲蟲": 196, "底比斯 聖甲蟲(藍)": 196,
@@ -244,8 +275,8 @@ const MOB_KILL_SFX = {
   "黑暗妖精警衛(矛)": 460, "黑暗妖精巡守": 460, "黑暗妖精士兵": 460, "黑暗妖精將軍": 460, "黑虎": 173, "拉斯塔巴德馴獸師": 80, "受詛咒的馴獸師": 80, "地獄束縛犬": 424,
   "魂騎士": 80, "地獄奴隸": 80, "喚獸師": 80, "拉斯塔巴德守門人": 460, "魔獸軍王巴蘭卡": 80, "地元素守護者": 772, "水元素守護者": 772, "風元素守護者": 772,
   "火元素守護者": 772, "黑暗妖精法師": 460, "黑法師": 460, "黑暗復仇者": 80, "血色術士": 80, "歐姆戰士": 105, "闇黑君王": 80, "血騎士": 80, "重裝歐姆戰士": 105,
-  "拉斯塔巴德近衛隊": 80, "拉斯塔巴德近衛隊隊長": 80, "長老隨從": 80,   "長老．琪娜": 3585, "長老．安迪斯": 80, "長老．巴塔斯": 80, "長老．巴洛斯": 80, "長老．巴陸德": 80,
-  "長老．拉曼斯": 80, "長老．泰瑪斯": 80, "長老．艾迪爾": 80,   "法令軍王蕾雅": 3567, "冥法軍王海露拜": 80, "暗殺軍王史雷佛": 80, "往上層的樓梯": 64, "變種蛇女": 586,
+  "拉斯塔巴德近衛隊": 80, "拉斯塔巴德近衛隊隊長": 80, "長老隨從": 80, "長老．琪娜": 3585, "長老．安迪斯": 80, "長老．巴塔斯": 80, "長老．巴洛斯": 80, "長老．巴陸德": 80,
+  "長老．拉曼斯": 80, "長老．泰瑪斯": 80, "長老．艾迪爾": 80, "法令軍王蕾雅": 3567, "冥法軍王海露拜": 80, "暗殺軍王史雷佛": 80, "往上層的樓梯": 64, "變種蛇女": 586,
   "變種楊果里恩": 56, "梅杜莎": 586, "奇美拉": 274, "扭曲的潔尼斯女王": 424, "魔狼": 757, "邪惡密密": 737, "邪惡多眼怪": 287, "死亡之劍": 733,
   "不幸的幻象眼魔": 40, "恐怖的火炎蛋": 663, "恐怖夢魘": 424, "恐怖的地獄犬": 424, "小惡魔": 424, "恐怖的伊弗利特": 639, "恐怖的吸血鬼": 424, "殘暴的骷髏斧兵": 58,
   "殘暴的食屍鬼": 73, "殘暴的骷髏槍兵": 58, "殘暴的史巴托": 58, "殘暴的骷髏神射手": 58, "殘暴的骷髏鬥士": 58, "死亡的殭屍王": 73, "幼龍": 600, "火焰之靈魂(紅)": 58,
@@ -276,7 +307,7 @@ const MOB_KILL_SFX = {
 //   怪物一般攻擊動作觸發時播放（playMobAttack·掛 enemyAttackChooseVictim）。怪物 受傷/死亡/攻擊/法術 四組編號各自獨立；缺檔靜音（優雅降級）。
 const MOB_ATTACK_SFX = {
   "不死的木乃伊王": 1041, "不滅的巫妖": 917, "亞力安": 263, "傲慢的潔尼斯女王": 983, "克特": 1127, "冰之女王侍女": 740, "冰之女王": 740, "冰魔": 3556, "冷酷的艾莉絲": 1047,
-  "卡司特": 104, "卡司特王": 104, "卡瑞": 86, "受詛咒的艾爾摩士兵": 698, "受詛咒的艾爾摩將軍": 690, "受詛咒的艾爾摩法師": 1132,   "受詛咒的馴獸師": 1191, "古代巨人": 1218,
+  "卡司特": 104, "卡司特王": 104, "卡瑞": 86, "受詛咒的艾爾摩士兵": 698, "受詛咒的艾爾摩將軍": 690, "受詛咒的艾爾摩法師": 1132, "受詛咒的馴獸師": 1191, "古代巨人": 1218,
   "哈士奇": 773, "哈汀之影": 1278, "喚獸師": 1273, "土精靈王": 962, "地之牙": 883, "地元素守護者": 875, "地獄奴隸": 862, "地獄的黑豹": 1053,
   "地靈之主": 875, "墮落": 1374, "墮落的司祭(一階)": 1402, "墮落的司祭(三階)": 1396, "墮落的司祭(二階)": 1406, "墮落的司祭(五階)": 1064, "墮落的司祭(四階)": 1411, "墳墓守護者": 1415,
   "墳墓守護者法師": 1415, "墳墓守護者騎士": 1415, "夢幻之島地精靈王": 962, "夢幻之島大鬼火": 980, "夢幻之島暴走兔": 977, "夢幻之島殺人蜂": 1013, "夢幻之島鎧甲守衛": 1010, "夢幻之島閃電球": 956,
@@ -310,7 +341,7 @@ const MOB_ATTACK_SWING = { "死亡騎士": 248, "卡瑞": 248 };   // 死亡騎�
 ["長老", "巫師", "西瑪", "黑長者", "卡士柏", "馬庫爾", "巴土瑟", "火焰之魔法師", "哈汀之影"].forEach(function (n) {
     MOB_ATTACK_SFX[n] = 81; MOB_HURT_SFX[n] = 79; MOB_KILL_SFX[n] = 80;
 });
-// ❄️ v3.1.36 長老．琪娜(boss Lv78)專屬攻擊音 3580：精確對應覆蓋上方 forEach 由「長老」子字串借用的 81（精確對應優先於子字串借用）。受擊3583/死亡3585 見上方兩表·技能3582 見 MOB_SKILL_SFX。
+// ❄️ v3.1.36 長老．琪娜(boss Lv78)專屬攻擊音 3580：顯式對應覆蓋上方 forEach 由「長老」子字串借用的 81（精確對應優先於子字串借用）。受擊3583/死亡3585 見上方兩表·技能3582 見 MOB_SKILL_SFX。
 MOB_ATTACK_SFX["長老．琪娜"] = 3580;
 // === 怪物「技能(施法)」音效對應（name -> 音效編號·檔名＝<n>·查無/缺檔→靜音·無通用退回）·來源天堂 list.spr 動作幀 [NNN(skill) ===
 //   怪物施放技能(castMobMagic)時播放（playMobSkill·掛 js/04 castMobMagic·與技能動畫同觸發點）。怪物 受傷/死亡/攻擊/技能 四組編號各自獨立·精確對應（不做子字串借用）·缺檔靜音。
@@ -451,43 +482,43 @@ function playMorphDeathSfx() {   // js/09 玩家變身死亡動作首次觸發�
     if (v) { var k2 = 'hurt_' + v; if (!_sfxVariantTried[k2]) { _sfxVariantTried[k2] = true; _sfxTryLoad(k2, { file: k2 }); return; } _sfxPlayPool(k2, 0.60); }
 }
 
-// ===== 🎵 背景音樂（自製 BGM_SCENE_MAP 版 · assets/Sound/music<id>.mp3）=====
+// ===== 🎵 背景音樂（分場景 · HTMLAudio 雙元素交叉淡入淡出 · 自我輪詢偵測場景，無戰鬥碼掛鉤）=====
+//   場景 title(登入)/create(創角畫面)/town(共通安全區)/battle(野外戰鬥)/boss(頭目戰)＋專屬創角職業/城鎮 BGM；音檔位於 assets/bgm/。
+//   缺某場景音檔（或尚未解析完成）→保持目前曲目、不切換。BGM 音量/開關與音效獨立（存 'fb5_bgm'）。
 var _bgmCfg = { on: true, vol: 35 };
-var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
-var BGM_SCENE_MAP = {
-    town_talking:12, talking_island_port:12, talking_island:12,
-    town_elf:13, zone_01:16,
-    town_ivory_tower:11, zone_37:11, zone_38:11, zone_39:11, zone_40:11, zone_41:11,
-    gludio:18, dragon_valley:19,
-    town_giran:20,
-    town_heine:23, heine:27,
-    town_witon:28,
-    town_oren:54, zone_02:29,
-    town_aden:41,
-    kent:14, town_kent_castle:9, town_windwood_castle:9, town_heine_castle:9, windwood:52,
-    kent_outer:8, kent_inner:8, ww_outer:8, ww_inner:8, heine_outer:8, heine_inner:8,
-    town_gludio:55,
-    town_silver_knight:57, silver_knight:82, training:82,
-    shadow_temple:60,
-    rastabad_cave1:61, rastabad_cave2:61, rastabad_cave3:61, rastabad_gate:61, rastabad_beast:61, dark_magic_lab:61, necro_training:61, elder_room:61, demon_temple:46,
-    town_pride:62, pride_2_10:62, pride_11_20:62, pride_21_30:62, pride_31_40:62, pride_41_50:62, pride_51_60:62, pride_61_70:62, pride_71_80:62, pride_81_90:62, pride_91_100:62,
-    zone_06:32, zone_07:32, zone_08:32, zone_09:32, zone_10:32, zone_11:32, zone_12:32,
-    zone_34:24, zone_35:24, zone_36:24,
-    eva_kingdom:36,
-    town_rift:92,
-    thebes_desert:94, thebes_pyramid:95, thebes_temple:103,
-    giant_tomb:48,
-    zone_03:6, zone_13:6, zone_14:6, zone_15:6, zone_16:6, zone_17:6, zone_18:6,
-    zone_19:6, zone_20:6, zone_21:6, zone_22:6, zone_23:6, zone_24:6, zone_25:6,
-    zone_26:6, zone_27:6, zone_28:6, zone_29:6, zone_30:6, zone_31:6, zone_32:6,
-    zone_33:6,
-    forgotten_island:6, ancient_giant_tomb:48,
-    dark_elf_forest:6, dark_elf_dungeon:6,
-    silent_cavern:60,
-    rift:6, rift_boss:6,
-    dragon_valley_cave:19, dragon_valley_entrance:19,
-    tikal_area:122, tikal_deep:123, tikal_altar:125   // 🐍 v3.1.62 提卡爾(蛇神降臨)3張狩獵圖專屬 BGM
+// 🎵 場景：title(標題)/create(創角畫面)/town(共通安全區)/battle(野外)/boss(頭目)＋下列「專屬 BGM 城鎮」(scene key = 城鎮地圖 id·檔名同名)；其餘城鎮皆用共通 'town'。
+var TOWN_BGM_LIST = [
+    'town_silent',        // 沉默洞穴
+    'town_ivory_tower',   // 象牙塔
+    'town_talking',       // 說話之島
+    'town_kent_castle',   // 肯特城（肯特村）
+    'town_elf',           // 妖精森林
+    'town_giran',         // 奇岩
+    'town_heine',         // 海音
+    'town_aden',          // 亞丁
+    'town_oren',          // 歐瑞村
+    'town_gludio',        // 燃柳村
+    'town_silver_knight', // 銀騎士村
+    'town_witon',         // 威頓村
+    'town_pride',         // 傲慢之塔入口
+    'town_windwood_castle', // 風木城堡
+    'town_hyperia',       // 希培利亞村莊
+    'town_behemoth',      // 貝希摩斯
+];
+var TOWN_BGM_TRACKS = { 'town_hyperia': 'music97', 'town_behemoth': 'music99' };
+var CREATE_BGM = {
+    royal: 'music1', knight: 'music2', elf: 'music3', mage: 'music4',
+    dark: 'music10', illusion: 'music96', dragon: 'music98', warrior: 'music175'
 };
+var BGM_TRACKS = { title: 'title', create: 'create', town: 'town', battle: 'battle', boss: 'boss' };
+TOWN_BGM_LIST.forEach(function (id) { BGM_TRACKS[id] = TOWN_BGM_TRACKS[id] || id; });
+Object.keys(CREATE_BGM).forEach(function (cls) { BGM_TRACKS['create_' + cls] = CREATE_BGM[cls]; });
+var _TOWN_BGM = {}; TOWN_BGM_LIST.forEach(function (id) { _TOWN_BGM[id] = 1; });
+// 🐍 狩獵區專屬 BGM（地圖 id → 曲目檔名·assets/bgm/<檔>.<ext>）：提卡爾蛇神降世 3 圖。優先於通用 battle/boss，故祭壇(純頭目房)也放自己的曲。
+var HUNT_BGM = { 'tikal_area': 'music122', 'tikal_deep': 'music123', 'tikal_altar': 'music125' };
+Object.keys(HUNT_BGM).forEach(function (id) { BGM_TRACKS[HUNT_BGM[id]] = HUNT_BGM[id]; });   // 註冊曲目 scene=檔名，_bgmInit 會預解析 URL
+var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
+
 function _bgmLoadCfg() {
     try {
         var s = (typeof _lsGet === 'function') ? _lsGet('fb5_bgm') : null;
@@ -496,15 +527,39 @@ function _bgmLoadCfg() {
 }
 function _bgmSaveCfg() { try { if (typeof _lsSet === 'function') _lsSet('fb5_bgm', JSON.stringify(_bgmCfg)); } catch (e) {} }
 function _bgmTargetVol() { return Math.max(0, Math.min(1, _bgmCfg.vol / 100)); }
-function _bgmGetMusicId() {
-    if (typeof player === 'undefined' || !player || !player.cls) return -1;
-    var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
-    if (!cur) return -1;
-    var id = BGM_SCENE_MAP[cur];
-    if (id !== undefined) return id;
-    if (cur.indexOf('town_') === 0) return 0;
-    return 6;
+
+// 預解析各場景的實際 URL（依序試 mp3→ogg→wav）；缺檔→_bgmUrl[scene]=null
+function _bgmResolve(scene, file) {
+    var exts = ['mp3', 'ogg', 'wav'], i = 0;
+    (function tryNext() {
+        if (i >= exts.length) { _bgmUrl[scene] = null; return; }
+        var url = 'assets/bgm/' + file + '.' + exts[i++];
+        var probe = new Audio(); probe.preload = 'metadata';
+        probe.addEventListener('canplay', function () { _bgmUrl[scene] = url; }, { once: true });
+        probe.addEventListener('error', function () { tryNext(); }, { once: true });
+        probe.src = url; try { probe.load(); } catch (e) {}
+    })();
 }
+
+function _bgmIsCreateScreen() {   // 創角面板可見（#creation-panel 未 hidden）＝玩家正在創角
+    if (typeof document === 'undefined') return false;
+    var p = document.getElementById('creation-panel');
+    return !!(p && p.classList && !p.classList.contains('hidden'));
+}
+function _bgmCreateScene() {
+    var cls = (typeof curCreate !== 'undefined' && curCreate) ? curCreate.cls : '';
+    return CREATE_BGM[cls] ? 'create_' + cls : 'create';
+}
+function _bgmDetectScene() {
+    if (_bgmIsCreateScreen()) return _bgmCreateScene();   // 創角畫面優先：依目前選擇的職業播放專屬曲目
+    if (typeof player === 'undefined' || !player || !player.cls) return 'title';
+    var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
+    if (cur && cur.indexOf('town_') === 0) return _TOWN_BGM[cur] ? cur : 'town';   // 專屬城鎮→自己的曲；其餘安全區→共通 town
+    if (cur && HUNT_BGM[cur]) return HUNT_BGM[cur];   // 🐍 狩獵區專屬 BGM（提卡爾 3 圖）→優先於通用 battle/boss（祭壇即使頭目戰也放 music125）
+    if (typeof mapState !== 'undefined' && mapState && mapState.mobs && mapState.mobs.some(function (m) { return m && m.boss && m.curHp > 0; })) return 'boss';
+    return 'battle';
+}
+
 function _bgmCrossfade(oldEl, newEl) {
     if (_bgmFadeTimer) clearInterval(_bgmFadeTimer);
     var target = _bgmTargetVol(), steps = 20, n = 0;
@@ -513,21 +568,21 @@ function _bgmCrossfade(oldEl, newEl) {
         if (newEl) newEl.volume = Math.max(0, Math.min(1, target * t));
         if (oldEl) oldEl.volume = Math.max(0, Math.min(1, target * (1 - t)));
         if (n >= steps) { clearInterval(_bgmFadeTimer); _bgmFadeTimer = null; if (oldEl) { try { oldEl.pause(); } catch (e) {} } }
-    }, 50);
+    }, 50);   // 20 步 × 50ms = 1 秒交叉淡化
 }
-function _bgmSwitch(musicId) {
-    if (!_bgmCfg.on || musicId < 0) return;
-    var sceneKey = 'music' + musicId;
-    if (sceneKey === _bgmScene) return;
-    var url = _bgmUrl[sceneKey];
-    if (!url) return;
-    _bgmScene = sceneKey;
+
+function _bgmSwitch(scene) {
+    if (!_bgmCfg.on) return;
+    if (scene === _bgmScene) return;
+    var url = _bgmUrl[scene];
+    if (!url) return;   // 該場景無音檔（或尚未解析完）→不更新場景、保持目前曲目，下次輪詢再試
+    _bgmScene = scene;
     var newIdx = (_bgmActive === 0) ? 1 : 0;
     if (!_bgmEls[newIdx]) { var e0 = new Audio(); e0.loop = true; e0.preload = 'auto'; e0.volume = 0; _bgmEls[newIdx] = e0; }
     var nu = _bgmEls[newIdx], old = (_bgmActive >= 0) ? _bgmEls[_bgmActive] : null;
     try { if (!nu.src || nu.src.indexOf(url) === -1) nu.src = url; nu.currentTime = 0; } catch (e) {}
     nu.volume = 0;
-    var p = nu.play(); if (p && p.catch) p.catch(function () {});
+    var p = nu.play(); if (p && p.catch) p.catch(function () {});   // autoplay 未解鎖→忽略，下次輪詢再試
     _bgmCrossfade(old, nu);
     _bgmActive = newIdx;
 }
@@ -536,32 +591,21 @@ function _bgmStopAll() {
     for (var i = 0; i < 2; i++) { if (_bgmEls[i]) { try { _bgmEls[i].pause(); } catch (e) {} _bgmEls[i].volume = 0; } }
     _bgmActive = -1;
 }
-function _bgmTick() { if (_bgmInited) { try { _bgmSwitch(_bgmGetMusicId()); } catch (e) {} } }
+function _bgmTick() { if (_bgmInited) { try { _bgmSwitch(_bgmDetectScene()); } catch (e) {} } }
+
 function setBgmOn(on) { _bgmCfg.on = !!on; _bgmSaveCfg(); if (!on) { _bgmStopAll(); _bgmScene = null; } else { _bgmScene = null; _bgmTick(); } }
-function setBgmVol(v) { var vol = parseInt(v, 10); if(isNaN(vol)) vol = 35; _bgmCfg.vol = Math.max(0, Math.min(100, vol)); _bgmSaveCfg(); if (!_bgmFadeTimer && _bgmActive >= 0 && _bgmEls[_bgmActive]) _bgmEls[_bgmActive].volume = _bgmTargetVol(); }
+function setBgmVol(v) { _bgmCfg.vol = Math.max(0, Math.min(100, parseInt(v, 10) || 0)); _bgmSaveCfg(); if (!_bgmFadeTimer && _bgmActive >= 0 && _bgmEls[_bgmActive]) _bgmEls[_bgmActive].volume = _bgmTargetVol(); }
 function _bgmSyncUI() {
     var c = document.getElementById('set-bgm-on'); if (c) c.checked = !!_bgmCfg.on;
     var v = document.getElementById('set-bgm-vol'); if (v) v.value = _bgmCfg.vol;
 }
-function _bgmResolve(sceneKey) {
-    var exts = ['mp3'], i = 0;
-    (function tryNext() {
-        if (i >= exts.length) { _bgmUrl[sceneKey] = null; return; }
-        var url = 'assets/Sound/' + sceneKey + '.' + exts[i++];
-        var probe = new Audio(); probe.preload = 'metadata';
-        probe.addEventListener('canplay', function () { _bgmUrl[sceneKey] = url; }, { once: true });
-        probe.addEventListener('error', function () { tryNext(); }, { once: true });
-        probe.src = url; try { probe.load(); } catch (e) {}
-    })();
-}
 function _bgmInit() {
     if (_bgmInited) return; _bgmInited = true;
     _bgmLoadCfg();
-    var seen = {};
-    for (var k in BGM_SCENE_MAP) { var mid = 'music' + BGM_SCENE_MAP[k]; if (!seen[mid]) { seen[mid] = 1; _bgmResolve(mid); } }
+    Object.keys(BGM_TRACKS).forEach(function (s) { _bgmResolve(s, BGM_TRACKS[s]); });
     _bgmSyncUI();
-    setInterval(_bgmTick, 1000);
-    var kick = function () { _bgmScene = null; _bgmTick(); };
+    setInterval(_bgmTick, 1000);   // 自我輪詢場景（每秒；只在場景改變時切換）
+    var kick = function () { _bgmScene = null; _bgmTick(); };   // 首次互動立即啟動（autoplay 解鎖）
     document.addEventListener('pointerdown', kick, { once: true });
     document.addEventListener('keydown', kick, { once: true });
 }

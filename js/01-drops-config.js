@@ -75,8 +75,8 @@
         // ===== 🔥 50級試煉擴充：魔族神殿 =====
         '炎魔的分身': [['new_item_157',10],['new_item_160',10],['new_item_154',10],['new_item_158',2],['new_item_161',2],['new_item_155',1],['new_item_159',5],['new_item_162',1],['new_item_156',1],['mat_black_mithril',0.5]],
         '黑暗棲林者': [['amr_darkdweller',0.8],['bot_darkdweller',0.8],['scroll_armor',0.5],['scroll_weapon',0.3],['quest_ring_darkdweller',0.05]],
-        '炎魔的思克巴': [['mat_black_mithril',0.5]],
-        '炎魔的思克巴女皇': [['acc_117',0.001],['acc_116',0.001],['mat_black_mithril',0.5], ['mat_black_blood', 1]],
+        '炎魔的思克巴': [['mat_black_mithril',0.5], ['new_item_150',5]],
+        '炎魔的思克巴女皇': [['acc_117',0.001],['acc_116',0.001],['mat_black_mithril',0.5], ['mat_black_blood', 1], ['new_item_150',5]],
         '炎魔的小惡魔': [['mat_black_mithril',0.5], ['mat_black_blood', 1]],
         '炎魔的巴風特': [['scroll_acc',0.001],['wpn_powerless_baphomet',0.0001],['amr_baphomet',0.001],['new_item_151',5],['new_item_154',5],['new_item_152',1],['new_item_161',1],['new_item_153',0.5],['mat_black_mithril',0.5], ['mat_black_blood', 1]],
         '墮落的司祭(一階)': [['mat_black_mithril',0.5],['mat_fallen_fang',0.01],['item_fallen_key',0.5],['mat_soulstone_shard',1],['new_item_234',1], ['mat_black_blood', 1.5]],   // ⚔️ 戰士試煉：神秘慎重藥水 1%
@@ -148,40 +148,39 @@
         '長老．拉曼斯': [['wpn_dark_sword', 0.5], ['wpn_official_2h', 0.5], ['wpn_claw_dark', 0.5], ['hlm_official', 0.5], ['arm_official_cloak', 0.5], ['bot_dark', 0.5], ['bk_invisible', 0.2], ['bk_elf_groundtrap', 1], ['bk_dark_str', 1], ['bk_elf_energyboost', 1], ['mat_black_powder', 3], ['mat_history_7', 3], ['item_dk_insignia', 3]],
         '長老．泰瑪斯': [['wpn_blood_2hsword', 1], ['clk_dark', 0.5], ['glv_official', 0.5], ['bk_holy_dash', 0.5], ['bk_elf_mirror', 1], ['bk_dark_dex', 1], ['bk_elf_energyboost', 1], ['mat_black_powder', 3], ['mat_history_6', 3], ['item_dk_insignia', 3]],
         '長老．艾迪爾': [['glv_dark', 1], ['bot_priest', 0.5], ['bk_dark_shadow', 0.5], ['bk_sleep_mist', 0.5], ['bk_elf_lifebless', 0.5], ['bk_dragon_awaken_antares', 1], ['mat_black_powder', 3], ['mat_history_5', 3], ['item_dk_insignia', 3]],
-        '炎魔之影': [['mat_black_blood', 1]],
         '血色術士': [['wpn_red_crystalwand', 0.1], ['hlm_priest', 0.05], ['amr_priest', 0.05], ['amr_dark_cape', 1], ['bot_priest', 0.05], ['mat_legion_necro', 0.1]],
         '歐姆戰士': [['hlm_priest', 0.05], ['clk_priest', 0.02], ['bot_priest', 0.05], ['glv_priest', 0.05], ['blt_dark', 0.05], ['mat_legion_assassin', 0.1], ['mat_legion_necro', 0.1]],
         '闇黑君王': [['wpn_red_crystalwand', 0.1], ['hlm_priest', 0.02], ['bot_priest', 0.02], ['mat_legion_necro', 0.1]],
         '血騎士': [['wpn_blood_2hsword', 0.1], ['hlm_priest', 0.05], ['mat_legion_necro', 0.1]],
         '重裝歐姆戰士': [['hlm_priest', 0.05], ['clk_priest', 0.02], ['bot_priest', 0.05], ['blt_dark', 0.05], ['mat_legion_assassin', 0.1]],
         '冰之女王侍女': [['bk_thunder_storm', 0.05], ['bk_cancel', 0.1]],
-        '冰之女王': [['mat_icequeen_heart',1],['wpn_crystal_dagger', 0.5], ['arm_88', 0.1], ['arm_63', 10], ['glv_crystal', 5], ['acc_116', 0.1], ['amu_int', 1], ['acc_122', 1], ['acc_128', 0.5], ['acc_129', 0.5], ['acc_130', 0.1], ['acc_131', 0.1], ['scroll_weapon', 10], ['scroll_armor', 20], ['scroll_revive', 1], ['new_item_150', 1], ['new_item_151', 50], ['new_item_152', 5], ['bk_summon', 0.5], ['bk_invisible', 0.05], ['bk_fire_storm', 0.5], ['new_item_195', 1], ['bk_elf_winddash', 1], ['bk_elf_lifespring', 3], ['bk_elf_lifebless', 1], ['bk_elf_steelguard', 1], ['bk_magic_shield', 2], ['bk_dark_shadow', 1], ['bk_seal', 1], ['wpn_icequeen_wand', 0.1], ['bk_blizzard_storm', 1], ['bk_elf_watervital', 10], ['hlm_icequeen_charm', 0.3], ['amr_icequeen_charm', 0.3], ['bot_icequeen_charm', 0.3], ['mat_ice_crystal', 1], ['acc_icequeen_ear_0', 1], ['scroll_attr_water', 3]],
+        '冰之女王': [['mat_icequeen_heart',1],['wpn_crystal_dagger', 0.5], ['arm_88', 0.1], ['arm_63', 10], ['glv_crystal', 5], ['acc_116', 0.1], ['amu_int', 1], ['acc_122', 1], ['acc_128', 0.5], ['acc_129', 0.5], ['acc_130', 0.1], ['acc_131', 0.1], ['scroll_weapon', 10], ['scroll_armor', 20], ['scroll_revive', 1], ['new_item_150', 1], ['new_item_151', 50], ['new_item_152', 5], ['bk_summon', 0.5], ['bk_invisible', 0.05], ['bk_fire_storm', 0.5], ['new_item_195', 1], ['bk_elf_winddash', 1], ['bk_elf_lifespring', 3], ['bk_elf_lifebless', 1], ['bk_elf_steelguard', 1], ['bk_magic_shield', 2], ['bk_dark_shadow', 1], ['bk_seal', 1], ['wpn_icequeen_wand', 0.1], ['bk_blizzard_storm', 1], ['bk_elf_watervital', 10], ['hlm_icequeen_charm', 0.3], ['amr_icequeen_charm', 0.3], ['bot_icequeen_charm', 0.3], ['mat_ice_crystal', 1], ['acc_icequeen_ear_0', 1], ['scroll_attr_water', 3], ['wpn_mana_orb',0.1]],   // 🆕 瑪那水晶球 0.1%
         '夢幻之島蘑菇': [['scroll_weapon',1], ['scroll_armor',2]],
-        '夢幻之島鬼火': [['scroll_weapon',1], ['scroll_armor',2], ['scroll_poly',1]],
+        '夢幻之島鬼火': [['scroll_weapon',1], ['scroll_armor',2], ['scroll_poly',1], ['arm_bluepirate_cloak',0.1]],   // 🆕 藍海賊斗篷 0.1%
         '夢幻之島火蜥蜴': [['wpn_2hsword',1], ['wpn_giantaxe',1], ['scroll_weapon',1], ['scroll_armor',2], ['bk_fire_storm',0.01]],
         '夢幻之島冰人': [['scroll_weapon',1], ['scroll_armor',2]],
         '夢幻之島殺人蜂': [['scroll_weapon',1], ['scroll_armor',2]],
         '夢幻之島暴走兔': [['scroll_weapon',1], ['scroll_armor',2]],
         '夢幻之島火炎蛋': [['scroll_weapon',1], ['scroll_armor',2], ['bk_holy_light',0.5], ['scroll_poly',1]],
-        '夢幻之島冰石高崙': [['wpn_silveraxe',1], ['scroll_weapon',1], ['scroll_armor',2], ['scroll_revive',1], ['bk_elf_soul',0.1]],
+        '夢幻之島冰石高崙': [['wpn_silveraxe',1], ['scroll_weapon',1], ['scroll_armor',2], ['scroll_revive',1], ['bk_elf_soul',0.1], ['new_item_150',5]],
         '夢幻之島大鬼火': [['scroll_weapon',1], ['scroll_armor',2]],
         '夢魘': [['wpn_2hsword',3], ['scroll_weapon',5], ['scroll_armor',10], ['panacea_wis',1], ['bk_elf_triple',0.1]],
         '冰人': [['wpn_battleaxe',1], ['new_item_150',1], ['new_item_195',1], ['bk_elf_watervital',0.1]],
-        '不死鳥': [['arm_69', 10], ['wpn_katana',5], ['wpn_siruge',1], ['amr_plate',5], ['arm_88',0.1], ['arm_63',10], ['acc_117',0.01], ['amu_str',0.1], ['acc_120',0.1], ['acc_128',1], ['acc_129',1], ['acc_130',0.5], ['acc_131',0.5], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_159',0.1], ['bk_sleep_mist',1], ['bk_holy_barrier',0.1], ['bk_meteor',0.05], ['bk_fire_storm',0.5], ['bk_elf_dancefire',1], ['bk_blaze',1], ['bk_elf_flamesoul',0.1], ['bk_fire_prison',1], ['bk_elf_attrfire',1], ['scroll_attr_fire', 2.25]],
+        '不死鳥': [['arm_69', 10], ['wpn_katana',5], ['wpn_siruge',1], ['amr_plate',5], ['arm_88',0.1], ['arm_63',10], ['acc_117',0.01], ['amu_str',0.1], ['acc_120',0.1], ['acc_128',1], ['acc_129',1], ['acc_130',0.5], ['acc_131',0.5], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_159',0.1], ['bk_sleep_mist',1], ['bk_holy_barrier',0.1], ['bk_meteor',0.05], ['bk_fire_storm',0.5], ['bk_elf_dancefire',1], ['bk_blaze',1], ['bk_elf_flamesoul',0.1], ['bk_fire_prison',1], ['bk_elf_attrfire',1], ['scroll_attr_fire', 2.25], ['wpn_redflame_sword',0.1], ['wpn_redflame_bow',0.1]],   // 🆕 赤焰之劍/弓 各0.1%
         '亞力安': [['scroll_weapon',1], ['scroll_armor',2], ['scroll_acc',0.01], ['bk_slow',0.5], ['bk_mummy_curse',0.5], ['bk_heal2',0.1], ['bk_holy_light',0.1], ['bk_haste_spell',0.5], ['bk_earthquake',0.1], ['bk_rock_prison',0.5], ['bk_greater_haste',0.1], ['bk_quake',0.005], ['bk_elf_groundtrap',0.1], ['acc_demonbane',0.01]],
         '人形殭屍': [['bk_vampire',0.01], ['bk_dark_shadow',0.1]],
         '人魚': [['scroll_acc',0.01], ['new_item_mermaid_scale', 1], ['bk_blizzard_storm', 0.001]],
-        '伊弗利特': [['arm_69', 10], ['wpn_katana',2], ['amr_plate',5], ['arm_63',10], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_155',0.5], ['new_item_156',0.1], ['new_item_158',0.5], ['new_item_159',0.1], ['new_item_161',0.5], ['new_item_162',0.1], ['bk_fireball',3], ['bk_dex_up',1], ['bk_str_up',1], ['bk_cancel',1], ['bk_fire_storm',0.2], ['bk_elf_magicerase',1], ['bk_elf_triple',1], ['bk_blaze',1], ['bk_elf_attrfire',1], ['scroll_attr_fire', 0.9]],
-        '伊萊克頓': [['acc_127',0.001], ['scroll_armor',1], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['bk_thunder',0.05], ['bk_summon',0.002], ['bk_thunder_storm',0.001], ['bk_ice_spike',0.5], ['bk_elf_lifespring',0.05], ['bk_blizzard_storm',0.002], ['wpn_eva_scold',0.001]],
+        '伊弗利特': [['arm_69', 10], ['wpn_katana',2], ['amr_plate',5], ['arm_63',10], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_155',0.5], ['new_item_156',0.1], ['new_item_158',0.5], ['new_item_159',0.1], ['new_item_161',0.5], ['new_item_162',0.1], ['bk_fireball',3], ['bk_dex_up',1], ['bk_str_up',1], ['bk_cancel',1], ['bk_fire_storm',0.2], ['bk_elf_magicerase',1], ['bk_elf_triple',1], ['bk_blaze',1], ['bk_elf_attrfire',1], ['scroll_attr_fire', 0.9], ['wpn_redflame_sword',0.1], ['wpn_redflame_bow',0.1]],   // 🆕 赤焰之劍/弓 各0.1%
+        '伊萊克頓': [['acc_127',0.001], ['scroll_armor',1], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['bk_thunder',0.05], ['bk_summon',0.002], ['bk_thunder_storm',0.001], ['bk_ice_spike',0.5], ['bk_elf_lifespring',0.05], ['bk_blizzard_storm',0.002], ['wpn_eva_scold',0.001], ['wpn_thunder_sword',0.05]],   // 🆕 雷雨之劍 0.05%
         '侏儒': [['wpn_26',1], ['hlm_gnome',2], ['arm_86',5], ['shd_gnome',3], ['new_item_169',1], ['new_item_180',10]],
         '侏儒戰士': [['wpn_23',0.5], ['wpn_26',2], ['hlm_gnome',3], ['arm_86',5], ['shd_gnome',3], ['new_item_180',10]],
         '克特': [['acc_118',1],['wpn_12', 1], ['wpn_katana',1], ['wpn_longsword',10], ['wpn_2hsword',3], ['arm_60',5], ['tsh_tshirt',3], ['arm_87',10], ['arm_105',10], ['arm_106',0.5], ['arm_90',10], ['glv_glove',5], ['arm_110',1], ['arm_101',1], ['amr_kurt',1], ['arm_97',1], ['hlm_kurt',1], ['wpn_kurt_sword',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['bk_berserk',1], ['bk_shock_stun',1], ['bk_reduction_armor',0.5], ['bk_spike_armor',0.5], ['bk_solid_shield',0.5]],
         '冰原狼人': [['new_item_150',1], ['new_item_151',1], ['new_item_154',5], ['new_item_157',5], ['new_item_160',5]],
-        '冰原老虎': [['scroll_acc',0.01], ['new_item_150',1], ['new_item_195',1]],
-        '冰石高崙': [['wpn_2',3], ['glv_crystal',0.01], ['bk_ice_lance',0.001], ['bk_ice_spike',0.5], ['bk_elf_lifespring',0.05]],
+        '冰原老虎': [['scroll_acc',0.01], ['new_item_150',1], ['new_item_195',1], ['wpn_frost_spear',0.05]],   // 🆕 酷寒之矛 0.05%
+        '冰石高崙': [['wpn_2',3], ['glv_crystal',0.01], ['bk_ice_lance',0.001], ['bk_ice_spike',0.5], ['bk_elf_lifespring',0.05], ['arm_stone_glove',0.05], ['new_item_150',5]],   // 🆕 石製手套 0.05%
         '卡司特': [['wpn_battleaxe',3], ['wpn_giantaxe',0.5], ['new_item_154',5], ['new_item_155',0.5], ['bk_summon',0.01]],
         '卡司特王': [['wpn_battleaxe',2], ['wpn_giantaxe',0.5], ['wpn_berserker',0.01], ['arm_45',0.1], ['scroll_weapon',1], ['scroll_armor',2], ['new_item_155',0.5], ['new_item_156',0.05], ['bk_disease',0.1]],
-        '卡士柏': [['item_olin_diary',1],['arm_87',5], ['arm_90',10], ['arm_55',1], ['acc_117',0.01], ['amu_str',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['new_item_157',5], ['new_item_158',0.5], ['new_item_159',0.1], ['bk_fireball',5], ['bk_elf_dancefire',1], ['bk_elf_earthshield',1], ['bk_blaze',1], ['acc_119',0.1], ['acc_125',0.1]],
+        '卡士柏': [['item_olin_diary',1],['arm_87',5], ['arm_90',10], ['arm_55',1], ['acc_117',0.01], ['amu_str',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['new_item_157',5], ['new_item_158',0.5], ['new_item_159',0.1], ['bk_fireball',5], ['bk_elf_dancefire',1], ['bk_elf_earthshield',1], ['bk_blaze',1], ['acc_119',0.1], ['acc_125',0.1], ['wpn_mana_orb',0.1]],   // 🆕 瑪那水晶球 0.1%
         '史巴托': [['hlm_mr', 0.5], ['wpn_scimitar',1], ['arm_42',3], ['arm_60',1], ['scroll_acc',0.001], ['arm_105',1], ['new_item_150',1]],
         '哈柏哥布林': [['hlm_mr', 0.5], ['wpn_9',3], ['arm_42',3], ['new_item_180',10]],
         '哈維': [['rng_harpy',0.01], ['arm_62',0.5], ['new_item_150',1], ['bk_haste_spell',0.5], ['bk_holy_dash',0.05], ['bk_greater_haste',0.01], ['new_item_195',1], ['bk_elf_stormeye',0.001]],
@@ -206,7 +205,7 @@
         '巨大鱷魚': [['scroll_armor',0.1], ['scroll_acc',0.01], ['new_item_154',0.1], ['bk_thunder',0.1], ['bk_elf_watervital',0.1]],
         '巨蟻': [['arm_45',0.01], ['new_item_154',5]],
         '巨蟻女皇': [['acc_126',1],['arm_69', 10], ['wpn_katana',3], ['amr_plate',5], ['arm_63',5], ['arm_47',1], ['acc_121',0.1], ['acc_127',1], ['blt_body',0.5], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['new_item_154',5], ['new_item_155',0.5], ['new_item_156',0.1], ['new_item_157',5], ['new_item_158',0.5], ['new_item_159',0.1], ['bk_heal2',1], ['bk_charm',1], ['bk_earthquake',1], ['bk_regen',0.5], ['bk_rock_prison',5], ['bk_greater_haste',1], ['new_item_195',1], ['bk_elf_magicerase',1], ['bk_dark_shadow',1], ['clk_antqueen_gold',0.1], ['clk_antqueen_silver',0.1], ['wpn_claw_abyss',0.05], ['bk_elf_physboost',5], ['bk_elf_earthbless',5], ['wpn_ancient_darkelf_sword',0.1], ['wpn_ancient_elf_xbow',0.1], ['scroll_attr_earth', 3]],
-        '巫師': [['item_olin_diary',0.01],['arm_87',0.5], ['arm_90',1], ['amu_str',0.001], ['scroll_weapon',1], ['scroll_armor',2], ['scroll_acc',0.01], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['bk_dex_up',0.1], ['bk_haste_spell',0.1], ['bk_greater_haste',0.05], ['bk_elf_stormeye',0.05], ['bk_weaken',0.1], ['item_crystal_ball',0.01], ['acc_119',0.01], ['acc_125',0.01]],
+        '巫師': [['item_olin_diary',0.01],['arm_87',0.5], ['arm_90',1], ['amu_str',0.001], ['scroll_weapon',1], ['scroll_armor',2], ['scroll_acc',0.01], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['bk_dex_up',0.1], ['bk_haste_spell',0.1], ['bk_greater_haste',0.05], ['bk_elf_stormeye',0.05], ['bk_weaken',0.1], ['item_crystal_ball',0.01], ['acc_119',0.01], ['acc_125',0.01], ['new_item_150',10]],
         '巴土瑟': [['item_olin_diary',1],['arm_87',5], ['arm_90',10], ['arm_54',1], ['acc_117',0.01], ['amu_int',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['new_item_154',5], ['new_item_155',0.5], ['new_item_156',0.1], ['bk_cancel',0.1], ['bk_quake',0.1], ['bk_elf_groundtrap',5], ['bk_elf_earthbless',1], ['acc_119',0.1], ['acc_125',0.1]],
         '巴拉卡斯': [['wpn_katana',10], ['wpn_siruge',5], ['amr_plate',10], ['arm_88',1], ['glv_glove',10], ['arm_82',0.1], ['acc_116',0.2], ['acc_117',0.2], ['amu_str',0.2], ['amu_int',0.2], ['acc_127',6], ['acc_128',6], ['acc_129',6], ['blt_body',1], ['acc_130',1], ['acc_131',1], ['scroll_weapon',100], ['scroll_armor',100], ['scroll_acc',50], ['new_item_150',1], ['new_item_151',100], ['new_item_152',10], ['new_item_153',2], ['new_item_157',100], ['new_item_158',10], ['new_item_159',2], ['bk_fireball',20], ['bk_slow',15], ['bk_charm',15], ['bk_str_up',10], ['bk_haste_spell',10], ['bk_summon',3], ['bk_invisible',1], ['bk_resurrection',1], ['new_item_192',100]],
         '巴風特': [['wpn_katana',2], ['wpn_2hsword',5], ['amr_plate',5], ['arm_88',0.1], ['glv_glove',10], ['acc_116',0.01], ['acc_127',0.5], ['acc_129',0.5], ['blt_body',0.1], ['acc_131',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_154',5], ['new_item_155',0.5], ['new_item_156',0.1], ['new_item_161',0.5], ['new_item_162',0.1], ['bk_charm',1], ['bk_earthquake',2], ['bk_summon',0.2], ['bk_rock_prison',5], ['bk_quake',1], ['new_item_195',1], ['bk_elf_dancefire',1], ['bk_magic_shield',1], ['bk_weaken',1], ['bk_bless_wpn',0.1], ['amu_cha',1], ['bk_elf_stormshot',1], ['bk_elf_mirror',1], ['bk_elf_flamesoul',0.01], ['bk_fire_prison',0.5], ['wpn_powerless_baphomet',0.1], ['amr_baphomet',1], ['scroll_attr_earth', 1.2]],
@@ -214,10 +213,10 @@
         '強盜': [['wpn_20', 0.5], ['arm_69', 0.5], ['hlm_mr', 0.5], ['wpn_shortbow',1], ['wpn_32',0.01], ['arm_42',2], ['arm_66',3], ['arm_98',0.1], ['arm_49',1], ['item_death_oath',1], ['new_item_226',1]],   // ⚔️ 戰士試煉：被偷的戒指 1%（warrior 限定）
         '強盜頭目': [['hlm_mr', 5], ['wpn_katana',1], ['wpn_silversword',3], ['arm_62',5], ['arm_87',5], ['scroll_acc',0.1], ['arm_42',10], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_155',0.5], ['new_item_156',0.1], ['new_item_158',0.5], ['new_item_159',0.1], ['new_item_161',0.5], ['new_item_162',0.1], ['item_nightvision',10], ['new_item_225',10]],   // ⚔️ 戰士試煉：被偷的項鍊 10%
         '影魔': [['acc_129',0.005], ['acc_131',0.001], ['bk_ice_spike',0.5], ['bk_magic_shield',0.01], ['bk_dark_shadow',0.1]],
-        '思克巴': [['acc_117',0.001], ['bk_ice_lance',0.01], ['bk_summon',0.02], ['bk_blizzard',0.005], ['bk_ice_spike',0.5], ['bk_elf_release',0.1], ['bk_elf_lifespring',0.1], ['bk_elf_triple',0.05], ['bot_dark',0.3], ['acc_summon_ctrl',0.001], ['bk_dark_double',0.1], ['bk_dark_fang',0.1], ['new_item_219',1]],   // ⚔️ 戰士試煉：神秘魔杖 1%
-        '思克巴女皇': [['acc_116',0.001], ['scroll_acc',0.01], ['bk_ice_lance',0.01], ['bk_summon',0.003], ['bk_ice_spike',0.5], ['bk_elf_lifespring',0.1], ['bk_mana_drain',0.1], ['bk_blizzard_storm',0.01], ['new_item_219',1]],   // ⚔️ 戰士試煉：神秘魔杖 1%
+        '思克巴': [['acc_117',0.001], ['bk_ice_lance',0.01], ['bk_summon',0.02], ['bk_blizzard',0.005], ['bk_ice_spike',0.5], ['bk_elf_release',0.1], ['bk_elf_lifespring',0.1], ['bk_elf_triple',0.05], ['bot_dark',0.3], ['acc_summon_ctrl',0.001], ['bk_dark_double',0.1], ['bk_dark_fang',0.1], ['new_item_219',1], ['bk_full_heal',0.1], ['new_item_150',5]],   // ⚔️ 戰士試煉：神秘魔杖 1%　🆕 全部治癒術 0.1%
+        '思克巴女皇': [['acc_116',0.001], ['scroll_acc',0.01], ['bk_ice_lance',0.01], ['bk_summon',0.003], ['bk_ice_spike',0.5], ['bk_elf_lifespring',0.1], ['bk_mana_drain',0.1], ['bk_blizzard_storm',0.01], ['new_item_219',1], ['new_item_150',5]],   // ⚔️ 戰士試煉：神秘魔杖 1%
         '怪手': [['glv_glove',0.1], ['arm_99',0.001], ['new_item_150',1]],
-        '惡魔': [['arm_69', 10], ['wpn_katana',5], ['wpn_2hsword',10], ['wpn_siruge',1], ['wpn_33',1], ['wpn_flaming_angel',0.5], ['amr_plate',5], ['arm_88',0.1], ['arm_63',10], ['arm_99',1], ['acc_117',0.01], ['amu_str',0.1], ['amu_int',0.15], ['acc_128',1], ['acc_129',1], ['acc_130',0.5], ['acc_131',0.5], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_159',0.1], ['bk_holy_barrier',0.5], ['bk_fire_storm',0.1], ['bk_elf_blazewpn',0.5], ['wpn_demon_scythe',0.1], ['arm_59',10], ['hlm_demon',1], ['amr_demon',1], ['glv_demon',1], ['bot_demon',1], ['wpn_dual_abyss',0.1], ['bk_elf_flamesoul',0.1], ['wpn_vengeance',0.1], ['wpn_hate_claw',0.01], ['scroll_attr_fire', 1]],
+        '惡魔': [['arm_69', 10], ['wpn_katana',5], ['wpn_2hsword',10], ['wpn_siruge',1], ['wpn_33',1], ['wpn_flaming_angel',0.5], ['amr_plate',5], ['arm_88',0.1], ['arm_63',10], ['arm_99',1], ['acc_117',0.01], ['amu_str',0.1], ['amu_int',0.15], ['acc_128',1], ['acc_129',1], ['acc_130',0.5], ['acc_131',0.5], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_159',0.1], ['bk_holy_barrier',0.5], ['bk_fire_storm',0.1], ['bk_elf_blazewpn',0.5], ['wpn_demon_scythe',0.1], ['arm_59',10], ['hlm_demon',1], ['amr_demon',1], ['glv_demon',1], ['bot_demon',1], ['wpn_dual_abyss',0.1], ['bk_elf_flamesoul',0.1], ['wpn_vengeance',0.1], ['wpn_hate_claw',0.01], ['scroll_attr_fire', 1], ['wpn_shaha_bow',0.01]],   // 🆕 沙哈之弓 0.01%
         '杜賓狗': [['new_item_143',10], ['new_item_179',10]],
         '格利芬': [['arm_62',0.5], ['new_item_150',1], ['new_item_152',0.5], ['new_item_155',0.5], ['new_item_158',0.5], ['new_item_161',0.5], ['bk_tornado',0.001], ['bk_elf_release',0.1], ['bk_elf_winddash',0.05], ['bk_elf_stormeye',0.001], ['bk_magic_shield',0.01], ['mat_griffon_feather',1], ['acc_demonbane',0.01]],
         '楊果里恩': [['scroll_weapon',0.1], ['scroll_armor',0.3], ['scroll_acc',0.01], ['bk_slow',0.1], ['bk_charm',0.05], ['bk_rock_prison',0.5]],
@@ -231,16 +230,16 @@
         '污染的潘': [['new_item_163',10]],
 		'污染的安特': [['new_item_141',1], ['new_item_237',10], ['item_ant_fruit',1], ['item_ant_branch',1], ['item_ant_bark',1]],
         '法利昂': [['wpn_katana',10], ['wpn_siruge',5], ['amr_plate',10], ['arm_88',1], ['glv_glove',20], ['arm_80',0.1], ['acc_116',0.1], ['acc_117',0.1], ['acc_120',1], ['acc_127',5], ['acc_128',5], ['acc_129',5], ['blt_body',1], ['acc_130',1], ['acc_131',1], ['scroll_weapon',100], ['scroll_armor',100], ['scroll_acc',50], ['new_item_150',1], ['new_item_151',50], ['new_item_152',5], ['new_item_153',1], ['new_item_160',50], ['new_item_161',5], ['new_item_162',1], ['bk_slow',10], ['bk_holy_light',10], ['bk_regen',5], ['bk_summon',2], ['bk_blizzard',1], ['bk_resurrection',1], ['new_item_190',100], ['bk_elf_eleres',1], ['bk_counter_barrier',1], ['scroll_attr_water', 5]],
-        '活鎧甲': [['item_olin_diary',0.01],['wpn_battleaxe',1], ['arm_60',1], ['arm_62',1], ['bk_holy_barrier',0.003], ['bk_weaken',0.1], ['mat_black_blood', 1], ['mat_moonlight_breath', 0.01]],
+        '活鎧甲': [['item_olin_diary',0.01],['wpn_battleaxe',1], ['arm_60',1], ['arm_62',1], ['bk_holy_barrier',0.003], ['bk_weaken',0.1], ['mat_black_blood', 1], ['mat_moonlight_breath', 0.01], ['bk_regen',0.01]],   // 🆕 體力回復術 0.01%
         '海星': [['bk_ice_spike',0.1], ['scroll_acc',0.01]],
         '漂浮之眼': [['new_item_143',20], ['new_item_150',1]],
         '火炎蛋': [['scroll_weapon',1], ['scroll_armor',2], ['bk_fireball',0.1], ['bk_holy_light',0.1], ['scroll_poly',1], ['new_item_192',0.01], ['bk_fire_prison',0.01], ['bk_elf_attrfire',0.01]],
-        '火焰弓箭手': [['hlm_mr', 1], ['wpn_32',0.1], ['arm_42',2], ['arm_67',4], ['arm_90',1], ['bk_dex_up',0.05], ['bk_slow',0.1], ['new_item_192',0.01]],
-        '火焰戰士': [['hlm_mr', 1], ['wpn_longsword',1], ['arm_42',2], ['arm_62',1], ['arm_105',3], ['new_item_192',0.01]],
+        '火焰弓箭手': [['hlm_mr', 1], ['wpn_32',0.1], ['arm_42',2], ['arm_67',4], ['arm_90',1], ['bk_dex_up',0.05], ['bk_slow',0.1], ['new_item_192',0.01], ['wpn_redflame_sword',0.1], ['wpn_redflame_bow',0.1]],   // 🆕 赤焰之劍/弓 各0.1%
+        '火焰戰士': [['hlm_mr', 1], ['wpn_longsword',1], ['arm_42',2], ['arm_62',1], ['arm_105',3], ['new_item_192',0.01], ['wpn_redflame_sword',0.1], ['wpn_redflame_bow',0.1]],   // 🆕 赤焰之劍/弓 各0.1%
         '夢幻之島火精靈王': [['arm_69', 1], ['arm_63',5], ['scroll_weapon',5], ['scroll_armor',10], ['scroll_revive',1], ['panacea_str',1], ['mat_fire_breath',1]],
-        '火蜥蜴': [['new_item_155',0.5], ['new_item_158',0.5], ['new_item_192',0.01], ['bk_fire_storm',0.001], ['bk_elf_magicerase',0.01], ['bk_elf_stormeye',0.01], ['bk_shock_stun',0.01], ['bk_elf_attrfire',0.01]],
-        '烈炎獸': [['scroll_weapon',1], ['scroll_armor',2], ['bk_holy_barrier',0.002], ['scroll_acc',0.01], ['new_item_192',0.01], ['bk_elf_magicerase',0.1], ['bk_shock_stun',0.05], ['bk_elf_attrfire',0.05]],
-        '熔岩高崙': [['wpn_2hsword',0.5], ['wpn_18',1], ['wpn_giantaxe',0.5], ['bk_slow',0.5], ['bk_str_up',0.05], ['scroll_acc',0.01], ['new_item_192',0.01], ['bk_elf_triple',0.01], ['item_time_orb',1]],
+        '火蜥蜴': [['new_item_155',0.5], ['new_item_158',0.5], ['new_item_192',0.01], ['bk_fire_storm',0.001], ['bk_elf_magicerase',0.01], ['bk_elf_stormeye',0.01], ['bk_shock_stun',0.01], ['bk_elf_attrfire',0.01], ['bk_holy_dash',0.1]],   // 🆕 神聖疾走 0.1%
+        '烈炎獸': [['scroll_weapon',1], ['scroll_armor',2], ['bk_holy_barrier',0.002], ['scroll_acc',0.01], ['new_item_192',0.01], ['bk_elf_magicerase',0.1], ['bk_shock_stun',0.05], ['bk_elf_attrfire',0.05], ['wpn_greatsword',0.1]],   // 🆕 巨劍 0.1%
+        '熔岩高崙': [['wpn_2hsword',0.5], ['wpn_18',1], ['wpn_giantaxe',0.5], ['bk_slow',0.5], ['bk_str_up',0.05], ['scroll_acc',0.01], ['new_item_192',0.01], ['bk_elf_triple',0.01], ['item_time_orb',1], ['arm_stone_glove',0.05], ['new_item_150',5]],   // 🆕 石製手套 0.05%
         '爆彈花': [['bk_sleep_mist',0.01], ['scroll_acc',0.01]],
         '牧羊犬': [['new_item_143',10], ['new_item_179',10]],
 		'哈士奇': [['new_item_143',10], ['new_item_179',10]],
@@ -251,14 +250,14 @@
         '甘地妖魔': [['new_item_148',1], ['new_item_150',1], ['new_item_201',1], ['item_orc_amulet',0.01]],
         '卡瑞': [['wpn_dragonslayer',100]],
         '巴列斯': [['wpn_katana',2], ['wpn_2hsword',5], ['wpn_powerless_baless',1], ['amr_plate',10], ['glv_glove',10], ['bot_baless',1], ['acc_122',1], ['acc_116',0.1], ['rng_mr',1], ['acc_127',0.5], ['acc_128',0.5], ['acc_129',0.5], ['blt_body',0.1], ['acc_130',0.1], ['acc_131',0.1], ['new_item_151',50], ['new_item_157',50], ['new_item_152',5], ['new_item_158',5], ['new_item_153',1], ['new_item_159',1], ['scroll_weapon',10], ['scroll_armor',20], ['bk_magic_shield',3], ['bk_heal2',3], ['bk_zombie',2], ['bk_blaze',1], ['bk_disease',1], ['bk_full_heal',1], ['bk_fire_storm',0.5], ['bk_elf_winddash',3], ['bk_elf_stormeye',2], ['bk_elf_stormshot',1], ['scroll_attr_earth', 1.8]],
-        '石頭高崙': [['wpn_alien',3], ['wpn_1',5], ['wpn_10',5], ['wpn_13',1], ['new_item_150',1], ['new_item_159',0.05], ['new_item_164',1], ['bk_rock_prison',0.5], ['acc_demonbane',0.0001], ['new_item_207',1]],   // ⚔️ 戰士試煉：生命的卷軸 1%（warrior 限定·非戰士不掉）
+        '石頭高崙': [['wpn_alien',3], ['wpn_1',5], ['wpn_10',5], ['wpn_13',1], ['new_item_150',1], ['new_item_159',0.05], ['new_item_164',1], ['bk_rock_prison',0.5], ['acc_demonbane',0.0001], ['new_item_207',1], ['arm_stone_glove',0.05]],   // ⚔️ 戰士試煉：生命的卷軸 1%（warrior 限定·非戰士不掉）　🆕 石製手套 0.05%
         '穴居人': [['wpn_battleaxe',1], ['wpn_giantaxe',0.1], ['arm_61',0.5], ['scroll_acc',0.001], ['bk_blizzard_storm',0.001]],
         '紅鬼魂': [['item_lost_soul',1],['amr_robe',3], ['glv_crystal',0.01], ['bk_elf_seal',0.05], ['bk_dark_shadow',0.1], ['item_soul_orb',0.01], ['mat_moonlight_breath', 0.01]],
-        '紙人': [['item_olin_diary',0.01],['scroll_poly',1], ['scroll_acc',0.01]],
+        '紙人': [['item_olin_diary',0.01],['scroll_poly',1], ['scroll_acc',0.01], ['new_item_150',5]],
         '羅孚妖魔': [['arm_69', 0.2], ['arm_63',3], ['new_item_149',1], ['new_item_157',5], ['item_orc_amulet',0.01], ['wpn_osis_hammer',0.0005]],
-        '艾爾摩士兵': [['wpn_4',1], ['wpn_halberd',0.5], ['wpn_14',1], ['arm_66',3], ['arm_68',2], ['bot_short',2], ['glv_glove',0.5], ['scroll_armor',2], ['scroll_acc',0.01]],
+        '艾爾摩士兵': [['wpn_4',1], ['wpn_halberd',0.5], ['wpn_14',1], ['arm_66',3], ['arm_68',2], ['bot_short',2], ['glv_glove',0.5], ['scroll_armor',2], ['scroll_acc',0.01], ['wpn_frost_spear',0.05], ['wpn_crimson_spear',0.05]],   // 🆕 酷寒之矛 0.05%、深紅長矛 0.05%
         '艾爾摩將軍': [['wpn_greatsword',0.1], ['wpn_2hsword',0.5], ['arm_60',1], ['arm_65',1], ['arm_90',1], ['glv_glove',0.5], ['scroll_weapon',1], ['scroll_armor',2], ['scroll_acc',0.01], ['bk_shock_stun',0.05], ['bk_reduction_armor',0.01], ['bk_spike_armor',0.001], ['item_elmore_heart',1]],
-        '艾爾摩法師': [['wpn_witchwand',1], ['scroll_weapon',1], ['bk_full_heal',0.01], ['bk_ice_spike',0.5], ['bk_bless_wpn',0.005], ['wpn_qigu_meditate',0.0001]],
+        '艾爾摩法師': [['wpn_witchwand',1], ['scroll_weapon',1], ['bk_full_heal',0.01], ['bk_ice_spike',0.5], ['bk_bless_wpn',0.005], ['wpn_qigu_meditate',0.0001], ['bk_mana_drain',0.1]],   // 🆕 魔力奪取 0.1%
         '莫妮亞': [['arm_87',1], ['scroll_weapon',1], ['scroll_armor',1.5], ['bk_slow',0.5], ['bk_heal2',0.5], ['bk_holy_light',0.1], ['scroll_poly',1]],
         '萊肯': [['wpn_battleaxe',3], ['wpn_halberd',0.5], ['arm_65',1], ['arm_66',1], ['arm_105',2], ['arm_90',1], ['new_item_151',5], ['bk_dex_up',0.05], ['bk_vampire',0.1], ['bk_slow',0.1], ['new_item_195',1]],
         '蘑菇': [['new_item_166',10]],
@@ -272,15 +271,15 @@
         '那魯加妖魔': [['wpn_2hsword',0.1], ['wpn_invader',0.5], ['wpn_damascus',0.2], ['arm_64',5], ['arm_104',3], ['acc_123',0.01], ['new_item_146',1], ['new_item_157',5], ['new_item_200',1], ['item_orc_amulet',0.01], ['wpn_osis_hammer',0.0005]],
         '邪惡蜥蜴': [['scroll_weapon',1], ['scroll_armor',2], ['scroll_acc',0.01], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['bk_slow',0.5], ['bk_heal2',0.2], ['bk_holy_light',0.1], ['bk_cancel',0.02], ['bk_earthquake',0.02], ['bk_rock_prison',0.5], ['bk_quake',0.005], ['bk_elf_release',0.05], ['new_item_232',0.01], ['item_lizard_horn',0.01], ['glv_demon',0.01], ['acc_demonbane',0.01], ['bk_elf_watervital',0.1]],
         '都達瑪拉妖魔': [['hlm_mr', 0.5], ['arm_104',3], ['arm_42',5], ['acc_123',0.01], ['new_item_147',1], ['new_item_150',1], ['new_item_158',0.5], ['new_item_199',1], ['scroll_acc',0.001], ['item_orc_amulet',0.01], ['wpn_osis_hammer',0.0005]],
-        '鋼鐵高崙': [['mat_golem_heart',0.1],['scroll_weapon',1], ['scroll_armor',2], ['bk_str_up',0.05], ['new_item_164',1], ['new_item_180',100], ['bk_elf_soul',0.001], ['bk_elf_steelguard',0.001], ['bk_weaken',0.1], ['item_ancientkey',1]],
-        '夢幻之島鎧甲守衛': [['arm_60',1], ['scroll_weapon',1], ['scroll_armor',2], ['bk_spike_armor',0.05]],
+        '鋼鐵高崙': [['mat_golem_heart',0.1],['scroll_weapon',1], ['scroll_armor',2], ['bk_str_up',0.05], ['new_item_164',1], ['new_item_180',100], ['bk_elf_soul',0.001], ['bk_elf_steelguard',0.001], ['bk_weaken',0.1], ['item_ancientkey',1], ['arm_stone_glove',0.05], ['new_item_150',5]],   // 🆕 石製手套 0.05%
+        '夢幻之島鎧甲守衛': [['arm_60',1], ['scroll_weapon',1], ['scroll_armor',2], ['bk_spike_armor',0.05], ['wpn_greatsword',0.1]],   // 🆕 巨劍 0.1%
         '長老': [['item_olin_diary',0.001],['arm_87',0.5], ['new_item_150',1], ['bk_thunder',0.1], ['bk_heal2',0.5], ['scroll_acc',0.01], ['acc_119',0.001], ['acc_125',0.001]],
-        '夢幻之島閃電球': [['arm_45',0.1], ['scroll_weapon',1], ['scroll_armor',2], ['bk_thunder_storm',0.05]],
+        '夢幻之島閃電球': [['arm_45',0.1], ['scroll_weapon',1], ['scroll_armor',2], ['bk_thunder_storm',0.05], ['wpn_thunder_sword',0.05]],   // 🆕 雷雨之劍 0.05%
         '阿吐巴妖魔': [['hlm_mr', 0.5], ['wpn_damascus',0.1], ['arm_60',0.5], ['arm_64',3], ['arm_104',3], ['arm_42',5], ['acc_123',0.01], ['new_item_145',1], ['new_item_157',5], ['new_item_202',1], ['item_orc_amulet',0.01]],
         '阿西塔基奧': [['scroll_weapon',1], ['scroll_armor',2], ['scroll_acc',0.01], ['bk_fireball',0.5], ['bk_dex_up',0.1], ['bk_str_up',0.05], ['bk_haste_spell',0.1], ['bk_earthquake',0.1], ['new_item_192',0.01], ['new_item_194',1], ['bk_elf_attrfire',0.05]],
         '阿魯巴': [['wpn_18',2], ['bk_str_up',0.05], ['bk_haste_spell',0.5], ['bk_earthquake',0.1], ['bk_rock_prison',0.5], ['bk_greater_haste',0.1], ['bk_quake',0.005], ['acc_demonbane',0.01]],
         '雪人': [['bk_elf_release',0.1], ['scroll_acc',0.01]],
-        '雪怪': [['wpn_18',1], ['scroll_acc',0.01], ['new_item_195',1], ['item_yeti_head',1], ['bk_elf_watervital',0.1]],
+        '雪怪': [['wpn_18',1], ['scroll_acc',0.01], ['new_item_195',1], ['item_yeti_head',1], ['bk_elf_watervital',0.1], ['bk_sleep_mist',0.1], ['wpn_frost_spear',0.05]],   // 🆕 沉睡之霧 0.1%、酷寒之矛 0.05%
         '夢幻之島風精靈王': [['arm_69', 1], ['arm_63',5], ['scroll_weapon',5], ['scroll_armor',10], ['scroll_revive',1], ['panacea_dex',1], ['mat_wind_breath',1]],
         '飛龍': [['mat_dragon_heart',1],['item_dragon_claw',1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['new_item_151',5], ['new_item_152',0.5], ['new_item_153',0.1], ['new_item_154',5],['new_item_155',0.5], ['new_item_156',0.1], ['new_item_157',5], ['new_item_158',0.5], ['new_item_159',0.1], ['new_item_160',5], ['new_item_161',0.5], ['new_item_162',0.1], ['bk_holy_dash',1], ['bk_quake',1], ['bk_elf_magicerase',1], ['bk_elf_stormeye',1], ['bk_elf_triple',1], ['glv_demon',0.1], ['acc_demonbane',0.2], ['wpn_ori_dagger',1], ['bk_elf_preciseshot',0.3], ['scroll_attr_wind', 0.2]],
         '食人妖精': [['wpn_battleaxe',3], ['wpn_giantaxe',1], ['arm_61',0.6], ['scroll_weapon',0.2], ['scroll_armor',0.5], ['bk_fireball',0.1], ['bk_break',0.5], ['bk_elf_release',0.05], ['bk_blaze',0.01], ['acc_demonbane',0.001]],
@@ -294,11 +293,11 @@
         '骷髏神射手': [['wpn_3',3], ['arm_42',3], ['clk_mr',1], ['arm_105',2], ['acc_120',0.001], ['new_item_150',1], ['bk_dex_up',0.05], ['bk_charm',0.1], ['new_item_212',1]],
         '骷髏警衛': [['wpn_14',2], ['arm_42',3], ['clk_mr',1], ['arm_105',2], ['new_item_150',1], ['bk_dex_up',0.05], ['bk_charm',0.1], ['new_item_212',0.1]],
         '骷髏鬥士': [['wpn_battleaxe',3], ['arm_42',3], ['clk_mr',1], ['arm_105',2], ['new_item_150',1], ['bk_dex_up',0.05], ['bk_haste_spell',0.1], ['bk_solid_shield',0.01]],
-        '鬼魂': [['item_lost_soul',1],['amr_robe',5], ['glv_crystal',0.01], ['bk_elf_seal',0.01], ['bk_magic_shield',0.01], ['bk_weaken',0.5], ['item_soul_orb',0.01], ['mat_moonlight_breath', 0.01]],
+        '鬼魂': [['item_lost_soul',1],['amr_robe',5], ['glv_crystal',0.01], ['bk_elf_seal',0.01], ['bk_magic_shield',0.01], ['bk_weaken',0.5], ['item_soul_orb',0.01], ['mat_moonlight_breath', 0.01], ['wpn_shaha_bow',0.01], ['wpn_mana_orb',0.1]],   // 🆕 沙哈之弓 0.01%、瑪那水晶球 0.1%
         '鯊魚': [['acc_129',0.01], ['new_item_160',5], ['new_item_161',0.1], ['new_item_162',0.1]],
         '鱷魚': [['arm_45',0.01], ['new_item_154',5], ['bk_thunder',0.005]],
         '黑暗精靈': [['item_wind_tear',1], ['amr_darkelf',0.1], ['bot_darkelf',0.1], ['wpn_elfbow',0.5], ['clk_elf',0.5], ['arm_71',0.3], ['bk_tornado',0.001], ['bk_invisible',0.001], ['new_item_195',1], ['bk_elf_release',0.1], ['bk_meditation',0.1], ['item_blueflute',1], ['mat_black_blood', 1]],
-        '黑長者': [['item_olin_diary',1],['acc_126',1],['clk_mr',10], ['glv_glove',5], ['arm_84',1], ['arm_96',1], ['acc_130',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['bk_thunder',3], ['bk_charm',1], ['bk_str_up',1], ['bk_ice_spike',5], ['new_item_195',1], ['bk_elf_soul',1], ['bk_elf_lifespring',1], ['acc_119',1], ['acc_125',1], ['bk_elf_watervital',3]],
+        '黑長者': [['item_olin_diary',1],['acc_126',1],['clk_mr',10], ['glv_glove',5], ['arm_84',1], ['arm_96',1], ['acc_130',0.1], ['scroll_weapon',10], ['scroll_armor',20], ['scroll_acc',1], ['new_item_150',1], ['bk_thunder',3], ['bk_charm',1], ['bk_str_up',1], ['bk_ice_spike',5], ['new_item_195',1], ['bk_elf_soul',1], ['bk_elf_lifespring',1], ['acc_119',1], ['acc_125',1], ['bk_elf_watervital',3], ['wpn_mana_orb',0.1]],   // 🆕 瑪那水晶球 0.1%
         '黑騎士': [['hlm_mr', 0.5], ['wpn_2hsword',0.1], ['wpn_16',1], ['wpn_17',1], ['wpn_21',2], ['wpn_28',3], ['arm_42',5], ['arm_60',1], ['tsh_tshirt',0.1], ['arm_87',1], ['bot_short',2], ['arm_90',1], ['new_item_151',5], ['new_item_154',5], ['new_item_157',5], ['new_item_160',5], ['new_item_196',1], ['new_item_198',1], ['acc_doro',0.01]],
         '黑騎士搜索隊': [['new_item_197', 100], ['hlm_mr', 0.5], ['wpn_2hsword',0.1], ['wpn_16',1], ['wpn_17',1], ['wpn_21',2], ['wpn_28',3], ['arm_42',5], ['arm_60',1], ['tsh_tshirt',0.1], ['arm_87',1], ['bot_short',2], ['arm_90',1], ['new_item_151',5], ['new_item_154',5], ['new_item_157',5], ['new_item_160',5], ['acc_doro',0.01]],
         '鼠人': [['arm_61',0.5], ['bk_dex_up',0.05], ['bk_haste_spell',0.1]],
@@ -366,7 +365,7 @@
         // ===== 🗼 傲慢之塔 91~100 樓 =====
         '土精靈王': [['rng_earth',0.05], ['acc_130',0.5], ['scroll_weapon',1], ['scroll_attr_earth', 0.18]],
         '水精靈王': [['arm_69',5], ['rng_water',0.01], ['acc_130',0.5], ['scroll_armor',1], ['scroll_attr_water', 0.18]],
-        '風精靈王': [['arm_69',5], ['rng_wind',0.05], ['acc_130',0.5], ['scroll_armor',1], ['scroll_attr_wind', 0.18]],
+        '風精靈王': [['arm_69',5], ['rng_wind',0.05], ['acc_130',0.5], ['scroll_armor',1], ['scroll_attr_wind', 0.18], ['wpn_thunder_sword',0.05]],   // 🆕 雷雨之劍 0.05%
         '火精靈王': [['rng_fire',0.01], ['acc_130',0.5], ['scroll_weapon',1], ['scroll_armor',1], ['scroll_attr_fire', 0.18]],
         '艾莉絲': [['scroll_acc',0.001],['arm_99',0.01], ['amu_str',0.1], ['scroll_weapon',1]],
         '木乃伊王': [['rng_water',0.1], ['rng_earth',0.5], ['rng_wind',0.3], ['rng_fire',0.05], ['bk_sleep_mist',0.2], ['bk_elf_mirror',1], ['scroll_weapon',1], ['scroll_armor',1]],
@@ -409,7 +408,8 @@
         '象牙塔奇美拉': [['bk_dark_poison',2],['mat_chimera_dragon',10],['mat_chimera_goat',10],['mat_chimera_lion',10],['mat_chimera_snake',10]],
         '象牙塔蛇女': [['acc_131',0.1],['scroll_weapon',0.5],['bk_weaken',0.5],['new_item_221',3]],
         '象牙塔黑魔法師': [['acc_demonbane',0.05],['scroll_weapon',0.5]],
-        '象牙塔死神': [['glv_reaper',0.01],['scroll_armor',0.5],['scroll_weapon',0.5],['new_item_193',0.0001], ['mat_moonlight_breath', 0.05]],
+        '象牙塔死神': [['glv_reaper',0.01],['scroll_armor',0.5],['scroll_weapon',0.5],['new_item_193',0.0001], ['mat_moonlight_breath', 0.05], ['wpn_blackflame_sword',0.1]],   // 🆕 黑燄之劍 0.1%
+        '象牙塔閃電球': [['bk_holy_dash',0.1]],   // 🆕 神聖疾走 0.1%（原無掉落表·新建）
         '象牙塔影魔': [['bk_dark_shadow',0.5]],
         '象牙塔巴列斯之影': [['mat_black_mithril',1],['wpn_powerless_baless',0.0001],['bot_baless',0.0001]],
         '卡魯塔': [['acc_129',1],['acc_131',1],['new_item_151',10],['new_item_157',10],['new_item_160',10],['new_item_154',10],['new_item_152',5],['new_item_158',5],['new_item_161',5],['new_item_155',5],['new_item_153',0.5],['new_item_159',1],['new_item_162',1],['new_item_156',1],['scroll_armor',10],['scroll_weapon',10],['bk_thunder',5],['bk_tornado',1],['bk_greater_haste',2],['bk_blizzard',1],['bk_elf_windshot',10]],
@@ -418,7 +418,7 @@
         '象牙塔小惡魔': [['wpn_demon_axe',0.01],['mat_black_mithril',1]],
         '象牙塔巴風特之影': [['mat_black_mithril',1],['wpn_powerless_baphomet',0.0001],['amr_baphomet',0.0001]],
         '象牙塔翼魔': [['mat_black_mithril',1]],
-        '象牙塔炎魔之影': [['mat_black_mithril',1]],
+        '象牙塔炎魔之影': [['mat_black_mithril',1], ['mat_black_blood',1]],   // 🩹 v3.1.79 稽核修：原孤兒 key「炎魔之影」（無此怪名·永不觸發）的黑色血痕掉落併入此表
         '象牙塔惡魔之影': [['mat_black_mithril',1],['wpn_demon_axe',0.1],['wpn_demon_scythe',0.0001],['wpn_demon_dual',0.01],['wpn_demon_claw',0.01],['wpn_demon_xbow',0.01]],
         // ===== 🐜 螞蟻洞窟 新增怪物掉落 + 巨蟻女皇（古代妖精裝備） =====
         '白螞蟻群': [['wpn_giantaxe',0.1],['arm_46',0.03],['arm_108',0.3],['new_item_154',5],['bk_elf_groundtrap',0.2],['bk_elf_earthbless',0.1]],
@@ -584,49 +584,49 @@
         ['遺忘之島狼人', 'relic_moonhowl_helm', 0.0001],
         ['遺忘之島夏洛伯', 'relic_poison_vial', 0.0001],
         ['強化白螞蟻群', 'relic_ant_incubessence', 0.0001],
-        // 🏺 第九批（v3.1.28 新增 10 件）
-        ['阿魯巴族', 'relic_aruba_haste', 0.0001],
-        ['灰燼戰士', 'relic_ashwarrior_flamesword', 0.0001],
-        ['骸骨將軍', 'relic_deadgeneral_greatsword', 0.0001],
-        ['鋼鐵巨鱷', 'relic_steel_bulwark', 0.0001],
-        ['巨大鱷魚', 'relic_raider_belt', 0.0001],
-        ['暗黑 蜘蛛(大)', 'relic_darkscorpion_pincers', 0.0001],
+        // 🏺 遺物 第九批（v3.1.28·10 件）
+        ['阿魯巴', 'relic_aruba_haste', 0.0001],
+        ['火焰戰士', 'relic_ashwarrior_flamesword', 0.0001],
+        ['艾爾摩將軍', 'relic_deadgeneral_greatsword', 0.0001],
+        ['鋼鐵高崙', 'relic_steel_bulwark', 0.0001],
+        ['強盜頭目', 'relic_raider_belt', 0.0001],
+        ['底比斯 凱比斯(黑)', 'relic_darkscorpion_pincers', 0.0001],
         ['遺忘之島黑暗精靈', 'relic_forgotten_sniperbow', 0.0001],
-        ['遺忘之島狐狸', 'relic_arrowfur_cloak', 0.0001],
+        ['遺忘之島歐熊', 'relic_arrowfur_cloak', 0.0001],
         ['邪惡蜥蜴', 'relic_evillizard_eye', 0.0001],
-        ['火焰弓箭手', 'relic_flamearcher_bracer', 0.0001],   // 🏺 烈焰弓箭手的護腕：spec 物品欄顯示名稱同官方資料片 火焰弓箭手(fire_archer)
-        // 🏺 第十批（v3.1.32 新增 5 件）
-        ['黑暗妖精獵人(弩弓)', 'relic_modded_crossbow', 0.0001],
+        ['火焰弓箭手', 'relic_flamearcher_bracer', 0.0001],   // 🏺 烈焰射手的護腕：spec 掉落源寫成物品名·取同義同級的 火焰弓箭手(fire_archer)
+        // 🏺 遺物 第十批（v3.1.32·5 件）
+        ['黑暗妖精警衛(十字弓)', 'relic_modded_crossbow', 0.0001],
         ['梅杜莎', 'relic_medusa_stinger', 0.0001],
-        ['遺忘之島死騎', 'relic_silent_venom', 0.0001],
-        ['誘惑者', 'relic_charm_heart', 0.0001],
-        ['暗殺團長', 'relic_swordsman_underwear', 0.0001],
-        // 🏺 第十一批（v3.1.33 新增 5 件）
-        ['火燄鳥萊肯', 'relic_fireegg_orb', 0.0001],
-        ['遺忘之島邪法', 'relic_venom_avatar', 0.0001],
-        ['遺忘之島翼狼', 'relic_lycan_swiftlegs', 0.0001],
-        ['遺忘之島彌諾陶洛斯', 'relic_axetaurus_brutalaxe', 0.0001],
-        ['遺忘之島食人妖', 'relic_troll_belly', 0.0001],
-        // 🏺 第十二批（v3.1.52 新增 19 件·部分對應怪從 0.0001% 降為 0.00003%）
-        ['火燄靈魂之心', 'relic_burning_love', 0.0001],
-        ['飛龍王的勇士', 'relic_fearless_charge', 0.0001],
-        ['多羅', 'relic_lizard_tongue', 0.0001],
-        ['冰鏡之森的蜥蜴', 'relic_flame_avatar', 0.0001],
-        ['冰鏡之森的殺人蜂', 'relic_killerbee_sting', 0.0001],
-        ['冰鏡之森的逃跑', 'relic_runaway_carrot', 0.0001],
-        ['冰鏡之森的冰人', 'relic_frost_avatar', 0.0001],
-        ['黑暗妖精長老', 'relic_handy_quiver', 0.0001],
-        ['黑暗妖精陣亡', 'relic_soldier_medal', 0.0001],
+        ['遺忘之島卡司特', 'relic_silent_venom', 0.0001],
+        ['思克巴', 'relic_charm_heart', 0.0001],
+        ['死亡之劍', 'relic_swordsman_underwear', 0.0001],
+        // 🏺 遺物 第十一批（v3.1.33·5 件）
+        ['恐怖的火炎蛋', 'relic_fireegg_orb', 0.0001],
+        ['遺忘之島蛇女', 'relic_venom_avatar', 0.0001],
+        ['遺忘之島萊肯', 'relic_lycan_swiftlegs', 0.0001],
+        ['遺忘之島巨斧牛人', 'relic_axetaurus_brutalaxe', 0.0001],
+        ['遺忘之島食人妖精', 'relic_troll_belly', 0.0001],
+        // 🏺 遺物 第五批新增（v3.1.52·19 件）
+        ['炎魔的思克巴', 'relic_burning_love', 0.0001],
+        ['巨大突擊螞蟻', 'relic_fearless_charge', 0.0001],
+        ['火蜥蜴', 'relic_lizard_tongue', 0.0001],
+        ['夢幻之島火蜥蜴', 'relic_flame_avatar', 0.0001],
+        ['夢幻之島殺人蜂', 'relic_killerbee_sting', 0.0001],
+        ['夢幻之島暴走兔', 'relic_runaway_carrot', 0.0001],
+        ['夢幻之島冰人', 'relic_frost_avatar', 0.0001],
+        ['黑暗妖精巡守', 'relic_handy_quiver', 0.0001],
+        ['黑暗妖精士兵', 'relic_soldier_medal', 0.0001],
         ['邪惡密密', 'relic_evilchest_relic', 0.0001],
-        ['遺忘之島巨大蜘蛛', 'relic_ancient_spider_claw', 0.0001],
-        ['火焰之劍', 'relic_flame_belt', 0.0001],
-        ['冰鏡之森的閃電球', 'relic_thunder_crown', 0.0001],
-        ['冰鏡之森聖殿守衛', 'relic_guardian_greatsword', 0.0001],
-        ['冰鏡之森夢魘', 'relic_dream_flamesoul', 0.0001],
-        ['冰鏡之森冰霜寶箱', 'relic_frost_stone_shield', 0.0001],
-        ['暗黑 蜘蛛(大)', 'relic_redscorpion_ring', 0.0001],
-        ['黑豹王', 'relic_cerberus_horn', 0.0001],
-        ['邪惡蜥蜴長老', 'relic_lightbeam_wand', 0.0001],
+        ['遺忘之島楊果里恩', 'relic_ancient_spider_claw', 0.0001],
+        ['火炎蛋', 'relic_flame_belt', 0.0001],
+        ['夢幻之島閃電球', 'relic_thunder_crown', 0.0001],
+        ['夢幻之島鎧甲守衛', 'relic_guardian_greatsword', 0.0001],
+        ['夢幻之島火炎蛋', 'relic_dream_flamesoul', 0.0001],
+        ['夢幻之島冰石高崙', 'relic_frost_stone_shield', 0.0001],
+        ['底比斯 凱比斯(紅)', 'relic_redscorpion_ring', 0.0001],
+        ['奇美拉', 'relic_cerberus_horn', 0.0001],
+        ['邪惡多眼怪', 'relic_lightbeam_wand', 0.0001],
         // 🐍 蛇神降臨·提卡爾：寶箱碎片(初級 上/下·高級 上/下)/時空裂痕碎片 10%/龍騎士書板/祭壇鑰匙 2% + 遺物 0.0001%
         ['提卡爾艾庫阿茲特', 'mat_kukulkan_basic_up', 5], ['提卡爾艾庫阿茲特', 'mat_rift_shard', 10], ['提卡爾艾庫阿茲特', 'bk_dragon_awaken_falion', 0.5], ['提卡爾艾庫阿茲特', 'relic_azt_mirror', 0.0001],
         ['提卡爾艾庫阿茲特(黃)', 'mat_kukulkan_basic_down', 5], ['提卡爾艾庫阿茲特(黃)', 'mat_rift_shard', 10], ['提卡爾艾庫阿茲特(黃)', 'relic_azt_prism', 0.0001],
@@ -646,6 +646,35 @@
         ['提卡爾薩德提歐(黃)', 'mat_kukulkan_high_down', 5], ['提卡爾薩德提歐(黃)', 'item_tikal_altar_key', 2], ['提卡爾薩德提歐(黃)', 'bk_dragon_deathlightning', 0.5], ['提卡爾薩德提歐(黃)', 'mat_rift_shard', 10], ['提卡爾薩德提歐(黃)', 'relic_teo_footprint', 0.0001],
         ['提卡爾杰弗雷庫(雄)', 'amu_str', 8], ['提卡爾杰弗雷庫(雄)', 'acc_120', 8], ['提卡爾杰弗雷庫(雄)', 'amu_int', 8], ['提卡爾杰弗雷庫(雄)', 'acc_122', 8], ['提卡爾杰弗雷庫(雄)', 'acc_121', 8], ['提卡爾杰弗雷庫(雄)', 'amu_cha', 8], ['提卡爾杰弗雷庫(雄)', 'acc_demonbane', 10], ['提卡爾杰弗雷庫(雄)', 'rng_mr', 25], ['提卡爾杰弗雷庫(雄)', 'acc_117', 5], ['提卡爾杰弗雷庫(雄)', 'acc_summon_ctrl', 5], ['提卡爾杰弗雷庫(雄)', 'acc_116', 5], ['提卡爾杰弗雷庫(雄)', 'mat_tikal_fang', 3], ['提卡爾杰弗雷庫(雄)', 'mat_tikal_eye', 3], ['提卡爾杰弗雷庫(雄)', 'scroll_armor', 30], ['提卡爾杰弗雷庫(雄)', 'scroll_weapon', 30], ['提卡爾杰弗雷庫(雄)', 'item_kukulkan_box_high', 100], ['提卡爾杰弗雷庫(雄)', 'mat_crack_core', 100], ['提卡爾杰弗雷庫(雄)', 'relic_serpent_fang', 0.0001],
         ['提卡爾杰弗雷庫(雌)', 'amu_str', 8], ['提卡爾杰弗雷庫(雌)', 'acc_120', 8], ['提卡爾杰弗雷庫(雌)', 'amu_int', 8], ['提卡爾杰弗雷庫(雌)', 'acc_122', 8], ['提卡爾杰弗雷庫(雌)', 'acc_121', 8], ['提卡爾杰弗雷庫(雌)', 'amu_cha', 8], ['提卡爾杰弗雷庫(雌)', 'acc_demonbane', 10], ['提卡爾杰弗雷庫(雌)', 'rng_mr', 25], ['提卡爾杰弗雷庫(雌)', 'acc_117', 5], ['提卡爾杰弗雷庫(雌)', 'acc_summon_ctrl', 5], ['提卡爾杰弗雷庫(雌)', 'acc_116', 5], ['提卡爾杰弗雷庫(雌)', 'mat_tikal_fang', 3], ['提卡爾杰弗雷庫(雌)', 'mat_tikal_eye', 3], ['提卡爾杰弗雷庫(雌)', 'scroll_armor', 30], ['提卡爾杰弗雷庫(雌)', 'scroll_weapon', 30], ['提卡爾杰弗雷庫(雌)', 'item_kukulkan_box_high', 100], ['提卡爾杰弗雷庫(雌)', 'mat_crack_core', 100], ['提卡爾杰弗雷庫(雌)', 'relic_serpent_gaze', 0.0001],
+        // 🏺 遺物 第十三批（v3.1.80·28 件·單一怪物專屬 0.0001%）
+        ['殘暴的骷髏斧兵', 'relic_executor_axe', 0.0001],
+        ['殘暴的骷髏槍兵', 'relic_executor_skewer', 0.0001],
+        ['獨眼巨人', 'relic_jack_sling', 0.0001],
+        ['夢魘', 'relic_endless_nightmare', 0.0001],
+        ['夢幻之島大鬼火', 'relic_dullahan_ember', 0.0001],
+        ['黑暗妖精警衛(矛)', 'relic_guard_roughgloves', 0.0001],
+        ['黑虎', 'relic_blacktiger_whip', 0.0001],
+        ['地獄束縛犬', 'relic_hellhound_chain', 0.0001],
+        ['拉斯塔巴德守門人', 'relic_gatekeeper_boots', 0.0001],
+        ['黑暗妖精法師', 'relic_dark_manaball', 0.0001],
+        ['魔狼', 'relic_blackmane_coat', 0.0001],
+        ['恐怖夢魘', 'relic_wearying_dream', 0.0001],
+        ['地之牙', 'relic_earthfang_core', 0.0001],
+        ['風之牙', 'relic_windfang_breeze', 0.0001],
+        ['水之牙', 'relic_waterfang_tear', 0.0001],
+        ['火之牙', 'relic_firefang_ember', 0.0001],
+        ['馴獸師', 'relic_tamer_dogclub', 0.0001],
+        ['巨大強化白螞蟻', 'relic_healer_wand', 0.0001],
+        ['思克巴女皇', 'relic_succubus_temptation', 0.0001],
+        ['影魔', 'relic_shadow_stinger', 0.0001],
+        ['底比斯 尖碑石奴', 'relic_weathered_obelisk', 0.0001],
+        ['魂騎士', 'relic_soulreaper_dual', 0.0001],
+        ['遺忘之島格利芬', 'relic_griffin_feather', 0.0001],
+        ['遺忘之島鏈鎚牛人', 'relic_minotaur_flail', 0.0001],
+        ['遺忘之島哈維', 'relic_vigor_belt', 0.0001],
+        ['炎魔的思克巴女皇', 'relic_succubus_wand', 0.0001],
+        ['鬼魂', 'relic_wisp_thought', 0.0001],
+        ['巫師', 'relic_warlock_grimoire', 0.0001],
     ].forEach(function (r) { (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], r[2]]); });
     // 🏺 v3.1.15：潛行者的祕密箱子 改由「密密」掉落（原艾爾摩法師取消，該怪僅保留凋零法師的護身符）；巨大鱷魚的狩獵牙 改由「巨大鱷魚」掉落（原格利芬取消，該怪僅保留獅鷲的鋒利鷹爪）。
 
@@ -727,8 +756,9 @@ let _sherineLootCtx = null;   // 擊殺掉落上下文：killMob 期間設定（
 let _forceSherineSet = false;   // 🔮 席琳製作：成品必定附帶隨機套裝效果（doCraft 產出期間設定）
 let _tradLootCtx = false;   // 🏛️ 傳統模式「掠奪上下文」：在怪物掉落／潘朵拉黑市／製作期間設 true，供 gainItem 為裝備隨機自帶強化值＋抑制施法卷軸（商店購買不設→恆 +0）
 let _noAffixCtx = false;    // 🦴 「白板上下文」：設 true 時 gainItem 不附加詞綴（祝福/詛咒/屬性）但仍放行傳統自帶強化值——供寵物裝備製作（白板＋隨機強化值，機率同飾品）
-let _vfxLootCtx = false;   // ✨ VFX：擊殺掉落期間設 true，供 gainItem 判定稀有(潘朵拉權重=1)掉落閃光
 let _forceBless = false;    // 🔧 v3.1.27 製作：設 true 時 gainItem 產出必定祝福（doCraft 消耗到祝福裝備材料時逐件設定；寵物白板 _noAffixCtx 仍優先擋）
+let _craftBlessCount = 0;   // 🔧 v3.1.27 製作：本次 doCraft 消耗到的「祝福裝備」材料件數（consumeMaterialById/whConsumeId 累加·doCraft 前歸零、依此逐件強制祝福）
+let _vfxLootCtx = false;   // ✨ VFX：擊殺掉落期間設 true，供 gainItem 判定稀有(潘朵拉權重=1)掉落閃光
 
 // ===== 🔮 席琳套裝效果（9 組；不再分五種詞綴，seteff 直接存「套裝名」＝組名）=====
 // 掉落判定：席琳的世界中，武器/頭盔/盔甲/手套/長靴/斗篷/腰帶 掉落時，
@@ -752,7 +782,25 @@ const SHERINE_SET_TEXT = {
     '龍血': ['2件：造成物理傷害時恢復1%該傷害的HP（自身HP低於50%時改為5%）', '3件：施放消耗HP的技能可獲得「龍裔」10秒，受到傷害減少15%', '5件：消耗HP技能造成傷害提高20%'],
     '狂怒': ['2件：負重上限+500', '3件：最大HP+20%', '5件：HP每少10%，造成傷害+4%、受到傷害-4%（最多±20%，即HP低於50%時達上限）']
 };
-// 🔮 席琳套裝效果「可附加部位」判定（唯一真相；gainItem 掉落/製作 與 試煉席琳兌換 共用）
+// ===== 🦴 v3.1.68 席琳遺骸系統（單一真相表）＝套裝效果新載體 =====
+// 套裝詞綴「不再出現於裝備上」（gainItem 掉落/製作附加已停用）；現有裝備詞綴保留（名稱/資訊欄照舊）但不再計入套裝件數。
+// 套裝效果判定改看 8 格「遺骸」裝備欄（裝備分頁最底部 8 格·浮動裝備視窗不顯示）：每件遺骸必附一種席琳詞綴(seteff)，
+// 「相同組名的遺骸格數」達 2/3/5 → 發動現行套裝效果（門檻/效果內容不變·recomputeStats 計件迴圈改掃此 8 格）。
+// 遺骸：視為飾品(type:acc)·noEnhance·不可賦予屬性(僅武器可)·潘朵拉權重0·重量0；只在席琳世界掉落
+// （機率=0.001×怪等·頭目0.01×等·瘋狂×3·killMob js/05）；NPC 伊奧(席琳結晶兌換)/菈克希絲(穿著裝備拆分)於 js/12。
+// eqSlot＝對應的「裝備部位」（菈克希絲拆分映射：該部位裝備的席琳詞綴 → 對應遺骸）；遺骸自身的裝備欄鍵＝id。
+const SHERINE_REMAINS = [
+    { id: 'rem_claw',  n: '之爪', eqSlot: 'wpn' },
+    { id: 'rem_eye',   n: '之眼', eqSlot: 'helm' },
+    { id: 'rem_blood', n: '之血', eqSlot: 'cloak' },
+    { id: 'rem_flesh', n: '之肉', eqSlot: 'boots' },
+    { id: 'rem_heart', n: '之心', eqSlot: 'belt' },
+    { id: 'rem_bone',  n: '之骨', eqSlot: 'gloves' },
+    { id: 'rem_fang',  n: '之牙', eqSlot: 'shield' },
+    { id: 'rem_scale', n: '之鱗', eqSlot: 'armor' }
+];
+// 🔮 席琳套裝效果「可附加部位」判定（唯一真相；⚠️v3.1.68 起 gainItem 不再對裝備附加席琳詞綴——本函式僅供
+//   菈克希絲拆分/舊資料判讀等沿用；試煉「席琳兌換」綠鈕已移除）
 //   合法部位：武器（非箭矢）/頭盔/盔甲/手套/長靴/斗篷/腰帶；盾牌(slot:shield)等不符 → 不可附帶套裝效果。
 function sherineSetEligible(d) {
     if (isRelic(d)) return false;   // 🏺 遺物永不附帶席琳套裝詞綴（席琳的世界亦然）→ 永遠維持單一能力
@@ -980,11 +1028,11 @@ const MASTERY_DATA = {
         m_resonance: { n: '共鳴精通', pos: 'top',    msg: '共鳴傷害+5且無視魔抗',           d: '共鳴的光箭傷害+5且無視魔抗，恢復MP變更為光箭傷害/5' },
         m_strike:    { n: '魔擊精通', pos: 'left',   msg: '魔擊必定額外觸發全體魔擊·共鳴/魔爆改發魔擊',         d: '觸發魔擊時，必定額外觸發擴散魔擊，對所有敵人各自造成等同1次魔擊的傷害；持共鳴或魔爆武器時，共鳴與魔爆的觸發改為發動魔擊（觸發機率與原生魔擊相同＝力量/60）' },
         m_echo:      { n: '迴響精通', pos: 'right',  msg: '傷害法術有機率變成連發、單體加倍',             d: '施放傷害攻擊法術時，有機率不消耗MP立刻觸發相同法術；全體傷害魔法沿用原機率，單體傷害魔法觸發機率加倍' },
-        m_summon:    { n: '召喚精通', pos: 'bottom', msg: '對比自己低等怪迷魅必定成功，魅力額外增加召喚物傷害與命中', d: '迷魅術對等級比自己低的非BOSS怪物必定成功，造屍術與召喚術的傷害與命中魅力影響提升' }
+        m_summon:    { n: '召喚精通', pos: 'bottom', msg: '低等怪迷魅必成，召喚物傷害+20%、命中+5', d: '迷魅術對等級比自己低的非BOSS怪物必定成功；造屍術與召喚術的召喚物最終傷害+20%、命中+5，特殊技能施放間隔縮短15%' }
     } },
     elf: { logo: 'assets/logo/妖精logo.png', boss: '變形怪首領', list: {
         e_rapid:  { n: '連射精通', pos: 'top',    msg: '提升連射傷害與數量',                   d: '連射傷害由30%提升為50%，額外箭數由1~3變成隨機1~5' },
-        e_spirit: { n: '精靈精通', pos: 'left',   msg: '可同時召喚多隻屬性精靈',               d: '召喚屬性精靈與召喚強力屬性精靈數量變成1+魅力/10，可同時擁有7隻屬性精靈或強力屬性精靈' },
+        e_spirit: { n: '精靈精通', pos: 'left',   msg: '魅力增加精靈數量，最多4隻獨立攻擊',     d: '召喚屬性精靈與召喚強力屬性精靈的數量變成1+魅力/20，最多同時擁有4隻；每隻精靈都會獨立進行一次完整攻擊' },
         e_sword:  { n: '劍術精通', pos: 'right',  msg: '可使用騎士單手武器、攻速+50%、發動看破',         d: '可裝備騎士限定的單手武器；持單手近戰武器時攻擊速度+50%（與加速術/勇敢/精靈餅乾/變身相乘疊加）；近距離攻擊有機率發動看破' },
         e_magic:  { n: '魔導精通', pos: 'bottom', msg: '同屬性魔法省MP、可學高階法術',     d: '施放與自身同屬性的傷害魔法消耗MP減少50%，可學習冰雪暴、龍捲風、震裂術、火風暴' }
     } },
@@ -1067,8 +1115,7 @@ function skillReqLv(sk, skId) {
 let _echoFree = false;        // 🏅 迴響精通：免費連發旗標（連發那次不耗MP、不再連鎖）
 let _royalFreeCast = false;   // 👑 魔法精通：一般攻擊命中 10% 免MP額外施放選定攻擊技的旗標
 
-const RATE_PRESETS = { 1: { exp: 1, gold: 1, drop: 1, classicExp: 0.25, classicGold: 0.5, classicDrop: 0.1 }, 2: { exp: 100, gold: 20, drop: 10, classicExp: 5, classicGold: 2, classicDrop: 1 }, 3: { exp: 500, gold: 50, drop: 30, classicExp: 10, classicGold: 5, classicDrop: 2 } };
-let state = { running: false, ticks: 0, pDmgTick: 0, ff: false, inTick: false, spd: 1, rateLv: 2 };
+let state = { running: false, ticks: 0, pDmgTick: 0, ff: false, inTick: false, spd: 1 };
 // 主迴圈計時（依真實經過時間補跑 tick）
 const TICK_MS = 100;                 // 一個邏輯 tick 代表的真實時間
 const JUNK_AUTOSELL_TICKS = 100;    // 🗑️ 廢品自動賣出間隔：10 秒（100 tick × 100ms·2026-07-01 由 1800/3分鐘改快）；玩家手動標示廢品會把倒數重置為此值（標完 10 秒無新動作才賣）。⚠️自動賣出這條路徑不 saveGame(見 autoSellJunk)，靠其他既有存檔點落地
@@ -1151,17 +1198,17 @@ let createBase = {
 };
 let curCreate = { rawCls: 'm_royal', cls: 'royal', str:0, dex:0, con:0, int:0, wis:0, cha:0 };
 
-// ===== 犬類夥伴定義：項圈ID / 屬性 / 傷害骰偏移(1D(等級+diceOff)+魅力) / 命中偏移 =====
+// ===== 犬類夥伴定義：傷害骰=1D(floor(等級×levelMult)+diceOff)，再加魅力×chaMult；命中另走等級/魅力柔性成長 =====
 const PET_DEF = {
-    '杜賓狗': { collar:'new_item_184', ele:'fire',  eleName:'火', diceOff:5, hitOff:0 },
-    '狼':     { collar:'new_item_185', ele:'wind',  eleName:'風', diceOff:1, hitOff:4 },
-    '哈士奇': { collar:'new_item_collar_husky', ele:'water', eleName:'水', diceOff:3, hitOff:2 },
-    '牧羊犬': { collar:'new_item_238', ele:'earth', eleName:'地', diceOff:4, hitOff:1 },
-    // 🐾 進化夥伴：傷害=1D(等級+diceOff)+魅力×chaMult；命中=等級+魅力×hitChaMult+hitOff−怪等級+怪AC；每擊10%觸發 proc 法術(套用玩家施法數值)
-    '暴走兔': { collar:'new_collar_rabbit',    ele:'water', eleName:'水', diceOff:11, hitOff:5, chaMult:1.2, hitChaMult:1.3, proc:'sk_ice_spike' },
-    '狐狸':   { collar:'new_collar_fox',       ele:'fire',  eleName:'火', diceOff:18, hitOff:3, chaMult:1.3, hitChaMult:1.2, proc:'sk_fireball' },     // 🔧 火箭→燃燒的火球
-    '小獵犬': { collar:'new_collar_beagle',    ele:'earth', eleName:'地', diceOff:15, hitOff:4, chaMult:1.3, hitChaMult:1.2, proc:'sk_rock_prison' },  // 🔧 地獄之牙→岩牢
-    '聖伯納': { collar:'new_collar_stbernard', ele:'wind',  eleName:'風', diceOff:10, hitOff:6, chaMult:1.2, hitChaMult:1.3, proc:'sk_thunder' }        // 🔧 風刃→極道落雷
+    '杜賓狗': { collar:'new_item_184', ele:'fire',  eleName:'火', diceOff:5, hitOff:0, levelMult:0.65, chaMult:0.65 },
+    '狼':     { collar:'new_item_185', ele:'wind',  eleName:'風', diceOff:1, hitOff:4, levelMult:0.65, chaMult:0.65 },
+    '哈士奇': { collar:'new_item_collar_husky', ele:'water', eleName:'水', diceOff:3, hitOff:2, levelMult:0.65, chaMult:0.65 },
+    '牧羊犬': { collar:'new_item_238', ele:'earth', eleName:'地', diceOff:4, hitOff:1, levelMult:0.65, chaMult:0.65 },
+    // 🐾 進化夥伴：較高等級/魅力成長；每擊8%觸發法術。暴走兔/聖伯納偏命中，狐狸/小獵犬偏傷害。
+    '暴走兔': { collar:'new_collar_rabbit',    ele:'water', eleName:'水', diceOff:11, hitOff:5, levelMult:0.75, chaMult:0.80, hitChaMult:1.15, procRate:0.08, proc:'sk_ice_spike' },
+    '狐狸':   { collar:'new_collar_fox',       ele:'fire',  eleName:'火', diceOff:18, hitOff:3, levelMult:0.75, chaMult:0.90, hitChaMult:1.05, procRate:0.08, proc:'sk_fireball' },
+    '小獵犬': { collar:'new_collar_beagle',    ele:'earth', eleName:'地', diceOff:15, hitOff:4, levelMult:0.75, chaMult:0.90, hitChaMult:1.05, procRate:0.08, proc:'sk_rock_prison' },
+    '聖伯納': { collar:'new_collar_stbernard', ele:'wind',  eleName:'風', diceOff:10, hitOff:6, levelMult:0.75, chaMult:0.80, hitChaMult:1.15, procRate:0.08, proc:'sk_thunder' }
 };
 // 🦴 寵物裝備加成：裝在 player.eq.pet 的「之牙」→ 夥伴額外傷害/命中（含強化：每+1 各+1，飾品上限+5）
 function petGearBonus() {
@@ -1398,6 +1445,12 @@ function getConHpRegenMax(con) {
         [80,45],[83,46],[86,47],[89,48],[93,50],[96,52],[99,53]
     ], 55); // …77~79=1~43；80=1~45；81~83=1~46…（81~100 依 60→80 段曲線鏡射拓展）…97~99=1~53；100=1~55
 }
+// 🍶 藥水恢復基準量：有 valMin/valMax 則隨機取整數區間（紅10~20/橙30~50/白60~80·v3.1.53），否則回固定 val。飲用瞬間擲（非掉落·不需 committed RNG；SL 重抽無經濟意義·同戰鬥擲骰）。
+function potionHealBase(d) {
+    if (!d) return 0;
+    if (d.valMin != null && d.valMax != null) return d.valMin + Math.floor(Math.random() * (d.valMax - d.valMin + 1));
+    return d.val || 0;
+}
 function getConPotionPct(con) {
     // 藥水額外恢復量 %
     if (con <= 19) return 0;
@@ -1603,7 +1656,7 @@ function logSys(msg) {
 // 不需要刷畫面的場合（如 buildAlly 換身重算）請呼叫 recomputeStats()。
 // ===== 🔧 負重系統：計入負重的裝備欄位 + 物品重量表（依名稱）=====
 const WEIGHT_COUNT_SLOTS = ['wpn','offwpn','shield','helm','armor','shin','tshirt','cloak','gloves','boots','amulet','ear1','ear2','ring1','ring2','ring3','ring4','belt','pet','doll'];   // 🦵 shin=脛甲（盔甲下方·額外防具）   // ⚔️ offwpn=迅猛雙斧副手武器，計入負重；ear1/ear2=耳環；doll=魔法娃娃
-const ITEM_WEIGHTS = {"混沌之刺":10,"混沌頭盔":5,"混沌斗篷":5,"混沌法袍":15,"混沌手套":5,"死亡斗篷":10,"死亡盔甲":100,"死亡手套":5,"死亡之盾":20,"惡魔王矛":20,"惡魔王雙刀":20,"惡魔王雙手劍":40,"惡魔王魔杖":20,"惡魔王弓":10,"亞連":10,"武士刀":40,"長劍":40,"斧":60,"雙手劍":150,"屠龍劍":180,"騎士范德之劍":100,"釘錘":30,"弓":30,"矛":80,"戰斧":120,"巴迪須":120,"柴刀":120,"精靈弓":30,"歐西斯弓":30,"闊劍":70,"木棒":30,"精靈匕首":10,"歐西斯匕首":10,"匕首":10,"貝卡合金":100,"法丘":60,"弗萊爾":15,"闊矛":75,"吉薩":80,"戟":150,"槍":180,"露西錘":150,"戰錘":50,"流星錘":120,"帕提森":80,"彎刀":40,"侏儒鐵斧":280,"精靈之矛":30,"歐西斯之矛":30,"小侏儒短劍":40,"精靈短劍":20,"歐西斯短劍":30,"短劍":30,"三叉戟":25,"瑟魯基之劍":120,"尤米弓":40,"短弓":20,"十字弓":50,"獵人之弓":30,"熾炎天使弓":25,"紅騎士之劍":40,"侵略者之劍":40,"骰子匕首":10,"大馬士革刀":45,"短劍的劍身":20,"長劍的劍身":30,"奧里哈魯根的劍身":35,"細劍":60,"鎖子甲破壞者":40,"銀長劍":50,"銀劍":40,"橡木魔法杖":15,"美基魔法杖":20,"巫術魔法杖":15,"力量魔法杖":15,"瑪那魔杖":15,"水晶魔杖":15,"失去魔力的巴列斯魔杖":15,"巴列斯魔杖":15,"潘的角":9,"覆上米索莉的角":24,"覆上奧里哈魯根的角":55,"巨斧":250,"狂戰士斧":200,"銀斧":270,"青銅鋼爪":20,"鋼鐵鋼爪":30,"暗影鋼爪":30,"銀光鋼爪":20,"黑暗鋼爪":20,"幽暗鋼爪":30,"大馬士革鋼爪":40,"青銅雙刀":20,"鋼鐵雙刀":30,"銀光雙刀":20,"幽暗雙刀":30,"黑暗雙刀":20,"暗影雙刀":30,"大馬士革雙刀":40,"黑暗十字弓":30,"幽暗十字弓":40,"魔力短劍":30,"拉斯塔巴德十字弓":70,"拉斯塔巴德弓":50,"小武士刀":30,"拉斯塔巴德長劍":30,"拉斯塔巴德短劍":20,"拉斯塔巴德魔杖":15,"拉斯塔巴德雙刀":40,"拉斯塔巴德重十字弓":100,"拉斯塔巴德矛":80,"拉斯塔巴德圓盾":50,"武官雙手劍":150,"武官手套":45,"武官長靴":54,"黑暗腰帶":40,"精靈皮盔":3,"歐西斯頭盔":30,"侏儒鐵盔":40,"頭盔":30,"騎士面甲":40,"抗魔法頭盔":35,"艾爾穆的祝福":13,"治癒魔法頭盔":50,"敏捷魔法頭盔":50,"力量魔法頭盔":50,"皮帽子":10,"銀釘皮帽":20,"皮頭盔":30,"骷髏頭盔":30,"鋼鐵頭盔":50,"法師之帽":20,"死亡騎士頭盔":50,"木乃伊王的王冠":20,"精靈敏捷頭盔":13,"精靈體質頭盔":13,"騎士頭巾":0,"紅騎士頭巾":20,"巴土瑟之帽":20,"卡士柏之帽":20,"馬庫爾之帽":20,"西瑪之帽":20,"克特頭盔":50,"淨化頭飾":0,"金屬盔甲":450,"水晶盔甲":350,"青銅盔甲":450,"藤甲":400,"皮甲":350,"鏈甲":300,"歐西斯鏈甲":300,"鱗甲":250,"銀釘皮甲":150,"環甲":250,"歐西斯環甲":250,"小藤甲":70,"皮夾克":30,"抗魔法鏈甲":300,"綿質長袍":10,"木甲":80,"精靈護胸金屬板":100,"精靈金屬盔甲":250,"精靈鏈甲":150,"木製的夾克":40,"皮背心":30,"皮盔甲":50,"銀釘皮背心":130,"硬皮背心":150,"骷髏盔甲":150,"鋼鐵金屬盔甲":470,"法師長袍":60,"水龍鱗盔甲":300,"地龍鱗盔甲":300,"火龍鱗盔甲":300,"風龍鱗盔甲":300,"死亡騎士盔甲":250,"黑長者長袍":30,"克特盔甲":250,"T恤":5,"精靈T恤":5,"精靈斗篷":10,"歐西斯斗篷":10,"侏儒斗篷":10,"保護者斗篷":10,"隱身斗篷":10,"抗魔法斗篷":10,"瑪那斗篷":10,"短統靴":10,"長靴":15,"巴列斯長靴":10,"皮涼鞋":8,"銀釘皮涼鞋":10,"皮長靴":10,"鋼鐵長靴":50,"深水長靴":15,"死亡騎士長靴":15,"黑長者涼鞋":10,"克特長靴":15,"手套":10,"水晶手套":20,"腕甲":10,"力量手套":18,"鋼鐵手套":40,"死亡騎士手套":15,"影子手套":10,"影子面具":10,"影子長靴":10,"拉斯塔巴德皮盔甲":70,"拉斯塔巴德長靴":10,"黑暗斗篷":20,"拉斯塔巴德長袍":30,"克特手套":15,"保護者手套":10,"小盾牌":30,"精靈盾牌":50,"阿克海盾牌":50,"大盾牌":100,"侏儒圓盾":100,"反射之盾":50,"伊娃之盾":50,"塔盾":120,"木盾":25,"銀騎士之盾":100,"皮盾牌":25,"銀釘皮盾":35,"骷髏盾牌":30,"紅騎士盾牌":50,"鋼鐵盾牌":140,"受詛咒的魔法書":0,"魔法能量之書":20,"傳送控制戒指":3,"變形控制戒指":3,"召喚控制戒指":3,"地靈戒指":3,"水靈戒指":3,"風靈戒指":3,"火靈戒指":3,"抗魔戒指":3,"滅魔戒指":3,"多羅戒指":3,"守護戒指":3,"長者戒指":3,"力量項鍊":5,"敏捷項鍊":5,"體質項鍊":5,"智力項鍊":5,"精神項鍊":5,"妖魔戰士項鍊":5,"守護項鍊":3,"長老項鍊":3,"抗魔項鍊":3,"老舊的身體腰帶":50,"老舊的精神腰帶":50,"老舊的靈魂腰帶":50,"身體腰帶":50,"精神腰帶":50,"靈魂腰帶":50,"多羅皮帶":50,"歐吉皮帶":50,"勇敢皮帶":50,"光明身體腰帶":50,"光明精神腰帶":50,"光明靈魂腰帶":50,"守護皮帶":50,"抗魔皮帶":50,"魔獸軍王之爪":100,"巴蘭卡鋼爪":40,"武官頭盔":45,"巴蘭卡頭盔":50,"武官護鎧":180,"巴蘭卡盔甲":450,"巴蘭卡手套":5,"魔獸軍王長靴":30,"巴蘭卡長靴":10,"冥法軍王斗篷":10,"法令軍王長袍":20,"暗殺軍王手套":25,"血色巨劍":160,"黑暗之劍":100,"紅水晶魔杖":60,"神官頭飾":18,"神官法袍":45,"黑暗披肩":20,"神官長靴":18,"神官斗篷":9,"神官手套":18,"死亡騎士的烈炎之劍":40,"克特之劍":40,"巨蟻女皇的金翅膀":1,"巨蟻女皇的銀翅膀":1,"暗殺軍王之痕":20,"神官魔杖":70,"蕾雅魔杖":15,"神官魔法書":27,"冥法軍王之戒":5,"蕾雅長袍":30,"蕾雅項鍊":5,"法令軍王之鍊":5,"蕾雅戒指":1,"冰之女王魔杖":20,"惡魔鐮刀":10,"魅力項鍊":5,"艾莉絲項鍊":5,"梅杜莎盾牌":80,"水晶短劍":45,"潔尼斯戒指":1,"地屬性斗篷":20,"水屬性斗篷":20,"火屬性斗篷":20,"風屬性斗篷":20,"黑暗長靴":15,"黑暗頭飾":5,"幻象眼魔的心眼":50,"馬昆斯斗篷":15,"銀光斗篷":30,"巫妖斗篷":30,"惡魔盔甲":250,"惡魔頭盔":50,"惡魔手套":15,"惡魔長靴":15,"暗黑雙刀":40,"暗黑鋼爪":40,"暗黑十字弓":50,"死神之手":30,"地靈手套":18,"風靈手套":18,"水靈手套":18,"火靈手套":18,"曼波帽子":10,"曼波外套":10,"金屬蜈蚣皮盔甲":250,"黑暗棲林者盔甲":30,"黑暗棲林者長靴":10,"黑虎皮斗篷":5,"狼皮斗篷":5,"熊戒指":3,"深淵戒指":3,"米索莉短劍":50,"奧里哈魯根短劍":50,"深紅長矛":100,"惡魔斧頭":180,"復仇之劍":40,"恨之鋼爪":30,"惡魔之劍":40,"惡魔雙刀":40,"惡魔鋼爪":30,"惡魔十字弓":30,"失去魔力的巴風特魔杖":15,"巴風特魔杖":15,"巴風特盔甲":30,"炎魔的血光斗篷":10,"墮落斗篷":10,"墮落長袍":25,"墮落手套":18,"墮落長靴":10,"黑焰之劍":50,"赤焰之弓":30,"赤焰之劍":40,"瑪那水晶球":50,"死亡之指":20,"獵犬之牙":60,"鋼鐵之牙":50,"破滅之牙":150,"勝利之牙":100,"守護者臂甲":30,"法師臂甲":30,"體力臂甲":30,"巨劍":150,"牛人斧頭":250,"沙哈之弓":30,"風之頭盔":50,"黑暗妖精頭箍":30,"黑暗妖精鱗甲":60,"黑暗妖精涼鞋":30,"哈維戒指":3,"古代神射臂甲":30,"古代鬥士臂甲":30,"古老的劍":30,"古老的巨劍":70,"古老的弩槍":30,"古老的金屬盔甲":280,"古老的鱗甲":200,"古老的皮盔甲":180,"古老的長袍":30,"古代神之槍":40,"古代神之斧":40,"古代黑暗妖精之劍":20,"古代妖精弩槍":30,"隱藏的魔族之劍":35,"隱藏的魔族弓箭":35,"隱藏的魔族魔杖":35,"隱藏的魔族鋼爪":35,"隱藏的魔族鎖鏈劍":35,"隱藏的魔族奇古獸":35,"泰坦皮帶":50,"古代巨人戒指":50,"黑曜石奇古獸":10,"冥想奇古獸":35,"共鳴奇古獸":35,"寒冰奇古獸":35,"藍寶石奇古獸":10,"幻術士魔杖":15,"幻術士法書":30,"幻術士斗篷":10,"龍騎士雙手劍":80,"消滅者鎖鏈劍":50,"破滅者鎖鏈劍":50,"嗜血者鎖鏈劍":50,"共鳴鎖鏈劍":80,"寒冰鎖鏈劍":80,"龍鱗臂甲":30,"龍騎士斗篷":18,"底比斯歐西里斯弓":5,"底比斯歐西里斯雙刀":30,"底比斯歐西里斯雙手劍":100,"底比斯歐西里斯魔杖":100,"底比斯歐西里斯腰帶":50,"底比斯賀洛斯戒指":5,"底比斯阿努比斯戒指":5,"試煉斧頭":100,"大匠的斧頭":50,"戰士團頭盔":30,"戰士團斗篷":15,"神聖執行團的頭盔":30,"神聖執行團的斗篷":15,"魔物的斧頭":100,"鐵斧頭":100,"巨人的斧頭":100,"歐林的項鍊":1,"西瑪戒指":1,"黃金權杖":50,"紅色斗篷":10,"君主的威嚴":10,"守護者的戒指":3,"冰之女王魅力頭飾":10,"冰之女王魅力禮服":30,"冰之女王魅力涼鞋":30,"寒冰頭盔":45,"寒冰盔甲":100,"寒冰長靴":45,"破壞雙刀":40,"破壞鋼爪":35,"血紅慾望短劍":20,"榮耀之劍":50,"短刀":50,"海賊彎刀":60,"深淵雙刀":20,"漆黑水晶球":15,"寂靜十字弓":50,"信念之盾":50,"藍海賊長靴":15,"藍海賊頭巾":15,"藍海賊皮盔甲":150,"藍海賊手套":15,"藍海賊斗篷":10,"詛咒的紅色耳環":1,"詛咒的藍色耳環":1,"詛咒的綠色耳環":1,"淨化之耳環":15,"冰之女王的耳環 Lv0":5,"冰之女王的耳環 Lv1":5,"冰之女王的耳環 Lv2":5,"冰之女王的耳環 Lv3":5,"冰之女王的耳環 Lv4":5,"冰之女王的耳環 Lv5":5,"冰之女王的耳環 Lv6":5,"冰之女王的耳環 Lv7":5,"冰之女王的耳環 Lv8 力量":5,"冰之女王的耳環 Lv8 敏捷":5,"冰之女王的耳環 Lv8 智力":5,"冰之女王的耳環 Lv8 體質":5,"冰之女王的耳環 Lv8 精神":5,"冰之女王的耳環 Lv8 魅力":5,"受詛咒的鑽石戒指":1,"受詛咒的紅寶石戒指":1,"受詛咒的藍寶石戒指":1,"受詛咒的綠寶石戒指":1,"智慧耳環":3,"真實耳環":3,"支配耳環":3,"憤怒耳環":3,"勇猛耳環":3,"不死耳環":3,"熱情耳環":3,"名譽耳環":3,"寬容耳環":3,"舞動耳環":15,"雙子耳環":15,"慶典耳環":15,"絕頂耳環":15,"暴走耳環":15,"幻魔耳環":15,"族群耳環":15,"奴隸耳環":15,"尖刺雙刀":30,"武官之刃":120,"武官斗篷":9,"黑暗手套":10,"真．冥皇執行劍":100,"風刃短劍":60,"紅影雙刀":50,"獸王鋼爪":70,"聖晶魔杖":60,"魔力戒指":3,"力量戒指":3,"敏捷戒指":3,"知識戒指":3,"火精靈的皮帶":50,"水精靈的皮帶":50,"地精靈的皮帶":50,"風精靈的皮帶":50,"神意長靴":15,"勇氣長靴":15,"賽菲亞長靴":15,"瑪那長靴":15};
+const ITEM_WEIGHTS = {"混沌之刺":10,"混沌頭盔":5,"混沌斗篷":5,"混沌法袍":15,"混沌手套":5,"死亡斗篷":10,"死亡盔甲":100,"死亡手套":5,"死亡之盾":20,"惡魔王矛":20,"惡魔王雙刀":20,"惡魔王雙手劍":40,"惡魔王魔杖":20,"惡魔王弓":10,"亞連":10,"武士刀":40,"長劍":40,"斧":60,"雙手劍":150,"屠龍劍":180,"騎士范德之劍":100,"釘錘":30,"弓":30,"矛":80,"戰斧":120,"巴迪須":120,"柴刀":120,"精靈弓":30,"歐西斯弓":30,"闊劍":70,"木棒":30,"精靈匕首":10,"歐西斯匕首":10,"匕首":10,"貝卡合金":100,"法丘":60,"弗萊爾":15,"闊矛":75,"吉薩":80,"戟":150,"槍":180,"露西錘":150,"戰錘":50,"流星錘":120,"帕提森":80,"彎刀":40,"侏儒鐵斧":280,"精靈之矛":30,"歐西斯之矛":30,"小侏儒短劍":40,"精靈短劍":20,"歐西斯短劍":30,"短劍":30,"三叉戟":25,"瑟魯基之劍":120,"尤米弓":40,"短弓":20,"十字弓":50,"獵人之弓":30,"熾炎天使弓":25,"紅騎士之劍":40,"侵略者之劍":40,"骰子匕首":10,"大馬士革刀":45,"短劍的劍身":20,"長劍的劍身":30,"奧里哈魯根的劍身":35,"細劍":60,"鎖子甲破壞者":40,"銀長劍":50,"銀劍":40,"橡木魔法杖":15,"美基魔法杖":20,"巫術魔法杖":15,"力量魔法杖":15,"瑪那魔杖":15,"水晶魔杖":15,"失去魔力的巴列斯魔杖":15,"巴列斯魔杖":15,"潘的角":9,"覆上米索莉的角":24,"覆上奧里哈魯根的角":55,"巨斧":250,"狂戰士斧":200,"銀斧":270,"青銅鋼爪":20,"鋼鐵鋼爪":30,"暗影鋼爪":30,"銀光鋼爪":20,"黑暗鋼爪":20,"幽暗鋼爪":30,"大馬士革鋼爪":40,"青銅雙刀":20,"鋼鐵雙刀":30,"銀光雙刀":20,"幽暗雙刀":30,"黑暗雙刀":20,"暗影雙刀":30,"大馬士革雙刀":40,"黑暗十字弓":30,"幽暗十字弓":40,"魔力短劍":30,"拉斯塔巴德十字弓":70,"拉斯塔巴德弓":50,"小武士刀":30,"拉斯塔巴德長劍":30,"拉斯塔巴德短劍":20,"拉斯塔巴德魔杖":15,"拉斯塔巴德雙刀":40,"拉斯塔巴德重十字弓":100,"拉斯塔巴德矛":80,"拉斯塔巴德圓盾":50,"武官雙手劍":150,"武官手套":45,"武官長靴":54,"黑暗腰帶":40,"精靈皮盔":3,"歐西斯頭盔":30,"侏儒鐵盔":40,"頭盔":30,"騎士面甲":40,"抗魔法頭盔":35,"艾爾穆的祝福":13,"治癒魔法頭盔":50,"敏捷魔法頭盔":50,"力量魔法頭盔":50,"皮帽子":10,"銀釘皮帽":20,"皮頭盔":30,"骷髏頭盔":30,"鋼鐵頭盔":50,"法師之帽":20,"死亡騎士頭盔":50,"木乃伊王的王冠":20,"精靈敏捷頭盔":13,"精靈體質頭盔":13,"紅騎士頭巾":20,"巴土瑟之帽":20,"卡士柏之帽":20,"馬庫爾之帽":20,"西瑪之帽":20,"克特頭盔":50,"金屬盔甲":450,"水晶盔甲":350,"青銅盔甲":450,"藤甲":400,"皮甲":350,"鏈甲":300,"歐西斯鏈甲":300,"鱗甲":250,"銀釘皮甲":150,"環甲":250,"歐西斯環甲":250,"小藤甲":70,"皮夾克":30,"抗魔法鏈甲":300,"綿質長袍":10,"木甲":80,"精靈護胸金屬板":100,"精靈金屬盔甲":250,"精靈鏈甲":150,"木製的夾克":40,"皮背心":30,"皮盔甲":50,"銀釘皮背心":130,"硬皮背心":150,"骷髏盔甲":150,"鋼鐵金屬盔甲":470,"法師長袍":60,"水龍鱗盔甲":300,"地龍鱗盔甲":300,"火龍鱗盔甲":300,"風龍鱗盔甲":300,"死亡騎士盔甲":250,"黑長者長袍":30,"克特盔甲":250,"T恤":5,"精靈T恤":5,"精靈斗篷":10,"歐西斯斗篷":10,"侏儒斗篷":10,"保護者斗篷":10,"隱身斗篷":10,"抗魔法斗篷":10,"瑪那斗篷":10,"短統靴":10,"長靴":15,"巴列斯長靴":10,"皮涼鞋":8,"銀釘皮涼鞋":10,"皮長靴":10,"鋼鐵長靴":50,"深水長靴":15,"死亡騎士長靴":15,"黑長者涼鞋":10,"克特長靴":15,"手套":10,"水晶手套":20,"腕甲":10,"力量手套":18,"鋼鐵手套":40,"死亡騎士手套":15,"影子手套":10,"影子面具":10,"影子長靴":10,"拉斯塔巴德皮盔甲":70,"拉斯塔巴德長靴":10,"黑暗斗篷":20,"拉斯塔巴德長袍":30,"克特手套":15,"保護者手套":10,"小盾牌":30,"精靈盾牌":50,"阿克海盾牌":50,"大盾牌":100,"侏儒圓盾":100,"反射之盾":50,"伊娃之盾":50,"塔盾":120,"木盾":25,"銀騎士之盾":100,"皮盾牌":25,"銀釘皮盾":35,"骷髏盾牌":30,"紅騎士盾牌":50,"鋼鐵盾牌":140,"魔法能量之書":20,"傳送控制戒指":3,"變形控制戒指":3,"召喚控制戒指":3,"地靈戒指":3,"水靈戒指":3,"風靈戒指":3,"火靈戒指":3,"抗魔戒指":3,"滅魔戒指":3,"多羅戒指":3,"守護戒指":3,"長者戒指":3,"力量項鍊":5,"敏捷項鍊":5,"體質項鍊":5,"智力項鍊":5,"精神項鍊":5,"妖魔戰士項鍊":5,"守護項鍊":3,"長老項鍊":3,"抗魔項鍊":3,"老舊的身體腰帶":50,"老舊的精神腰帶":50,"老舊的靈魂腰帶":50,"身體腰帶":50,"精神腰帶":50,"靈魂腰帶":50,"多羅皮帶":50,"歐吉皮帶":50,"勇敢皮帶":50,"光明身體腰帶":50,"光明精神腰帶":50,"光明靈魂腰帶":50,"守護皮帶":50,"抗魔皮帶":50,"魔獸軍王之爪":100,"巴蘭卡鋼爪":40,"武官頭盔":45,"巴蘭卡頭盔":50,"武官護鎧":180,"巴蘭卡盔甲":450,"巴蘭卡手套":5,"魔獸軍王長靴":30,"巴蘭卡長靴":10,"冥法軍王斗篷":10,"法令軍王長袍":20,"暗殺軍王手套":25,"血色巨劍":160,"黑暗之劍":100,"紅水晶魔杖":60,"神官頭飾":18,"神官法袍":45,"黑暗披肩":20,"神官長靴":18,"神官斗篷":9,"神官手套":18,"死亡騎士的烈炎之劍":40,"克特之劍":40,"巨蟻女皇的金翅膀":1,"巨蟻女皇的銀翅膀":1,"暗殺軍王之痕":20,"神官魔杖":70,"蕾雅魔杖":15,"神官魔法書":27,"冥法軍王之戒":5,"蕾雅長袍":30,"蕾雅項鍊":5,"法令軍王之鍊":5,"蕾雅戒指":1,"冰之女王魔杖":20,"惡魔鐮刀":10,"魅力項鍊":5,"艾莉絲項鍊":5,"梅杜莎盾牌":80,"水晶短劍":45,"潔尼斯戒指":1,"地屬性斗篷":20,"水屬性斗篷":20,"火屬性斗篷":20,"風屬性斗篷":20,"黑暗長靴":15,"黑暗頭飾":5,"幻象眼魔的心眼":50,"馬昆斯斗篷":15,"銀光斗篷":30,"巫妖斗篷":30,"惡魔盔甲":250,"惡魔頭盔":50,"惡魔手套":15,"惡魔長靴":15,"暗黑雙刀":40,"暗黑鋼爪":40,"暗黑十字弓":50,"死神之手":30,"地靈手套":18,"風靈手套":18,"水靈手套":18,"火靈手套":18,"曼波帽子":10,"曼波外套":10,"金屬蜈蚣皮盔甲":250,"黑暗棲林者盔甲":30,"黑暗棲林者長靴":10,"黑虎皮斗篷":5,"狼皮斗篷":5,"熊戒指":3,"深淵戒指":3,"米索莉短劍":50,"奧里哈魯根短劍":50,"深紅長矛":100,"惡魔斧頭":180,"復仇之劍":40,"恨之鋼爪":30,"惡魔之劍":40,"惡魔雙刀":40,"惡魔鋼爪":30,"惡魔十字弓":30,"失去魔力的巴風特魔杖":15,"巴風特魔杖":15,"巴風特盔甲":30,"炎魔的血光斗篷":10,"墮落斗篷":10,"墮落長袍":25,"墮落手套":18,"墮落長靴":10,"黑燄之劍":50,"赤焰之弓":30,"赤焰之劍":40,"瑪那水晶球":50,"死亡之指":20,"獵犬之牙":60,"鋼鐵之牙":50,"破滅之牙":150,"勝利之牙":100,"守護者臂甲":30,"法師臂甲":30,"體力臂甲":30,"巨劍":150,"牛人斧頭":250,"沙哈之弓":30,"風之頭盔":50,"黑暗妖精頭箍":30,"黑暗妖精鱗甲":60,"黑暗妖精涼鞋":30,"哈維戒指":3,"古代神射臂甲":30,"古代鬥士臂甲":30,"古老的劍":30,"古老的巨劍":70,"古老的弩槍":30,"古老的金屬盔甲":280,"古老的鱗甲":200,"古老的皮盔甲":180,"古老的長袍":30,"古代神之槍":40,"古代神之斧":40,"古代黑暗妖精之劍":20,"古代妖精弩槍":30,"隱藏的魔族之劍":35,"隱藏的魔族弓箭":35,"隱藏的魔族魔杖":35,"隱藏的魔族鋼爪":35,"隱藏的魔族鎖鏈劍":35,"隱藏的魔族奇古獸":35,"泰坦皮帶":50,"古代巨人戒指":50,"黑曜石奇古獸":10,"冥想奇古獸":35,"共鳴奇古獸":35,"寒冰奇古獸":35,"藍寶石奇古獸":10,"幻術士魔杖":15,"幻術士法書":30,"幻術士斗篷":10,"龍騎士雙手劍":80,"消滅者鎖鏈劍":50,"破滅者鎖鏈劍":50,"嗜血者鎖鏈劍":50,"共鳴鎖鏈劍":80,"寒冰鎖鏈劍":80,"龍鱗臂甲":30,"龍騎士斗篷":18,"底比斯歐西里斯弓":5,"底比斯歐西里斯雙刀":30,"底比斯歐西里斯雙手劍":100,"底比斯歐西里斯魔杖":100,"底比斯歐西里斯腰帶":50,"底比斯賀洛斯戒指":5,"底比斯阿努比斯戒指":5,"試煉斧頭":100,"大匠的斧頭":50,"戰士團頭盔":30,"戰士團斗篷":15,"神聖執行團的頭盔":30,"神聖執行團的斗篷":15,"魔物的斧頭":100,"鐵斧頭":100,"巨人的斧頭":100,"歐林的項鍊":1,"西瑪戒指":1,"黃金權杖":50,"紅色斗篷":10,"君主的威嚴":10,"守護者的戒指":3,"冰之女王魅力頭飾":10,"冰之女王魅力禮服":30,"冰之女王魅力涼鞋":30,"寒冰頭盔":45,"寒冰盔甲":100,"寒冰長靴":45,"破壞雙刀":40,"破壞鋼爪":35,"血紅慾望短劍":20,"榮耀之劍":50,"短刀":50,"海賊彎刀":60,"深淵雙刀":20,"漆黑水晶球":15,"寂靜十字弓":50,"信念之盾":50,"藍海賊長靴":15,"藍海賊頭巾":15,"藍海賊皮盔甲":150,"藍海賊手套":15,"藍海賊斗篷":10,"詛咒的紅色耳環":1,"詛咒的藍色耳環":1,"詛咒的綠色耳環":1,"淨化之耳環":15,"冰之女王的耳環 Lv0":5,"冰之女王的耳環 Lv1":5,"冰之女王的耳環 Lv2":5,"冰之女王的耳環 Lv3":5,"冰之女王的耳環 Lv4":5,"冰之女王的耳環 Lv5":5,"冰之女王的耳環 Lv6":5,"冰之女王的耳環 Lv7":5,"冰之女王的耳環 Lv8 力量":5,"冰之女王的耳環 Lv8 敏捷":5,"冰之女王的耳環 Lv8 智力":5,"冰之女王的耳環 Lv8 體質":5,"冰之女王的耳環 Lv8 精神":5,"冰之女王的耳環 Lv8 魅力":5,"受詛咒的鑽石戒指":1,"受詛咒的紅寶石戒指":1,"受詛咒的藍寶石戒指":1,"受詛咒的綠寶石戒指":1,"智慧耳環":3,"真實耳環":3,"支配耳環":3,"憤怒耳環":3,"勇猛耳環":3,"不死耳環":3,"熱情耳環":3,"名譽耳環":3,"寬容耳環":3,"舞動耳環":15,"雙子耳環":15,"慶典耳環":15,"絕頂耳環":15,"暴走耳環":15,"幻魔耳環":15,"族群耳環":15,"奴隸耳環":15,"尖刺雙刀":30,"武官之刃":120,"武官斗篷":9,"黑暗手套":10,"真．冥皇執行劍":100,"風刃短劍":60,"紅影雙刀":50,"獸王鋼爪":70,"聖晶魔杖":60,"魔力戒指":3,"力量戒指":3,"敏捷戒指":3,"知識戒指":3,"火精靈的皮帶":50,"水精靈的皮帶":50,"地精靈的皮帶":50,"風精靈的皮帶":50,"神意長靴":15,"勇氣長靴":15,"賽菲亞長靴":15,"瑪那長靴":15,"石製手套":50,"酷寒之矛":80,"雷雨之劍":40,"藍色鋼鐵瑪那魔杖":30,"紅色鋼鐵瑪那魔杖":30};
 // 🪆 魔法娃娃重量（spec 各 重量1）：以 Object.assign 補進，免動上方巨型字面
 // ⚡ 元素施放傳說武器重量
 Object.assign(ITEM_WEIGHTS, {"雷神之鎚":40,"帕格里奧之怒":40,"馬普勒的懲罰":50,"歐西斯衝撞錘":50,"伊娃的責罵":40});
@@ -1616,27 +1669,38 @@ Object.assign(ITEM_WEIGHTS, {"幽光的殘念":40,"殘冰的死亡氣息":60,"�
 Object.assign(ITEM_WEIGHTS, {"黑法師的修身褲":30,"變種蛇女的詭異鱗片":50,"海賊骷髏的陳年頭巾":30,"海賊的統御之戒":3,"巨人戰士的牙籤":50,"巨人的拋投石":50,"紅色妖鬼的詛咒指甲":10,"詛咒鎧甲的備用刀":20,"眼魔的凝視":15,"蠅災的詛咒":3,"純白虎皮大衣":350,"雪怪的大腳":15,"百變的透明內衣":5,"資深殘兵的重型劍":150,"刺針":50,"荊棘纏身的詛咒":30,"石化雞蛇的凝視":80});   // 🏺 遺物 第七批重量（依名稱·v3.1.18）
 Object.assign(ITEM_WEIGHTS, {"月下狂嘯":50,"施毒者的實驗瓶":15,"孵育螞蟻精華":15});   // 🏺 遺物 第八批重量（依名稱·v3.1.21）
 Object.assign(ITEM_WEIGHTS, {"阿魯巴的加速棍棒":10,"灰燼戰士的火焰長劍":40,"不死將軍的珍愛巨劍":150,"不動的鋼鐵堅壁":450,"掠奪者的染血腰帶":50,"暗黑蠍的雙鉗":40,"遺忘者的狙擊弓":30,"佈滿箭矢的毛皮":5,"邪惡蜥蜴的眼瞳":15,"烈焰射手的護腕":5});   // 🏺 遺物 第九批重量（依名稱·v3.1.28）
+Object.assign(ITEM_WEIGHTS, {"之爪":0,"之眼":0,"之血":0,"之肉":0,"之心":0,"之骨":0,"之牙":0,"之鱗":0});   // 🦴 席琳遺骸 8 部位（依名稱·spec 重量 0·v3.1.68）
 Object.assign(ITEM_WEIGHTS, {"擅自改造的十字弓":50,"蛇妖的無慈悲尾刺":120,"沉默的毒液":80,"魅惑之心":30,"劍客的輕便內衣":5});   // 🏺 遺物 第十批重量（依名稱·v3.1.32）
 Object.assign(ITEM_WEIGHTS, {"纏繞炎球":15,"毒液化身":130,"黑夜狼人的駿腿":10,"牛頭怪的殘暴巨斧":130,"食人妖精的緩衝肚":150});   // 🏺 遺物 第十一批重量（依名稱·v3.1.33）
 Object.assign(ITEM_WEIGHTS, {"火熱愛意":15,"無所畏懼的突擊":35,"灼熱蜥蜴長舌":5,"火焰化身的外皮":150,"殺人蜂的尾刺":30,"暴走兔最愛的胡蘿蔔":5,"寒冷化身的堅軀":150,"改造便利箭筒":10,"士兵的榮譽勳章":30,"邪惡寶箱內的遺物":5,"上古蜘蛛之爪":120,"火焰環繞的腰帶":10,"雷光加護的頭飾":10,"鎧甲守衛的笨重巨劍":120,"幻夢的火炎靈魂":10,"剝落的厚重冰石":150,"紅蠍尾環戒":5,"詛咒三頭獸的犄角":30,"光束強化魔杖":30});   // 🏺 遺物 第五批新增重量（依名稱·v3.1.52·19 件）
 Object.assign(ITEM_WEIGHTS, {"提卡爾杰弗雷庫尖牙":1,"提卡爾杰弗雷庫之眼":1});   // 🐍 提卡爾雙 BOSS 傳說項鍊（v3.1.62·原材料改為傳說飾品）
+Object.assign(ITEM_WEIGHTS, {"黑法師項鍊":5,"喚獸師項鍊":5,"黑法師之杖":15,"黑法師長袍":30,"喚獸師長袍":30});   // 🧙 v3.1.77 稽核中#13：黑法師/喚獸師 5 件掉落裝備補重量（比照蕾雅項鍊5/蕾雅魔杖15/蕾雅長袍30）
 Object.assign(ITEM_WEIGHTS, {"提卡爾庫庫爾坎之矛":100,"提卡爾庫庫爾坎鐵手甲":100,"提卡爾庫庫爾坎之盾":30,"提卡爾庫庫爾坎面具":5,"阿茲特的反光石":5,"阿茲特的折射寶石":5,"艾庫尤卡的吹箭":50,"艾庫尤卡的永續箭筒":10,"艾庫卡伊拉的毒牙":30,"艾庫卡伊拉的華麗兜帽":30,"沾滿鱗粉的飛翼":10,"毒蛾的赤紅眼球":30,"艾庫艾托的鞭笞藤":100,"艾庫艾托的枯竭魔杖":70,"特產易碎泥偶":130,"祭祀儀式陶罐":50,"阿茲特獻祭亡靈":10,"薩德司卡石護臂":50,"薩德提歐的玩具鎚":120,"薩德提歐的笨重足跡":120,"蛇神的倒勾獠牙":100,"蛇神的凝視":1});   // 🐍 提卡爾 4 傳說裝+18 遺物重量（依名稱·v3.1.56）
+Object.assign(ITEM_WEIGHTS, {"處刑人的護身斧":100,"處刑者的串刺刑具":100,"傑克的彈弓":20,"永不終止的夢魘":15,"無頭騎士的餘火":10,"歷練的警衛粗布手套":30,"黑虎的雙尾鞭":50,"束縛犬的控制鎖鏈":5,"守門人的破舊履":10,"漆黑的瑪那水晶球":50,"漆黑鬃毛長大衣":250,"耗弱精神的惡夢":5,"地之牙的殘核":15,"風之牙的微風":15,"水之牙的淚滴":15,"火之牙的餘燼":15,"馴獸師的訓狗棒":30,"治癒者的恢復魔棒":50,"魅魔女皇的誘惑":30,"來自陰影的刺劍":30,"風化的巨型方尖碑":200,"奪魂者雙刃劍":40,"格利芬的輕柔羽翼":5,"牛頭人的流星鎚":120,"精氣流動的腰帶":20,"思克巴女皇的熱情魔杖":70,"幽光的思念":3,"巫師的黑暗魔導書":20});   // 🏺 遺物 第十三批重量（依名稱·v3.1.80·28 件）
 Object.assign(ITEM_WEIGHTS, {"魔法娃娃：雪人":1,"魔法娃娃：野狼寶寶":1,"魔法娃娃：史巴托":1,"魔法娃娃：奎斯坦修":1,"魔法娃娃：稻草人":1,"魔法娃娃：蛇女":1,"魔法娃娃：肥肥":1,"魔法娃娃：希爾黛斯":1,"魔法娃娃：石頭高崙":1,"魔法娃娃：長老":1,"魔法娃娃：雪怪":1,"魔法娃娃：亞力安":1,"魔法娃娃：美人魚":1,"魔法娃娃：小思克巴":1,"魔法娃娃：巨人":1,"魔法娃娃：王子":1,"魔法娃娃：公主":1,"魔法娃娃：男騎士":1,"魔法娃娃：女騎士":1,"魔法娃娃：男妖精":1,"魔法娃娃：女妖精":1,"魔法娃娃：男法師":1,"魔法娃娃：女法師":1,"魔法娃娃：男黑暗妖精":1,"魔法娃娃：女黑暗妖精":1,"魔法娃娃：男龍騎士":1,"魔法娃娃：女龍騎士":1,"魔法娃娃：男幻術士":1,"魔法娃娃：女幻術士":1,"魔法娃娃：思克巴女皇":1,"魔法娃娃：阿魯巴":1,"魔法娃娃：墮落":1,"魔法娃娃：變形怪":1,"魔法娃娃：飛龍":1,"魔法娃娃：莫提斯":1,"魔法娃娃：黑長者":1,"魔法娃娃：獨眼巨人":1,"魔法娃娃：艾莉絲":1,"魔法娃娃：木乃伊王":1,"魔法娃娃：死亡騎士":1,"魔法娃娃：巴風特":1,"魔法娃娃：吸血鬼":1,"魔法娃娃：克特":1,"魔法娃娃：冰之女王":1,"魔法娃娃：巴蘭卡":1,"魔法娃娃：巫妖":1,"魔法娃娃：安塔瑞斯":1,"魔法娃娃：法利昂":1,"魔法娃娃：林德拜爾":1,"魔法娃娃：巴拉卡斯":1});
 function getLoadColor(tier){ return ['text-white','text-yellow-400','text-orange-400','text-red-500'][tier||0]; }
 // 🪆 取目前裝備之魔法娃娃的某 % 欄位值（expBonus/goldBonus/potionBonus…；未裝娃娃→0）
 function dollFieldVal(field){ let e = player.eq && player.eq.doll; let dd = e ? DB.items[e.id] : null; return (dd && dd[field]) || 0; }
 
-// ===== 🔧 強化系統：上限與分段加成（武器+15 / 防具+15 / 飾品+5）=====
+// ===== 🔧 強化系統：上限與分段加成（武器+20 / 防具+15 / 飾品+5）=====
 //  +0~+10 維持原本「每階 +1」線性；+11 起在「+10 的量」之上再加下表（表值＝超過 +10 的額外部分）。
-//  名稱一律顯示 +N（夾擠至上限：武器+15/防具+15/飾品+5；過往超過上限資料以上限顯示與套用，見 getItemFullName / capEn）。
-//  ⚠️ v3.0.75 用戶：武器上限 +20→+15，既有 >+15 武器一律以 +15 計（顯示 capEn／能力 capWpnEn／最終傷害倍率 enhanceWpnFinalMult 皆已夾至此上限；loadGame 另做一次性實體降級）。
-const ENHANCE_CAP = { wpn: 30, arm: 20, acc: 15 };
+//  名稱一律顯示 +N（夾擠至上限：武器+20/防具+15/飾品+5；過往超過上限資料以上限顯示與套用，見 getItemFullName / capEn）。
+const ENHANCE_CAP = { wpn: 20, arm: 15, acc: 5 };
 function enhanceCap(d) { return (d && ENHANCE_CAP[d.type]) || 10; }                          // 依物品類型取強化上限
 function isMaxEnhanced(item) { let d = DB.items[item.id]; return !!d && (Number(item.en) || 0) >= enhanceCap(d); }
 // 🏺 遺物判定（單一真相）：relic:true。維持 wpn/arm/acc 型別（供 equipCatKey 分類·遺物圖鑑）但用此旗標排除 強化/祝福/賦予/潘朵拉，並套海藍色。
 function isRelic(d) { return !!(d && d.relic); }
 // 🏺 遺物「夥伴專屬命中」加成：掃玩家所有裝備欄，回傳 partnerHit[petName] 總和（哈士奇的骨棒：夥伴哈士奇 命中+6）。
 function _relicPartnerHit(petName) { if (!petName || typeof player === 'undefined' || !player || !player.eq) return 0; let s = 0; for (let k in player.eq) { let e = player.eq[k]; if (!e) continue; let dd = DB.items[e.id]; if (dd && dd.partnerHit && dd.partnerHit[petName]) s += dd.partnerHit[petName]; } return s; }
+// 🏺 v3.1.80 馴獸師的訓狗棒：隊伍（玩家＋非倒地傭兵）任一人裝備 petSkillDmgMult → 項圈夥伴 proc 技能傷害 ×N（多件不疊加·取最高）
+function _relicPetSkillMult() {
+    let m = 1;
+    try {
+        let _scan = function (c) { if (!c || !c.eq) return; for (let k in c.eq) { let e = c.eq[k]; if (!e) continue; let dd = DB.items[e.id]; if (dd && dd.petSkillDmgMult) m = Math.max(m, dd.petSkillDmgMult); } };
+        if (typeof player !== 'undefined' && player) { _scan(player); (player.allies || []).forEach(function (a) { if (a && !a._downed) _scan(a); }); }
+    } catch (e) {}
+    return m;
+}
 // 🔧 強化值上限夾擠：凡「隨強化提升」的基本能力與特效（額外傷害/命中、MP自然恢復、吸取MP、觸發機率、特效傷害…）
 //    一律以淬鍊上限計算——武器超過 +15 以 +15 計、防具超過 +15 以 +15 計、飾品超過 +5 以 +5 計。
 function capEn(en, d) { return Math.min(Math.max(0, Number(en) || 0), enhanceCap(d)); }
@@ -1681,21 +1745,20 @@ function sanitizeState() {
 }
 // 武器強化 → { dmg:額外傷害, hit:額外命中 }
 //  +0~+10：每階 額外傷害+1、額外命中+1（線性）。
-//  +11~+20：取消額外傷害加成（額外傷害維持在 +10 的量＝10）；額外命中沿用「累積」（在 +10 之上再加下表）；
+//  +11~+30：取消額外傷害加成（額外傷害維持在 +10 的量＝10）；額外命中沿用「累積」（在 +10 之上再加下表）；
 //           傷害成長改由「最終傷害倍率」提供（enhanceWpnFinalMult，非累加、取該階段數值）。
-const WPN_EN_HIT_OVER10 = { 11:1, 12:2, 13:4, 14:6, 15:8, 16:11, 17:14, 18:17, 19:21, 20:25, 21:30, 22:35, 23:40, 24:46, 25:52, 26:58, 27:65, 28:72, 29:80, 30:88 };   // +11~+30 額外命中（超過 +10 的「累加」量）
+const WPN_EN_HIT_OVER10 = { 11:1, 12:2, 13:4, 14:6, 15:8, 16:11, 17:14, 18:17, 19:21, 20:25, 21:29, 22:33, 23:37, 24:41, 25:45, 26:49, 27:53, 28:57, 29:61, 30:65 };   // +11~+30 額外命中（超過 +10 的「累加」量；每階增量 1,1,2,2,2,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4 逐級累加 → 總命中 +11/+12/+14/+16/+18/+21/+24/+27/+31/+35/+39/+43/+47/+51/+55/+59/+63/+67/+71/+75）
 function enhanceWpnBonus(en) {
     en = Math.max(0, Number(en) || 0);
     let base = Math.min(en, 10);                                                            // +10 以內：每階 +1
     let hitOver = (en > 10) ? (WPN_EN_HIT_OVER10[Math.min(en, 30)] || 0) : 0;               // +11~+30：額外命中累積
-    return { dmg: Math.min(en, 30), hit: base + hitOver };                                  // 🔧 額外傷害每階+1、全程延伸到+20（原+10封頂取消）；額外命中+1~+10後依表續加（最高總+35@+20）
+    return { dmg: Math.min(en, 30), hit: base + hitOver };                                  // 🔧 額外傷害每階+1、全程延伸到+30；額外命中+1~+10後依表續加（最高總+75@+30）
 }
 // 武器強化 → 最終傷害倍率（一般物理攻擊）；+1~+20「取該階段數值」（非累加），+0 為 1.0
-// 基準曲線（最高檔）：+1 ×1.02（平緩）→ +10 ×1.37 → +20 ×2.50（爆發）；總數值 100→250 對應的倍率（總數值/100）。
+// 基準曲線（最高檔）：+1 ×1.02（平緩）→ +10 ×1.37 → +20 ×2.50；總數值 100→250 對應的倍率。
 const WPN_EN_FINALMULT = {
     1:1.02, 2:1.04, 3:1.06, 4:1.09, 5:1.12, 6:1.15, 7:1.19, 8:1.24, 9:1.30, 10:1.37,
-    11:1.45, 12:1.53, 13:1.62, 14:1.72, 15:1.83, 16:1.95, 17:2.08, 18:2.21, 19:2.35, 20:2.50,
-    21:2.66, 22:2.83, 23:3.01, 24:3.20, 25:3.40, 26:3.61, 27:3.83, 28:4.06, 29:4.30, 30:4.55
+    11:1.45, 12:1.53, 13:1.62, 14:1.72, 15:1.83, 16:1.95, 17:2.08, 18:2.21, 19:2.35, 20:2.50
 };
 // 🔧 v2.6.65：+20 上限依「潘朵拉權重」分五級（曲線形狀相同·bonus 部分等比縮放）
 //    分級用「未加倍」權重：js/14 initGachaWeights 對權重≥50 一律×2（提高低稀有度出現率）→ runtime≥100 者先還原÷2 再分級
@@ -1715,11 +1778,10 @@ function wpnEnCurveMax(def) {
 }
 function enhanceWpnFinalMult(en, def) {
     en = Math.max(0, Number(en) || 0);
-    if (en < 1) return 1;
-    let base = WPN_EN_FINALMULT[Math.min(en, ENHANCE_CAP.wpn)] || 1;   // 🔧 v3.0.75 最終傷害倍率也夾到武器上限(+15)：>+15 一律用 +15 的倍率
-    let mx = wpnEnCurveMax(def);
-    if (mx === 2.5) return base;                 // 最高檔＝基準曲線原值
-    return Math.round((1 + (base - 1) * (mx - 1) / 1.5) * 100) / 100;   // bonus 等比縮放（+20 恰為 mx·四捨五入至2位）
+    if (en <= 0) return 1;
+    let base = WPN_EN_FINALMULT[Math.min(en, 20)] || 1;
+    let cap = wpnEnCurveMax(def);
+    return Math.min(base, cap);
 }
 function wpnEnFinalMult(wpnInst) { return enhanceWpnFinalMult(wpnInst && wpnInst.en, wpnInst && DB.items[wpnInst.id]); }      // 由武器實例取倍率（未裝備→1）
 
@@ -1755,7 +1817,7 @@ const ATK_AV_BY_CLS = { royal:'王子', knight:'男騎士', elf:'男妖精', mag
 // 🗂️ 武器 → 攻速種類：WEAPON_TAGS 優先，再依旗標（isBow/qigu/chainsword/isWandWeapon），最後名稱後備；結果快取於 def._spdFam
 function atkSpdFamily(id) {
     let d = DB.items[id]; if (!d || d.type !== 'wpn') return null;
-    if (/箭$/.test(d.n || '')) return null;   // 箭矢（箭/銀箭/米索莉箭/沙哈之箭·type:wpn 但裝於箭矢欄·非揮擊武器）
+    if (d.isArrow || /箭$/.test(d.n || '')) return null;   // 箭矢（箭/銀箭/米索莉箭/沙哈之箭／🏺 改造便利箭筒 isArrow·type:wpn 但裝於箭矢欄·非揮擊武器）
     if (d._spdFam) return d._spdFam;
     let tg = (typeof getWeaponTags === 'function') ? getWeaponTags(id) : [], n = d.n || '', fam = null;
     if (tg.includes('雙刀')) fam = '雙刀';
@@ -1794,18 +1856,18 @@ function enhanceArmAc(en) {
     return Math.max(0, Number(en) || 0);   // 每 +1 固定 AC−1
 }
 
-// ===== 🏛️ 傳統模式（獨立開關，可與經典模式並用）=====
+// ===== 🏛️ 傳統模式（可單獨開啟，或與經典模式並用：創角的傳統勾選與經典互相獨立）=====
 //  傳統模式：所有裝備無強化選項（隱藏強化／快速強化），怪物不掉落＋黑市不販售施法卷軸；
 //  取而代之——怪物掉落／潘朵拉黑市／製作 的武器/防具/飾品會「隨機自帶已強化值」（商店購買恆 +0）。
 function traditionalActive(){ return !!(player && player.traditionalMode); }
 function tradNoScrolls(){ return traditionalActive() && !!(player && player.classicMode); }
 const TRAD_NO_SCROLLS = { scroll_weapon:1, scroll_armor:1, scroll_acc:1, scroll_weapon_b:1, scroll_armor_b:1, scroll_weapon_c:1, scroll_armor_c:1 };
 const TRAD_EN_TABLES = {
-    wpn6: [[30,1],[29,1],[28,1],[27,1],[26,2],[25,2],[24,3],[23,4],[22,5],[21,7],[20,9],[19,11],[18,13],[17,15],[16,17],[15,19],[14,21],[13,23],[12,25],[11,27],[10,29],[9,31],[8,33],[7,35],[6,45],[5,47],[4,47],[3,47],[2,47],[1,47],[0,46]],
-    wpn0: [[30,1],[29,1],[28,1],[27,1],[26,2],[25,2],[24,3],[23,4],[22,5],[21,7],[20,9],[19,11],[18,13],[17,15],[16,17],[15,19],[14,21],[13,23],[12,25],[11,27],[10,29],[9,31],[8,33],[7,35],[6,37],[5,39],[4,41],[3,43],[2,45],[1,47],[0,151]],
-    arm6: [[20,1],[19,1],[18,2],[17,3],[16,5],[15,7],[14,9],[13,11],[12,13],[11,15],[10,17],[9,19],[8,21],[7,23],[6,30],[5,30],[4,30],[3,30],[2,30],[1,30],[0,246]],
-    arm4: [[20,1],[19,1],[18,2],[17,3],[16,5],[15,7],[14,9],[13,11],[12,13],[11,15],[10,17],[9,19],[8,21],[7,23],[6,25],[5,27],[4,37],[3,37],[2,37],[1,37],[0,243]],
-    arm0: [[20,1],[19,1],[18,2],[17,3],[16,5],[15,7],[14,9],[13,11],[12,13],[11,15],[10,17],[9,19],[8,21],[7,23],[6,25],[5,27],[4,29],[3,31],[2,33],[1,35],[0,301]],
+    wpn6: [[20,1],[19,3],[18,5],[17,7],[16,8],[15,10],[14,12],[13,13],[12,15],[11,17],[10,18],[9,20],[8,22],[7,23],[6,45],[5,47],[4,47],[3,47],[2,47],[1,47],[0,46]],
+    wpn0: [[20,1],[19,3],[18,5],[17,7],[16,8],[15,10],[14,12],[13,13],[12,15],[11,17],[10,18],[9,20],[8,22],[7,23],[6,25],[5,27],[4,28],[3,30],[2,32],[1,33],[0,151]],
+    arm6: [[15,1],[14,3],[13,5],[12,7],[11,8],[10,10],[9,12],[8,13],[7,15],[6,30],[5,30],[4,30],[3,30],[2,30],[1,30],[0,246]],
+    arm4: [[15,1],[14,3],[13,5],[12,7],[11,8],[10,10],[9,12],[8,13],[7,15],[6,17],[5,18],[4,37],[3,37],[2,37],[1,37],[0,243]],
+    arm0: [[15,1],[14,3],[13,5],[12,7],[11,8],[10,10],[9,12],[8,13],[7,15],[6,17],[5,18],[4,20],[3,22],[2,23],[1,25],[0,301]],
     acc0: [[5,1],[4,3],[3,5],[2,7],[1,8],[0,476]]
 };
 function _tradEnTableFor(d){

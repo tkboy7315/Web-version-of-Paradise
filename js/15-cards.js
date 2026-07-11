@@ -204,6 +204,7 @@ function cardCollectionBonus(p, d) {
             case 'resEarth': d.resEarth += val; break;
             case 'weight': d._cardWeightBonus += val; break;
         }
+        d.extraHit += tier;   // 🎴 每個地區每階段 +1 額外命中
     }
 }
 
@@ -657,65 +658,3 @@ function renderCardBook() {
 
     host.innerHTML = head + `<div class="flex flex-wrap gap-2 justify-center">${cards || '<div class="text-slate-500 p-8">此地區暫無可收集的怪物。</div>'}</div>`;
 }
-
-// ===== 🔍 掉落查詢系統：輸入物品名稱 → 顯示掉落怪物 → 點怪物顯示地區 =====
-(function() {
-    var _idx = {};
-    for (var _mn in MOB_DROPS) {
-        var _dr = MOB_DROPS[_mn], _mp = CARD_MOB_MAPS[_mn] || [], _rg = CARD_MOB_REGIONS[_mn] || [];
-        for (var _i = 0; _i < _dr.length; _i++) {
-            var _ik = _dr[_i][0];
-            if (!_idx[_ik]) _idx[_ik] = [];
-            _idx[_ik].push({ mobN: _mn, rate: _dr[_i][1], maps: _mp });
-        }
-    }
-    var _mnMap = {};
-    if (typeof MAP_REGIONS !== 'undefined') {
-        for (var _r = 0; _r < MAP_REGIONS.length; _r++) {
-            var _ms = MAP_REGIONS[_r].maps;
-            for (var _m = 0; _m < _ms.length; _m++) _mnMap[_ms[_m].v] = _ms[_m].t;
-        }
-    }
-    function _dqLocStr(maps) {
-        if (!maps || maps.length === 0) return '未知地區';
-        var seen = {}, parts = [];
-        for (var i = 0; i < maps.length; i++) {
-            var n = _mnMap[maps[i]] || maps[i];
-            if (!seen[n]) { seen[n] = 1; parts.push(n); }
-        }
-        return parts.join('、');
-    }
-    window.execDropQuery = function() {
-        var inp = document.getElementById('dq-input');
-        if (!inp) return;
-        var q = inp.value.trim();
-        if (!q) return;
-        var found = [];
-        for (var k in DB.items) {
-            var it = DB.items[k];
-            if (it.n.indexOf(q) >= 0) {
-                var mobs = _idx[k];
-                if (mobs && mobs.length > 0) found.push({ itemKey: k, itemN: it.n, mobs: mobs });
-            }
-        }
-        var c = document.getElementById('dq-results');
-        if (!c) return;
-        if (found.length === 0) { c.innerHTML = '<div class="text-slate-400 text-sm">沒有找到相符的掉落物品。</div>'; return; }
-        var h = '<div class="text-slate-400 text-xs mb-1">找到 ' + found.length + ' 項物品</div>';
-        for (var i = 0; i < found.length; i++) {
-            var f = found[i], rows = '', itemColor = DB.items[f.itemKey] && DB.items[f.itemKey].c ? DB.items[f.itemKey].c : 'text-amber-300';
-            for (var j = 0; j < f.mobs.length; j++) {
-                var mob = f.mobs[j], uid = 'dql_' + i + '_' + j;
-                rows += '<div class="flex items-center gap-1 py-0.5">';
-                rows += '<span class="text-slate-300 cursor-pointer hover:text-yellow-300 text-xs" onclick="document.getElementById(\'' + uid + '\').classList.toggle(\'hidden\')">' + mob.mobN + '</span>';
-                rows += '<span class="text-slate-600 text-xs">(' + mob.rate + '%)</span>';
-                rows += '<span id="' + uid + '" class="hidden text-emerald-400 text-xs ml-1">← ' + _dqLocStr(mob.maps) + '</span>';
-                rows += '</div>';
-            }
-            h += '<div class="bg-slate-800/80 rounded p-1.5 mb-1 border-l-2 border-amber-600">';
-            h += '<div class="' + itemColor + ' font-bold text-xs mb-0.5">' + f.itemN + '</div>';
-            h += rows + '</div>';
-        }
-        c.innerHTML = h;
-    };
-})();

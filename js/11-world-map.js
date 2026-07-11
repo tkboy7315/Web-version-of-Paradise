@@ -1059,7 +1059,6 @@ function renderBianAttr(el) {
         </div>`;
 }
 function ismaelBuyAcc() {
-    if (tradNoScrolls()) { alert('🏛️ 經典＋傳統模式無法購買施法卷軸。'); return; }   // 🏛️ 縱深防護：僅經典+傳統封鎖（伊賽馬利在該模式已隱藏，不可達）；一般+傳統可購買，與可見性閘 tradNoScrolls 及 gainItem 一致
     if (!ismaelAccAvailable()) { alert('本次購買額度已用完，攻城獲勝後可再購買 1 張。'); return; }
     if (player.gold < 1000000) { alert(`金幣不足（需 1,000,000，目前 ${player.gold.toLocaleString()}）。`); return; }
     player.gold -= 1000000;
@@ -1522,7 +1521,7 @@ function interactNPC(npcId, townId) {
         renderJoelCraft(contentDiv, npc.id);
     } else if (npc.id === 'npc_runde' || npc.id === 'npc_kang' || npc.id === 'npc_brudica') {   // 🔧 黑暗妖精限定試煉（仿瑞奇/甘特，而非製作）
         renderDarkTrial(contentDiv, npc.id);
-    } else if (['npc_nalien', 'npc_rekne', 'npc_narupa', 'npc_elfqueen', 'npc_elf', 'npc_ent', 'npc_pan', 'npc_moliya', 'npc_hector', 'npc_herbert', 'npc_lumiel', 'npc_ibelbin', 'npc_tas', 'npc_robinson', 'npc_kupu', 'npc_lentis', 'npc_upni', 'npc_bamut', 'npc_flame_shadow', 'npc_imp', 'npc_flame_smith', 'npc_norse', 'npc_keluya', 'npc_dytite', 'npc_bartel', 'npc_pir', 'npc_zeus_golem', 'npc_rabiani', 'npc_david', 'npc_flame_aide', 'npc_kororanz', 'npc_sebas'].includes(npc.id)) {
+    } else if (['npc_nalien', 'npc_rekne', 'npc_narupa', 'npc_elfqueen', 'npc_elf', 'npc_ent', 'npc_pan', 'npc_moliya', 'npc_hector', 'npc_herbert', 'npc_lumiel', 'npc_ibelbin', 'npc_tas', 'npc_robinson', 'npc_kupu', 'npc_lentis', 'npc_upni', 'npc_bamut', 'npc_flame_shadow', 'npc_imp', 'npc_flame_smith', 'npc_norse', 'npc_keluya', 'npc_dytite', 'npc_bartel', 'npc_pir', 'npc_zeus_golem', 'npc_rabiani', 'npc_david', 'npc_flame_aide', 'npc_kororanz', 'npc_sebas', 'npc_mystic_mage'].includes(npc.id)) {
         renderUniversalCraft(contentDiv, npc.id);
     } else if (npc.id === 'npc_digallatin') {
         renderDigallatin(contentDiv);
@@ -1563,6 +1562,10 @@ function interactNPC(npcId, townId) {
         renderIsmaelExchange(contentDiv);
     } else if (npc.id === 'npc_sherine') {
         renderSherinePray(contentDiv);
+    } else if (npc.id === 'npc_io') {
+        renderIoExchange(contentDiv);   // 🦴 v3.1.68 伊奧：席琳結晶兌換遺骸
+    } else if (npc.id === 'npc_lachesis') {
+        renderLachesisSplit(contentDiv);   // 🦴 v3.1.68 菈克希絲：穿著裝備拆分席琳詞綴→遺骸
     } else if (npc.id === 'npc_han') {
         renderHanNPC(contentDiv);
     } else if (npc.id === 'npc_kent_guard') {

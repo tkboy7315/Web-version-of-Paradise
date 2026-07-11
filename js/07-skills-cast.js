@@ -1,3 +1,28 @@
+function isMageSummonMastered(sm, owner) {
+    return !!(sm && owner && owner.mastery === 'm_summon' && (sm.skId === 'sk_zombie' || sm.skId === 'sk_summon'));
+}
+function summonAttackCount(sm, owner) {
+    owner = owner || player;
+    let cha = Math.min(60, (owner.d && owner.d.cha) || 0);
+    if(sm.kind === 'melee') return 1 + Math.floor(cha / 20);
+    if(owner.mastery === 'e_spirit' && (sm.skId === 'sk_elf_summon' || sm.skId === 'sk_elf_summon2')) return Math.min(4, 1 + Math.floor(cha / 20));
+    return 1;
+}
+function summonDamageMult(sm, owner, magicBased) {
+    let magicDmg = Math.min(12, Math.max(0, (owner.d && owner.d.magicDmg) || 0));
+    let mult = (sm.dmgMult || 1) * (1 + magicDmg / (magicBased ? 40 : 80));
+    if(isMageSummonMastered(sm, owner)) mult *= 1.20;
+    return mult;
+}
+function summonHitValue(sm, owner, target, gearHit) {
+    let cha = (owner.d && owner.d.cha) || 0;
+    let growth = Math.floor((owner.lv || 1) * 0.75 + cha * 0.35);
+    let masteryHit = isMageSummonMastered(sm, owner) ? 5 : 0;
+    let raw = (owner.lv || 1) + (sm.hitLvOff || 0) + growth + masteryHit - target.lv + mobEffAC(target)
+        + (gearHit || 0) + (hasSummonCtrlRing(owner) ? 5 : 0);
+    return stretchHitValue(raw);
+}
+
 function summonAttack(sm, owner) {
     owner = owner || player;   // 🩸 v2.6.25 owner 參數化：owner=player（預設·玩家召喚）或 ally（傭兵召喚）；讀 owner.d.cha/lv/mastery/eq，killMob 仍歸真隊長（不換身）
     if(!sm) return;
@@ -18,30 +43,26 @@ function summonAttack(sm, owner) {
         return;
     }
 
-    // === 魅力召喚物：近戰多段(floor(魅力/6)次) / 屬性精靈(單次遠距) ===
-    // 🏅 精靈精通：屬性精靈/強力屬性精靈 數量＝1+魅力/10（60魅力上限7隻，各自完整攻擊一次）
-    // 🔧 召喚「數量」(段數/隻數) 以魅力 60 封頂；超過 60 只提升下方的傷害與命中，不再增加數量
-    let chaCnt = Math.min(60, cha);
-    let hits = (sm.kind === 'melee') ? Math.max(1, Math.floor(chaCnt / 6))
-        : (((owner.mastery === 'e_spirit') && (sm.skId === 'sk_elf_summon' || sm.skId === 'sk_elf_summon2')) ? Math.min(7, 1 + Math.floor(chaCnt / 10)) : 1);
-    let hitLvOff = sm.hitLvOff || 0;
-    // 🏅 召喚精通：造屍術/召喚術的「傷害與命中判定魅力」改為 魅力×1.2（攻擊段數仍依原魅力）
-    let chaEff = ((owner.mastery === 'm_summon') && (sm.skId === 'sk_zombie' || sm.skId === 'sk_summon')) ? cha * 1.2 : cha;
+    // 魅力每 20 點增加一段完整攻擊（最多4段）；精靈精通同樣以4隻為上限。
+    // 命中另取得等級/魅力成長並走柔性地板，避免中後期怪物AC使召喚物長期只剩5%命中。
+    let hits = summonAttackCount(sm, owner);
     for(let i = 0; i < hits; i++) {
         if(t.curHp <= 0) break;
-        // 命中值 = 召喚者等級 + 偏移 + 魅力 - 目標等級 + 目標AC（d20）
-        let hv = Math.max(1, Math.min(20, owner.lv + hitLvOff + chaEff - t.lv + mobEffAC(t) + _sgb.hit + (hasSummonCtrlRing(owner) ? 5 : 0)));   // 🔧 召喚控制戒指：召喚物命中+5；🏺 喚獸師鞭 +命中
+        let hv = summonHitValue(sm, owner, t, _sgb.hit);
         let r = roll(1, 20);
         if(!((r === 20) || (r !== 1 && hv >= r) || (r === 19 && hasSummonCtrlRing(owner)))) { logCombat(`${sm.n} 的攻擊未命中。`, 'miss'); continue; }
         let dmg;
         if(sm.kind === 'ranged') {
             let flat = Math.floor(cha * owner.lv / (sm.elemScale || 20));   // 屬性精靈：魅力 x (等級/scale)
-            dmg = summonElementDamage(sm.dmgDice, sm.ele, t, flat + _sgb.dmg);
+            let mrPen = (sm.mrPenBase || 0) + Math.floor(cha / 10);
+            dmg = summonElementDamage(sm.dmgDice, sm.ele, t, flat + _sgb.dmg, summonDamageMult(sm, owner, true), mrPen);
             t.justHit = sm.ele !== 'none' ? sm.ele : 'magic';
         } else {
-            let flatBase = chaEff / (sm.dmgDiv || 5);                          // 近戰固定加成基底 = 魅力/dmgDiv（🏅 召喚精通 ×1.2）
+            let flatBase = cha / (sm.dmgDiv || 5);
             let flat = sm.dmgLvDiv ? Math.floor(flatBase * (1 + owner.lv / sm.dmgLvDiv)) : Math.floor(flatBase);   // 造屍術等具 dmgLvDiv：再乘上 (1+召喚者等級/dmgLvDiv)
-            dmg = Math.max(1, roll(sm.dmgDice[0], sm.dmgDice[1]) + flat + _sgb.dmg - (t.dr || 0) - mobHardSkin(t));   // 🔧 硬皮：額外物理減傷（召喚物近戰；但不消磨硬皮值）；🏺 喚獸師鞭 +傷害
+            let hardSkin = Math.floor(mobHardSkin(t) * (1 - (sm.hardSkinPen || 0)));
+            let raw = (roll(sm.dmgDice[0], sm.dmgDice[1]) + flat + _sgb.dmg) * summonDamageMult(sm, owner, false);
+            dmg = Math.max(1, Math.floor(raw) - (t.dr || 0) - hardSkin);
             t.justHit = 'normal';
         }
         t.curHp -= dmg; mobWake(t);
@@ -58,14 +79,25 @@ function summonTick(sm, clearFn, owner) {
         clearFn(); return;
     }
     if(--sm.cd <= 0) { sm.cd = sm.interval; summonAttack(sm, owner); }
-    // 觸發技：每 5 秒(50 tick)判定一次，傷害 = roll(骰子)+魅力
+    // 高階召喚物技能固定間隔施放；召喚精通使間隔縮短15%。
     if(sm.proc) {
+        let procCd = Math.max(1, Math.floor(sm.proc.cd * (isMageSummonMastered(sm, owner) ? 0.85 : 1)));
+        if(sm.proc.cdCur > procCd) sm.proc.cdCur = procCd;   // 已召喚後才選精通時，剩餘冷卻立即套用縮短效果
         if(--sm.proc.cdCur <= 0) {
-            sm.proc.cdCur = sm.proc.cd;
+            sm.proc.cdCur = procCd;
             let t = getTarget();
             if(t && Math.random() < sm.proc.p) {
                 let cha = (owner.d && owner.d.cha) || 0;
-                let pd = summonElementDamage(sm.proc.dmgDice, sm.proc.ele, t, cha, Math.max(1, Math.floor(cha / 6)));   // 觸發技：(roll+魅力) x floor(魅力/6)
+                let procFlat = cha + Math.floor((owner.lv || 1) / 2);
+                let pd;
+                if(sm.proc.ele && sm.proc.ele !== 'none') {
+                    let mrPen = (sm.mrPenBase || 0) + Math.floor(cha / 10);
+                    pd = summonElementDamage(sm.proc.dmgDice, sm.proc.ele, t, procFlat, summonDamageMult(sm, owner, true), mrPen);
+                } else {
+                    let hardSkin = Math.floor(mobHardSkin(t) * (1 - (sm.hardSkinPen || 0)));
+                    let raw = (roll(sm.proc.dmgDice[0], sm.proc.dmgDice[1]) + procFlat) * summonDamageMult(sm, owner, false);
+                    pd = Math.max(1, Math.floor(raw) - (t.dr || 0) - hardSkin);
+                }
                 t.curHp -= pd; t.justHit = sm.proc.ele !== 'none' ? sm.proc.ele : 'magic';
                 logCombat(`${sm.n} 發動 ${sm.proc.name}，額外造成 ${pd} 點傷害。`, 'magic');
                 let idx = mapState.mobs.findIndex(m => m && m.uid === t.uid);
@@ -131,8 +163,9 @@ function illuSummonTick(owner) {
     owner._illuCd = owner._illuCd || {};
     let d = owner.d || {};
     for (let sid in MAP) {
-        // 🩸 v2.6.26 玩家：需該幻覺 buff 生效；傭兵：學過該技即產生幻象（stat aura 由隊長 teamIlluAura 提供·故不吃自身 buff·避免雙套）
-        let _active = (owner === player) ? ((owner.buffs[sid] || 0) > 0) : !!(owner.skills && owner.skills.includes(sid));
+        // 🔮 v3.2.2 玩家與傭兵統一：需該幻覺 buff 生效才召幻象（原傭兵「學過即召」＝隊伍面板關掉也照打·開關名不符實）。
+        //    傭兵現可於隊伍面板勾選自動維持幻覺（_isMercSelfBuff 已放行 illuSummon）；未勾＝無 buff＝不召幻象、也不提供光環。
+        let _active = (owner.buffs && (owner.buffs[sid] || 0) > 0);
         if (!_active) { owner._illuCd[sid] = 0; continue; }
         let c = MAP[sid];
         if ((owner._illuCd[sid] = (owner._illuCd[sid] || c.iv) - 1) > 0) continue;
@@ -163,6 +196,7 @@ function manualCast(skId) {
     let sk = DB.skills[skId];
     if(!sk || !player.skills.includes(skId)) return;
     if(inAbsBarrier()) { logSys('絕對屏障期間與世界隔絕，無法行動。'); return; }   // 🛡️ 屏障中不得手動施放任何技能（含本技能再施放）
+    if(player.statuses && (player.statuses.silence > 0 || player.statuses.magicseal > 0)) { logSys('你被沉默／魔法封印，無法施放魔法。'); return; }   // 🤐 v3.1.77 稽核中#10：手動施放補沉默/魔法封印閘（castSkillInner 有、原手動沒有→沉默中可傳送逃脫）
     // 傳送術：行動限制狀態（石化／麻痺／冰凍／暈眩）無法手動施放
     if(sk.mEff === 'teleport' && player.statuses &&
        (player.statuses.stone > 0 || player.statuses.paralyze > 0 || player.statuses.freeze > 0 || player.statuses.stun > 0 || player.statuses.sleep > 0)) {
@@ -284,12 +318,13 @@ function castSkillInner(skId) {
     let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && (needLv === undefined || player.lv < needLv)) return false;
-    //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符 🔓 四屬性解除
-    //if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性 🔓 四屬性解除
+    // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
 
     // 🔧 黑暗妖精：會心一擊（消耗 HP 50% + 剩餘所有 MP；傷害 = 重擊一般攻擊(無視硬皮)×爆擊×(消耗MP佔上限%×10)；對血盟 x2）
     if (sk.darkCrit) {
         let _t = getTarget(); if (!_t || _t.curHp <= 0) return false;
+        if (player.cds.atkSk > 0) return false;   // ⚔️ v3.1.77 稽核中#11：比照其他攻擊技吃攻擊技冷卻（原分支位於冷卻閘之前＝唯一不受冷卻的 atk 技）
+        if ((player.mp || 0) <= 0) return false;   // 🩸 v3.1.77 稽核中#11：MP=0 時倍率為 0 → 燒半血只打 1 點且不觸發 castLock 可反覆自殘·必須有 MP 才施放
         if (player.hp <= player.mhp * 0.5) return false;   // HP 不足以負擔代價
         let mult = (player.mmp > 0 ? player.mp / player.mmp : 0) * 10;   // 100%MP→×10、50%→×5
         player.hp = Math.max(1, Math.floor(player.hp - player.mhp * 0.5));
@@ -304,6 +339,7 @@ function castSkillInner(skId) {
         logCombat(`<span class="font-bold" style="color:#f0abfc;text-shadow:0 0 8px #d946ef;">【會心一擊】</span>對 <span class="${getMobColor(_t.lv)}">${_t.n}</span> 造成 ${dmg} 點致命傷害！`, 'player-crit');
         let _i = mapState.mobs.findIndex(m => m && m.uid === _t.uid);
         if (_t.curHp <= 0) { if (_i !== -1) killMob(_i); } else renderMobs();
+        player.cds.atkSk = getAutoCastInterval();   // ⚔️ v3.1.77 稽核中#11：施放後進入攻擊技冷卻（比照其他 atk 技）
         calcStats(); updateUI(); return true;
     }
 
@@ -370,7 +406,7 @@ function castSkillInner(skId) {
         if(sk.hot) {
             if(player.hots && player.hots[skId] && player.hots[skId].ticksLeft > 0) return false;  // 🍃 該技能團隊 HoT 已在持續中→不重複(防自動施放洗版/耗MP)；不同技能(生命的祝福/體力回復術)可並存、同技能後放取代先放
             player.mp -= cost;
-            applyTeamHot(skId, sk, player.d);   // 🍃 施放時全隊(玩家＋全體傭兵)持續回復
+            applyTeamHot(skId, sk, player.d, player);   // 🍃 施放時全隊(玩家＋全體傭兵)持續回復；🏺 v3.1.80 傳施放者供 hotHealMult 快照
             player.cds.healSk = getAutoCastInterval();  // 🔧 HoT 不再把共用治癒冷卻鎖到結束：重複施放已由上方守衛擋住；長鎖會餓死其他自動治癒（高級治癒術/生命之泉等）
             logCombat(`施放 ${sk.n}，全隊開始持續回復 HP。`, 'heal');
             return true;
@@ -506,10 +542,8 @@ function castSkillInner(skId) {
                 if (state.ticks - _reqWpnWarnAt > 600) { _reqWpnWarnAt = state.ticks; logSys(`<span class="text-slate-400">${sk.n} 需要「雙手（非弓）武器」，目前武器不符，已暫停施放。</span>`); }   // 🛡️ 審計#15：原本靜默不施放零提示→每 60 秒提示一次
                 return false;
             }
-            // 三重矢：必須裝備弓
+            // 三重矢：必須裝備弓（🧹 v3.1.79 大掃除：移除 reqWpn 'nonbow' 死閘——全技能無此值·衝擊之暈實際用 'w2h'·原註解誤導）
             if(sk.reqWpn === 'bow' && (!player.eq.wpn || !DB.items[player.eq.wpn.id].isBow)) return false;
-            // 衝擊之暈：必須裝備弓以外的武器（需有武器，且非弓）
-            if(sk.reqWpn === 'nonbow' && (!player.eq.wpn || DB.items[player.eq.wpn.id].isBow)) return false;
             let wpn = player.eq.wpn ? DB.items[player.eq.wpn.id] : null;
             let arrowData = null;
 
@@ -537,7 +571,7 @@ function castSkillInner(skId) {
                 if(!res.hit) { hitsLog.push('Miss'); continue; }
                 landed++;
                 if(sk.skillAddDmg) res.dmg = Math.max(1, res.dmg + sk.skillAddDmg);   // ⚔️ 衝擊之暈：一般攻擊傷害 +10
-                if(skId === 'sk_elf_triple' && wpn && wpn.fullHpMultTriple && t.curHp === t.hp) res.dmg = Math.max(1, Math.floor(res.dmg * wpn.fullHpMultTriple));   // 🏺 遺忘者的狙神弓：三重矢對滿血 ×2
+                if(skId === 'sk_elf_triple' && wpn && wpn.fullHpMultTriple && t.curHp === t.hp) res.dmg = Math.max(1, Math.floor(res.dmg * wpn.fullHpMultTriple));   // 🏺 遺忘者的狙擊弓：三重矢對滿血敵人傷害 ×2（僅第一箭·命中後 curHp 已降·gate skId 避免衝擊之暈共用此迴圈時誤觸）
                 // 🔮 紅獅 5/5 已於 getPhysicalDmg 內套用（避免重複），此處不再乘
                 // 遠距離物理技能命中滿血被動怪物，賦予 3 秒延遲（整段只觸發一次）
                 if(!delayDone && t.curHp === t.hp && t.beh === '被動' && res.ranged) { t._delayTicks = 30; delayDone = true; }
@@ -713,23 +747,9 @@ function castSkillInner(skId) {
         if(sk.reqWpnBlunt && (!player.eq.wpn || !(getWeaponTags(player.eq.wpn.id).includes('單手鈍器') || getWeaponTags(player.eq.wpn.id).includes('雙手鈍器')))) return false;   // ⚔️ 戰斧投擲：須裝備單手／雙手鈍器
         if(sk.reqShield && !player.eq.shield && !(player.eq.wpn && getWeaponTags(player.eq.wpn.id).includes('武士刀'))) return false;   // 武士刀：免盾亦可施展
         if(sk.summon) { setupSummon(skId, sk); player.mp -= cost; calcStats(); return true; }
-        // 淨化類：無對應可解除的負面狀態則不施放
-        if(skId === 'sk_antidote' || skId === 'sk_holy_light' || skId === 'sk_cancel') {
-            let _purifyOk = (skId === 'sk_antidote') ? (player.statuses.poison > 0)
-                : (skId === 'sk_holy_light') ? (player.statuses.stone > 0 || player.statuses.paralyze > 0)
-                : (player.statuses.freeze > 0 || player.statuses.stone > 0 || player.statuses.poison > 0 || player.statuses.paralyze > 0 || player.statuses.burn > 0 || player.statuses.scald > 0);
-            if(!_purifyOk) return false;
-        }
-        if(skId === 'sk_cancel') {
-            player.statuses.freeze = 0; player.statuses.stone = 0; player.statuses.poison = 0; player.statuses.paralyze = 0; player.statuses.burn = 0; player.statuses.scald = 0;
-        } else if(skId === 'sk_antidote') {
-            player.statuses.poison = 0;
-        } else if(skId === 'sk_holy_light') {
-            player.statuses.stone = 0; player.statuses.paralyze = 0;
-        } else {
-            player.buffs[skId] = sk.dur;
-            if(sk.awaken && player.mastery !== 'k_awaken') { ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].forEach(_ak => { if(_ak !== skId) player.buffs[_ak] = 0; }); }   // 🐉 覺醒互斥：非覺醒精通時同時只能維持一種覺醒
-        }
+        // 🧹 v3.1.79 大掃除：移除不可達的舊版淨化分支（sk_antidote/sk_holy_light/sk_cancel 的 type 皆為 'heal'→一律在上方 heal 淨化分支處理並 return·永遠到不了本 buff 分支；現行規則＝teamCleanseOne 一次只解一人·舊分支「只解玩家自身」語意已過時）
+        player.buffs[skId] = sk.dur;
+        if(sk.awaken && player.mastery !== 'k_awaken') { ['sk_dragon_awaken_antares','sk_dragon_awaken_falion','sk_dragon_awaken_baraka'].forEach(_ak => { if(_ak !== skId) player.buffs[_ak] = 0; }); }   // 🐉 覺醒互斥：非覺醒精通時同時只能維持一種覺醒
         if(sk.haste) player.buffs.haste = Math.max(player.buffs.haste || 0, sk.dur); // 加速術 → 套用 haste 效果
         player.mp -= cost;
         if(sk.hpCost) player.hp = Math.max(1, player.hp - effHpCost(sk));  // 消耗 HP（冥想術/堅固防護/隱身術；🐉 龍血精通減半）
@@ -743,10 +763,12 @@ function castSkillInner(skId) {
 // 🍃 團隊 HoT（生命的祝福 / 體力回復術）單一真相：施放時登錄「全隊持續回復」到 player.hots[skId]。
 //   ・player.hots 為 dict(skId→HoT 實例)→不同技能可並存；同 skId 後放覆蓋先放（取代/刷新）。
 //   ・dStats＝施法者衍生值(玩家 player.d 或傭兵 ally.d)→spCoef 由施法者魔法傷害決定；每 interval 於 js/03 tick 對「玩家＋全體非倒地傭兵」各回復一次。
-function applyTeamHot(skId, sk, dStats) {
+function applyTeamHot(skId, sk, dStats, caster) {
     if (!player.hots) player.hots = {};
     let mDmg = (dStats && dStats.magicDmg) || 0;
-    player.hots[skId] = { skId: skId, healDice: sk.healDice, healBase: sk.healBase, valDice: sk.valDice, magicDmg: mDmg, spCoef: 1 + (3 * mDmg / 16), interval: sk.hot.interval, ticksLeft: sk.hot.ticks, cd: sk.hot.interval, skName: sk.n, msg: sk.msg };
+    let _hm = 1;   // 🏺 v3.1.80 治癒者的恢復魔棒：施放者（玩家或傭兵）持有 hotHealMult 武器 → 此 HoT 每跳回復 ×N（施放時快照·中途換武器不影響已存在的 HoT）
+    try { let _cw = caster && caster.eq && caster.eq.wpn && DB.items[caster.eq.wpn.id]; if (_cw && _cw.hotHealMult) _hm = _cw.hotHealMult; } catch (e) {}
+    player.hots[skId] = { skId: skId, healDice: sk.healDice, healBase: sk.healBase, valDice: sk.valDice, magicDmg: mDmg, spCoef: 1 + (3 * mDmg / 16), interval: sk.hot.interval, ticksLeft: sk.hot.ticks, cd: sk.hot.interval, skName: sk.n, msg: sk.msg, healMult: _hm };
 }
 function autoActions() {
     let hpPct = (player.hp / player.mhp) * 100;

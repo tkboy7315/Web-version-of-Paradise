@@ -1,5 +1,5 @@
 function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
-    // 🏛️ 僅「經典+傳統」任何來源都不產生施法卷軸（武器/盔甲/飾品＋祝福/詛咒變體）——掉落／黑市／歐西里斯寶箱／血盟入盟禮／兌換等全擋；一般+傳統照常產生（供克里斯特→賦予祝福）
+    // 🏛️ 傳統模式：經典+傳統 抑制施法卷軸（所有來源）
     if (TRAD_NO_SCROLLS[id] && tradNoScrolls()) return null;
     // 卷軸變祝福／詛咒機率：各 1%（互斥）
     if (!forceNormal && (id === 'scroll_weapon' || id === 'scroll_armor')) {
@@ -38,32 +38,15 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
         // 詞綴：怪物掉落/製作走新制(單1%/雙0.1%/三0.01%)；潘朵拉/血盟(affixOld=true)沿用舊制(各1%)。箭矢不附加。
         let _af = affixOld ? rollAffixesOld() : rollAffixesNew();
         attr = _af.attr; bless = _af.bless; anc = _af.anc;
-        if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
-        // 🏛️ 傳統模式：遠古系 4 種變體（遠古/永恆/不朽/太初）各自獨立 0.5%，複數命中取最後一種
-        if (traditionalActive() && !anc) {
-            [['tradanc_base',true],['tradanc_eternal','eternal'],['tradanc_immortal','immortal'],['tradanc_primordial','primordial']]
-                .forEach(p => { if (lootRng(p[0]) < 0.005) anc = p[1]; });
-        }
+        if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此裝備詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
     }
 
-    // 🔮 席琳套裝效果：指定部位（武器/頭盔/盔甲/手套/長靴/斗篷/腰帶）※項鍊已改為腰帶
-    //  - 席琳的世界擊殺掉落：一般怪0.1%、恩賜怪0.5%、頭目5%（9 組均勻抽一；🔮 瘋狂的席琳世界再 ×3）
-    //  - 席琳製作（_forceSherineSet）：必定附帶隨機一種
+    // 🔮 席琳套裝詞綴：⚠️v3.1.68 起「不再出現於裝備上」——原掉落擲骰(0.1%/0.5%/5%)與席琳製作(_forceSherineSet)附加皆停用。
+    //   套裝效果改由「席琳遺骸」承載（gainSherineRemains·killMob 掉落／NPC 伊奧兌換／菈克希絲拆分）；
+    //   既有裝備上的舊詞綴保留顯示（名稱前綴/資訊欄）但不再計入套裝件數（recomputeStats 只掃遺骸欄）。
     let seteff = false;
-    if (d) {
-        let _slotOk = sherineSetEligible(d);
-        if (_slotOk && _sherineLootCtx && lootRng('setdrop') < (_sherineLootCtx.boss ? 0.05 : (_sherineLootCtx.grace ? 0.005 : 0.001)) * (_sherineLootCtx.mad ? 3 : 1)) {   // 🎲 committed RNG
-            seteff = SHERINE_EFFECTS[Math.floor(lootRng('setpick') * SHERINE_EFFECTS.length)];
-            logSys(`<span class="c-sherine font-bold">✦ 掉落的裝備蘊含著席琳的祝福：【${seteff}】！</span>`);
-        }
-        if (_slotOk && !seteff && _forceSherineSet) {
-            seteff = SHERINE_EFFECTS[Math.floor(lootRng('setpick') * SHERINE_EFFECTS.length)];
-            logSys(`<span class="c-sherine font-bold">✦ 席琳結晶引導出套裝效果：【${seteff}】！</span>`);
-        }
-    }
 
-    // 🏛️ 傳統模式：掉落／黑市／製作的「裝備」隨機自帶強化值（_tradLootCtx 期間；商店 forceNormal=true 不設→恆 +0；箭矢/材料/消耗品不套）
-    let _tEn = (_tradLootCtx && !forceNormal && d && !d.noEnhance && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && traditionalActive()) ? rollTraditionalEnhance(d) : 0;
+    let _tEn = (_tradLootCtx && !forceNormal && d && !d.noEnhance && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && traditionalActive()) ? rollTraditionalEnhance(d) : 0;   // 🏛️ 傳統模式：掉落／黑市／製作的「裝備」隨機自帶強化值（_tradLootCtx 期間；商店 forceNormal=true 不設→恆 +0；箭矢/材料/消耗品不套；無法強化的裝備 noEnhance 恆 +0）
     let _probe = { id: id, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
     let ex = player.inv.find(i => sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（itemSig 已含 en→+0 只併 +0、+3 只併 +3，永不誤併不同強化值）；🏛️ 傳統自帶強化：同名同強化值同詞綴自動疊加（移除原 en>0 不疊加限制）
     if(ex) ex.cnt += cnt;   // 不論是否鎖定都疊加；僅加數量、不更動既有堆疊的鎖定/廢品狀態
@@ -82,6 +65,23 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     try { if (_vfxLootCtx && d && d.gachaWeight === 1 && typeof vfxRareDrop === 'function') vfxRareDrop(d.n); } catch(e){}   // ✨ VFX：潘朵拉權重=1 的稀有掉落金色閃光
     try { if (typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {}   // 🔧 v2.6.73 獲得物品時自動排列背包（每 10 秒最多 1 次·節流在函式內）
     return itemInfo; // 👈 讓拉霸機可以讀取最終產生的物品
+}
+
+// 🦴 v3.1.68 取得席琳遺骸（唯一入口：killMob 掉落／NPC 伊奧兌換／菈克希絲拆分）：
+//   remId＝SHERINE_REMAINS 的物品 id（rem_claw…rem_scale）、group＝席琳詞綴組名（SHERINE_EFFECTS 之一）。
+//   比照 gainItem 的簽章疊加：同部位同詞綴自動疊 cnt（itemSig 已含 seteff→魔女之爪與紅獅之爪分開堆）。
+function gainSherineRemains(remId, group, silent) {
+    let d = DB.items[remId];
+    if (!d || !group) return null;
+    let _probe = { id: remId, en: 0, bless: false, anc: false, attr: false, seteff: group };
+    let ex = player.inv.find(i => sameItemSig(i, _probe));
+    if (ex) ex.cnt += 1;
+    else player.inv.push({ id: remId, uid: uid(), cnt: 1, en: 0, bless: false, anc: false, attr: false, seteff: group, lock: false, junk: false });
+    let itemInfo = { id: remId, cnt: 1, en: 0, bless: false, anc: false, attr: false, seteff: group };
+    if (!silent) logSys(`<span class="c-sherine font-bold">✦ 獲得席琳遺骸：${getItemFullName(itemInfo)}！</span>`);
+    renderTabs();
+    if (typeof auditTrackGain === 'function') auditTrackGain(itemInfo);
+    return itemInfo;
 }
 
 // ===== 🔥 屬性詞綴定義（v3.0.77 屬性強化系統改版：4 屬性 × 5 階，只能存在於武器） =====
@@ -267,13 +267,6 @@ function getItemFullName(item) {
     return `${segs}<span class="${getItemColor(item)}">${en}${setPrefix}${d.n}${cnt}</span>`;
 }
 
-function potionHealBase(d) {
-    if (d.valMin != null && d.valMax != null) {
-        return Math.round(d.valMin + Math.random() * (d.valMax - d.valMin));
-    }
-    return d.val;
-}
-
 function useItem(u, silent = false) {
     let item = player.inv.find(i => i.uid === u);
     if (!item) return;
@@ -338,8 +331,7 @@ function useItem(u, silent = false) {
             let _seteff = _wand.seteff || false;
             item.cnt--; if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);   // 消耗靈魂之球 ×1
             _wand.cnt--; if (_wand.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== _wand.uid);   // 消耗失去魔力魔杖 ×1
-            // 🏛️ 傳統模式：解封印時才為「重獲魔力的魔杖」附加隨機強化值（封印狀態 noEnhance 恆 +0）；一般/經典模式維持 +0（沿用手動強化）。committed RNG（rollTraditionalEnhance 內走 lootRng）防 SL 重抽
-            let _tEn = traditionalActive() ? rollTraditionalEnhance(DB.items[resultId]) : 0;
+            let _tEn = traditionalActive() ? rollTraditionalEnhance(DB.items[resultId]) : 0;   // 🏛️ 傳統模式：解封印時才為「重獲魔力的魔杖」附加隨機強化值（封印狀態 noEnhance 恆 +0）
             let _probe = { id:resultId, en:_tEn, bless:false, anc:false, attr:false, seteff:_seteff };
             let _ex = _tEn > 0 ? null : player.inv.find(i => (i.en||0)===0 && sameItemSig(i, _probe));   // 🏛️ 自帶強化(en>0)獨立成堆、不併入 +0（比照 gainItem）
             if (_ex) _ex.cnt += 1;
@@ -497,9 +489,7 @@ function useItem(u, silent = false) {
         if(reqLv === undefined) { logSys(`你的職業無法學習「${sd.n}」。`); return; }
         if(player.lv < reqLv) { logSys(`等級不足，需要等級 ${reqLv} 才能學習「${sd.n}」。`); return; }
         
-        // 👇 補上這兩行：確保屬性相符才能吃水晶！
-        //if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }  // 🔓 四屬性解除
-        //if(sd.reqEleAny && !player.elfEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }        // 🔓 四屬性解除
+        // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
 
         if(!player.skills.includes(d.sk)) {
             player.skills.push(d.sk);
@@ -560,8 +550,6 @@ const DARK_BLOCK = [
     '神官頭飾','神官法袍','神官長靴','神官斗篷','神官手套',   // 🔧 神官系列：黑暗妖精禁用（僅法師/妖精）
     '巨蟻女皇的金翅膀'   // 🔧 依文本（騎士/妖精）：黑暗妖精禁用（銀翅膀文本含黑暗妖精則可用）
 ];
-// 🔧 既有十字弓白名單：這些（輸入此規則前已存在的）十字弓黑暗妖精照舊可用；其餘/之後新增的十字弓改依文本(req)
-const DARK_XBOW_LEGACY = ['wpn_31', 'wpn_xbow_dark', 'wpn_xbow_gloom', 'wpn_xbow_rasta'];
 function darkEquipOk(d, id) {
     if (!d) return false;
     if (d.type === 'wpn') {
@@ -571,9 +559,10 @@ function darkEquipOk(d, id) {
         let tags = getWeaponTags(id);
         if (tags.includes('匕首') || tags.includes('單手劍') || tags.includes('鋼爪') || tags.includes('雙刀') || tags.includes('武士刀')) return true;   // 🔧 黑暗妖精亦可使用武士刀
         if (d.isBow) {
-            // 🔧 既有十字弓：黑暗妖精照舊可用（沿用通用規則的既有清單）；之後新增的十字弓一律依文本（req 含 dark 才可用）
-            if (DARK_XBOW_LEGACY.includes(id)) return true;
-            return (d.n || '').includes('十字弓') && (d.req || '').includes('dark');
+            // 🖤 v3.2.4 用戶要求：刪除「十字弓通則」（原 DARK_XBOW_LEGACY 白名單＋更早的名稱含十字弓判斷）——弓具可否使用一律逐把由 req 顯式標示。
+            //    req 必須明確列出 dark 才可用（十字弓 wpn_31 已補 dark 保留現狀）；req:'all' 的一般長弓不可用（黑暗妖精不使用長弓·刻意非疏漏）。
+            //    ⚠️新增弓/十字弓要給黑暗妖精＝req 加 dark；不給＝req 不列 dark（部分十字弓如 拉斯塔巴德重十字弓/惡魔十字弓/寂靜十字弓 即不開放）。
+            return typeof d.req === 'string' && d.req !== 'all' && d.req.split(',').includes('dark');
         }
         return false;                                                   // 單手鈍器/雙手鈍器/魔杖/雙手劍/矛 等：禁用
     }
@@ -609,7 +598,7 @@ const DRAGON_WHITELIST = new Set([
     '水晶手套','巴蘭卡手套','墮落手套','武官手套','腕甲','抗魔法頭盔','巴蘭卡頭盔','武官頭盔','精靈皮盔',
     '伊娃之盾','骷髏盾牌','武官之盾','銀釘皮盾','侏儒圓盾','拉斯塔巴德圓盾','大盾牌','反射之盾','梅杜莎盾牌','皮盾牌','木盾','小盾牌','阿克海盾牌','死亡之盾',
     '巨斧','狂戰士斧','戰斧','侏儒鐵斧','銀斧','戰錘','流星錘','木棒','弗萊爾','釘錘','亞連','斧',
-    '古老的劍','惡魔之劍','黑焰之劍','瑟魯基之劍','克特之劍','黑暗之劍','細劍','大馬士革刀','武士刀','拉斯塔巴德長劍','侵略者之劍','精靈短劍','彎刀','長劍','紅騎士之劍','銀長劍','小侏儒短劍','銀劍','奧里哈魯根的劍身','歐西斯短劍','鎖子甲破壞者','闊劍','長劍的劍身','短劍的劍身',
+    '古老的劍','惡魔之劍','黑燄之劍','瑟魯基之劍','克特之劍','黑暗之劍','細劍','大馬士革刀','武士刀','拉斯塔巴德長劍','侵略者之劍','精靈短劍','彎刀','長劍','紅騎士之劍','銀長劍','小侏儒短劍','銀劍','奧里哈魯根的劍身','歐西斯短劍','鎖子甲破壞者','闊劍','長劍的劍身','短劍的劍身',
     '屠龍劍','古老的巨劍','騎士范德之劍','復仇之劍','巨劍','武官雙手劍','雙手劍','血色巨劍'
 ]);
 function dragonEquipOk(d, id) {
@@ -871,6 +860,7 @@ function buyItem(id, qty) {
 
 let activeScroll = null;
 function openEnhanceModal(scroll) {
+    if (traditionalActive()) { logSys('<span class="text-amber-300">🏛️ 傳統模式無法強化裝備。</span>'); return; }
     activeScroll = scroll;
     let targets = Object.values(player.eq).filter(e => e && DB.items[e.id].type === scroll.target && !isMaxEnhanced(e) && !DB.items[e.id].noEnhance);   // 🔧 已達強化上限者不列入；🏛️ 無法強化的裝備（古老系列）不列入
     
@@ -893,7 +883,7 @@ function openEnhanceModal(scroll) {
 }
 
 function doEnhance(targetUid, isEq = true) {
-    if (traditionalActive()) { logSys('<span class="text-amber-300">🏛️ 傳統模式無法強化裝備。</span>'); return; }
+    if (traditionalActive()) return;
     if(!activeScroll) return;
     
     let target, slot;
@@ -1089,16 +1079,13 @@ function renderStatusEffects() {
         if(player.buffs[k] > 0 && DB.skills[k]) {
             // 迷魅術：狀態欄改顯示「迷魅：怪物名稱」，並以實際被迷魅的僕人(player.summon)為準；
             //   僕人不存在（死亡解除 / 被新召喚取代 / 已消失）時就不顯示，避免殘留。
-            // 迷魅術 / 各召喚術：狀態欄改顯示召喚物名稱（近戰召喚附上隨從數字 floor(魅力/6)，為1則不顯示）；
+            // 迷魅術 / 各召喚術：狀態欄改顯示召喚物名稱（多段或多隻時附上數量）；
             //   召喚物不存在（死亡解除 / 被新召喚取代 / 已消失）時就不顯示，避免殘留。
             if(k === 'sk_charm' || DB.skills[k].summon) {
                 let _creature = (k === 'sk_charm') ? player.charmed : player.summon;
                 if(_creature && _creature.skId === k) {
-                    let _chaC = Math.min(60, player.d.cha || 0);
                     let cnt = (k === 'sk_charm') ? 0
-                        : (_creature.kind === 'melee') ? Math.floor(_chaC / 6)
-                        : (hasMastery('e_spirit') && (k === 'sk_elf_summon' || k === 'sk_elf_summon2')) ? Math.min(7, 1 + Math.floor(_chaC / 10))   // 🏅 精靈精通：屬性精靈顯示數量 1+魅力/10（上限7）
-                        : 0;
+                        : (typeof summonAttackCount === 'function') ? summonAttackCount(_creature, player) : 1;
                     let suffix = cnt > 1 ? ` ${cnt}` : '';
                     buffs.push(`<span class="${getBuffColor(k, DB.skills[k])} font-bold">${_creature.n}${suffix}</span>`);
                 }
@@ -1157,7 +1144,7 @@ function _updateUIImpl() {
       // ⚠️ 用「狀態改變才寫 DOM」的守衛：避免每個 tick 重複 toggle class / 設 display 造成按鈕閃爍。
       { let tpb = document.getElementById('btn-teleport'); if (tpb) { let _hideTp = !!(KING_ROOMS[mapState.current] || (typeof prideTeleportBlocked === 'function' && prideTeleportBlocked()) || state.oblivion); if (tpb.classList.contains('hidden') !== _hideTp) { tpb.classList.toggle('hidden', _hideTp); tpb.style.display = _hideTp ? 'none' : ''; } } } }   // ⚠️ _hideTp 必須 !! 強轉布林：否則 (undefined||false||undefined)===undefined → 守衛 (boolean!==undefined) 恆真 → toggle('hidden', undefined) 變成「無參數 bare toggle」每幀翻轉 → 按鈕閃爍
     { let vb = document.getElementById('victory-badge'); if (vb) { let _va = siegeVictoryActive(); vb.style.display = _va ? 'inline-flex' : 'none'; if (_va) vb.title = `攻城獲勝期間：全商店8折、開放${victoryCityCfg().castleName}`; } }   // 攻城獲勝淡金黃標記（inline-flex 讓👑與文字水平置中；🔧 tooltip 依實際獲勝城池動態，不再固定肯特）
-    { let cb = document.getElementById('classic-badge'); if (cb) cb.style.display = player.classicMode ? 'inline' : 'none'; let tb = document.getElementById('traditional-badge'); if (tb) tb.style.display = player.traditionalMode ? 'inline' : 'none'; }   // 🎮 經典／🏛️ 傳統模式標記（兩者獨立：經典+傳統 兩個徽章都顯示；一般+傳統 只顯示傳統）
+    { let cb = document.getElementById('classic-badge'); if (cb) cb.style.display = player.classicMode ? 'inline' : 'none'; let tb = document.getElementById('traditional-badge'); if (tb) tb.style.display = player.traditionalMode ? 'inline' : 'none'; }   // 🎮 經典模式標記／🏛️ 傳統模式標記
     applyAreaBackground();   // 區域背景：地監/攻城→戰鬥區、城堡→村莊畫面
     
     // 處理顯示文字：只顯示 騎士、法師、妖精、黑暗妖精
