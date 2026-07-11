@@ -486,37 +486,99 @@ function playMorphDeathSfx() {   // js/09 玩家變身死亡動作首次觸發�
 //   場景 title(登入)/create(創角畫面)/town(共通安全區)/battle(野外戰鬥)/boss(頭目戰)＋專屬創角職業/城鎮 BGM；音檔位於 assets/bgm/。
 //   缺某場景音檔（或尚未解析完成）→保持目前曲目、不切換。BGM 音量/開關與音效獨立（存 'fb5_bgm'）。
 var _bgmCfg = { on: true, vol: 35 };
-// 🎵 場景：title(標題)/create(創角畫面)/town(共通安全區)/battle(野外)/boss(頭目)＋下列「專屬 BGM 城鎮」(scene key = 城鎮地圖 id·檔名同名)；其餘城鎮皆用共通 'town'。
-var TOWN_BGM_LIST = [
-    'town_silent',        // 沉默洞穴
-    'town_ivory_tower',   // 象牙塔
-    'town_talking',       // 說話之島
-    'town_kent_castle',   // 肯特城（肯特村）
-    'town_elf',           // 妖精森林
-    'town_giran',         // 奇岩
-    'town_heine',         // 海音
-    'town_aden',          // 亞丁
-    'town_oren',          // 歐瑞村
-    'town_gludio',        // 燃柳村
-    'town_silver_knight', // 銀騎士村
-    'town_witon',         // 威頓村
-    'town_pride',         // 傲慢之塔入口
-    'town_windwood_castle', // 風木城堡
-    'town_hyperia',       // 希培利亞村莊
-    'town_behemoth',      // 貝希摩斯
-];
-var TOWN_BGM_TRACKS = { 'town_hyperia': 'music97', 'town_behemoth': 'music99' };
+// 🎵 地圖 BGM 對照表（地圖 id → 曲目檔名）；其餘未列城鎮用共通 'town'、其餘地圖用 battle/boss。
+var MAP_BGM = {
+    // music12 - 說話之島村莊
+    'town_talking': 'music12',
+    // music13 - 妖精森林村莊
+    'town_elf': 'music13',
+    // music16 - 妖精森林周邊
+    'zone_01': 'music16',
+    // music57 - 銀騎士村莊
+    'town_silver_knight': 'music57',
+    // music82 - 銀騎士村周邊／新兵訓練場
+    'silver_knight': 'music82', 'training': 'music82',
+    // music9 - 風木城／肯特城
+    'town_windwood_castle': 'music9', 'town_kent_castle': 'music9',
+    // music52 - 風木周邊
+    'windwood': 'music52',
+    // music18 - 古魯丁周邊
+    'gludio': 'music18',
+    // music32 - 古魯丁地監 1~7F
+    'zone_06': 'music32', 'zone_07': 'music32', 'zone_08': 'music32',
+    'zone_09': 'music32', 'zone_10': 'music32', 'zone_11': 'music32', 'zone_12': 'music32',
+    // music55 - 燃柳村
+    'town_gludio': 'music55',
+    // music14 - 肯特周邊
+    'kent': 'music14',
+    // music23 - 海音城鎮
+    'town_heine': 'music23',
+    // music27 - 海音周邊
+    'heine': 'music27',
+    // music24 - 地下通道 1~3F
+    'zone_34': 'music24', 'zone_35': 'music24', 'zone_36': 'music24',
+    // music36 - 伊娃王國
+    'eva_kingdom': 'music36',
+    // music41 - 亞丁城鎮
+    'town_aden': 'music41',
+    // music22 - 夢幻之島
+    'dream_island': 'music22',
+    // music19 - 龍之谷
+    'dragon_valley': 'music19',
+    // music28 - 威頓村莊
+    'town_witon': 'music28',
+    // music49 - 海賊島村莊
+    'town_pirate_village': 'music49',
+    // music70 - 海賊島周邊
+    'pirate_wild': 'music70',
+    // music54 - 歐瑞村莊
+    'town_oren': 'music54',
+    // music29 - 歐瑞周邊
+    'zone_02': 'music29',
+    // music11 - 象牙塔／象牙塔 4~8F
+    'town_ivory_tower': 'music11',
+    'zone_37': 'music11', 'zone_38': 'music11', 'zone_39': 'music11', 'zone_40': 'music11', 'zone_41': 'music11',
+    // music60 - 暗影神殿
+    'shadow_temple': 'music60',
+    // music61 - 拉斯塔巴德洞穴／拉斯塔巴德正門
+    'rastabad_cave1': 'music61', 'rastabad_cave2': 'music61', 'rastabad_cave3': 'music61',
+    'rastabad_gate': 'music61',
+    // music46 - 魔族神殿
+    'demon_temple': 'music46',
+    // music62 - 傲慢之塔 1F／2~100F
+    'town_pride': 'music62',
+    'pride_2_10': 'music62', 'pride_11_20': 'music62', 'pride_21_30': 'music62',
+    'pride_31_40': 'music62', 'pride_41_50': 'music62', 'pride_51_60': 'music62',
+    'pride_61_70': 'music62', 'pride_71_80': 'music62', 'pride_81_90': 'music62', 'pride_91_100': 'music62',
+    // music92 - 時空裂痕入口
+    'town_rift': 'music92',
+    // music94 - 底比斯沙漠
+    'thebes_desert': 'music94',
+    // music95 - 底比斯金字塔內部
+    'thebes_pyramid': 'music95',
+    // music103 - 底比斯歐西里斯祭壇
+    'thebes_temple': 'music103',
+    // music48 - 古代巨人之墓
+    'giant_tomb': 'music48',
+    // music99 - 貝希摩斯
+    'town_behemoth': 'music99',
+    // music97 - 希培利亞
+    'town_hyperia': 'music97',
+    // music8 - 攻城
+    'kent_outer': 'music8', 'kent_inner': 'music8',
+    'ww_outer': 'music8', 'ww_inner': 'music8',
+    'heine_outer': 'music8', 'heine_inner': 'music8',
+};
 var CREATE_BGM = {
     royal: 'music1', knight: 'music2', elf: 'music3', mage: 'music4',
     dark: 'music10', illusion: 'music96', dragon: 'music98', warrior: 'music175'
 };
 var BGM_TRACKS = { title: 'title', create: 'create', town: 'town', battle: 'battle', boss: 'boss' };
-TOWN_BGM_LIST.forEach(function (id) { BGM_TRACKS[id] = TOWN_BGM_TRACKS[id] || id; });
+Object.keys(MAP_BGM).forEach(function (id) { BGM_TRACKS[id] = MAP_BGM[id]; });
 Object.keys(CREATE_BGM).forEach(function (cls) { BGM_TRACKS['create_' + cls] = CREATE_BGM[cls]; });
-var _TOWN_BGM = {}; TOWN_BGM_LIST.forEach(function (id) { _TOWN_BGM[id] = 1; });
-// 🐍 狩獵區專屬 BGM（地圖 id → 曲目檔名·assets/bgm/<檔>.<ext>）：提卡爾蛇神降世 3 圖。優先於通用 battle/boss，故祭壇(純頭目房)也放自己的曲。
+// 🐍 狩獵區專屬 BGM（地圖 id → 曲目檔名）：提卡爾蛇神降世 3 圖。優先於通用 battle/boss。
 var HUNT_BGM = { 'tikal_area': 'music122', 'tikal_deep': 'music123', 'tikal_altar': 'music125' };
-Object.keys(HUNT_BGM).forEach(function (id) { BGM_TRACKS[HUNT_BGM[id]] = HUNT_BGM[id]; });   // 註冊曲目 scene=檔名，_bgmInit 會預解析 URL
+Object.keys(HUNT_BGM).forEach(function (id) { BGM_TRACKS[HUNT_BGM[id]] = HUNT_BGM[id]; });
 var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
 
 function _bgmLoadCfg() {
@@ -528,12 +590,16 @@ function _bgmLoadCfg() {
 function _bgmSaveCfg() { try { if (typeof _lsSet === 'function') _lsSet('fb5_bgm', JSON.stringify(_bgmCfg)); } catch (e) {} }
 function _bgmTargetVol() { return Math.max(0, Math.min(1, _bgmCfg.vol / 100)); }
 
-// 預解析各場景的實際 URL（依序試 mp3→ogg→wav）；缺檔→_bgmUrl[scene]=null
+// 預解析各場景的實際 URL（依序試 assets/Sound/ 與 assets/bgm/，各 ext mp3→ogg→wav）；缺檔→_bgmUrl[scene]=null
 function _bgmResolve(scene, file) {
-    var exts = ['mp3', 'ogg', 'wav'], i = 0;
+    var dirs = ['assets/Sound/', 'assets/bgm/'];
+    var exts = ['mp3', 'ogg', 'wav'];
+    var i = 0, j = 0;
     (function tryNext() {
         if (i >= exts.length) { _bgmUrl[scene] = null; return; }
-        var url = 'assets/bgm/' + file + '.' + exts[i++];
+        var url = dirs[j] + file + '.' + exts[i];
+        j++;
+        if (j >= dirs.length) { j = 0; i++; }
         var probe = new Audio(); probe.preload = 'metadata';
         probe.addEventListener('canplay', function () { _bgmUrl[scene] = url; }, { once: true });
         probe.addEventListener('error', function () { tryNext(); }, { once: true });
@@ -554,7 +620,8 @@ function _bgmDetectScene() {
     if (_bgmIsCreateScreen()) return _bgmCreateScene();   // 創角畫面優先：依目前選擇的職業播放專屬曲目
     if (typeof player === 'undefined' || !player || !player.cls) return 'title';
     var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
-    if (cur && cur.indexOf('town_') === 0) return _TOWN_BGM[cur] ? cur : 'town';   // 專屬城鎮→自己的曲；其餘安全區→共通 town
+    if (cur && MAP_BGM[cur]) return cur;   // 📋 地圖 BGM 對照表優先
+    if (cur && cur.indexOf('town_') === 0) return 'town';   // 其餘城鎮→共通 town
     if (cur && HUNT_BGM[cur]) return HUNT_BGM[cur];   // 🐍 狩獵區專屬 BGM（提卡爾 3 圖）→優先於通用 battle/boss（祭壇即使頭目戰也放 music125）
     if (typeof mapState !== 'undefined' && mapState && mapState.mobs && mapState.mobs.some(function (m) { return m && m.boss && m.curHp > 0; })) return 'boss';
     return 'battle';
