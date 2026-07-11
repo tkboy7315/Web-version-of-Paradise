@@ -264,8 +264,7 @@ function summonElementDamage(dice, ele, t, flatBonus, mult, mrPen) {
 }
 // ===== 協力角色：讀取其他存檔位(非當前)的角色，以其真實戰力(等級/能力/裝備)一起作戰 =====
 function allySlotList() { return ['1','2','3','4','5','6','7','8'].filter(n => n !== String(currentSlot)); }   // 🔧 8 格存檔：可招募自身以外 7 格（但同時上場上限仍為 3，見 toggleAlly / ALLY_ACTIVE_MAX）
-const ALLY_ACTIVE_MAX = 3;   // 🔧 協力傭兵同時上場上限（不論存檔格數多少，最多 3 名）
-function allyActiveCap() { return ALLY_ACTIVE_MAX; }   // 🔧 v2.5.4：全職業同時上場上限 3（王族原本 3＋魅力/15 封頂 7 已取消，改為傭兵/夥伴吃魅力加成 royalAllyMult）
+function allyActiveCap() { return (player && player.cls === 'royal') ? 7 : 3; }   // 👑 王族可帶 7 名傭兵；其餘職業 3 名
 // 👑 王族魅力加成：王族攜帶的傭兵與項圈夥伴 造成傷害/HP/MP ×(1+魅力/100)（非王族＝×1）。讀主玩家 player.d.cha（六維效果上限 100→最高 ×2.0）。
 function royalAllyMult() { return (player && player.cls === 'royal') ? (1 + (((player.d && player.d.cha) || 0)) / 100) : 1; }
 function isAllyActive(slotN) { return !!(player.allies && player.allies.some(a => a && a._slot === String(slotN))); }
@@ -2430,7 +2429,7 @@ function toggleAlly(slotN) {
         logSys(`協力傭兵（存檔 ${slotN}）已解散（招募費用不退還）。${_expMsg}`);
     } else {
         let _allyCap = allyActiveCap();
-        if ((player.allies.length || 0) >= _allyCap) {   // 🔧 同時上場上限：全職業 3 名（王族原 3＋魅力/15 封頂 7 已取消，改吃 royalAllyMult 魅力加成）
+        if ((player.allies.length || 0) >= _allyCap) {   // 👑 王族上限 7 名，其餘職業 3 名
             logSys(`<span class="text-red-400">協力傭兵最多同時上場 ${_allyCap} 名，請先解除一名再招募。</span>`);
             saveGame(); updateUI();
             let _c2 = document.getElementById('interaction-content'); if(_c2) renderAllyNPC(_c2);
