@@ -1333,6 +1333,35 @@ function saveGame() {
 
     if(!_lzSet('lineage_idle_save_' + currentSlot, _saveWrap(saveStateJson()))) throw new Error('persistent storage write failed');   // 🔧 寫入成功才回報；並由 saveStateJson 排除戰鬥面向暫存參照
     if(typeof petRosterSave === 'function' && !petRosterSave()) throw new Error('pet roster write failed');
+
+    // 🎁 傭兵同步：將每個傭兵的 inv / gold / exp 寫回其來源存檔位，讓該角色自己登入時持有
+    (player.allies || []).forEach(a => {
+        if (!a || !a._slot) return;
+        let _hasInv = a.inv && a.inv.length;
+        let _hasGold = (a._goldGained || 0) > 0;
+        let _hasExp = (a._expGained || 0) > 0;
+        if (!_hasInv && !_hasGold && !_hasExp) return;
+        try {
+            let raw = _lzGet('lineage_idle_save_' + a._slot);
+            let unwrapped = _saveUnwrap(raw);
+            if (!unwrapped.ok || !unwrapped.payload) return;
+            let parsed = JSON.parse(unwrapped.payload);
+            if (!parsed || !parsed.p) return;
+            if (_hasInv) {
+                let existingInv = parsed.p.inv || [];
+                a.inv.forEach(item => {
+                    let ex = existingInv.find(i => sameItemSig(i, item));
+                    if (ex) ex.cnt += (item.cnt || 1);
+                    else existingInv.push({ ...item });
+                });
+                parsed.p.inv = existingInv;
+                a.inv = [];
+            }
+            if (_hasGold) { parsed.p.gold = (parsed.p.gold || 0) + a._goldGained; a._goldGained = 0; }
+            if (_hasExp) { parsed.p.exp = (parsed.p.exp || 0) + a._expGained; a._expGained = 0; }
+            _lzSet('lineage_idle_save_' + a._slot, _saveWrap(JSON.stringify(parsed)));
+        } catch(e) {}
+    });
     logSys(`遊戲進度已儲存。`);
     _saveFailureNotified = false;
     return true;

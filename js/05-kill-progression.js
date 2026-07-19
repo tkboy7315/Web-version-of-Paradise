@@ -289,8 +289,12 @@ function monsterGoldRange(mob) {
 function killMob(idx) {
     let mob = mapState.mobs[idx];
     if (!mob || mob._dead) return;        // 冪等保護：同一隻怪只結算一次獎勵
-    if (mob._justTransformedTick != null && state.ticks - mob._justTransformedTick <= 5 && mob.curHp > 0) return;   // 🌅 審查修：同一擊內的過時二次 killMob（on-hit 特效先殺→主判定又用舊 target.curHp 呼叫同槽位）→剛變身的滿血新階段不吃這種幽靈擊殺（真死亡 curHp<=0 不受影響）
-    if (mob.transformTo && DB.mobs[mob.transformTo]) { doMobTransform(idx); return; }   // 🌅 三段變身：即使 HP=0 也不會死亡而是強制變身（先於 _dead/特效/獎勵）
+    // 🎁 傭兵擊殺掉落：capture 本次 killMob 的 loot 歸屬（由 alliesTick 設定 _allyLootTarget）
+    let _killerAlly = window._allyLootTarget || null;
+    window._killMobLooter = _killerAlly;
+    if (_killerAlly) window._allyLootTarget = null;   // 消費一次（防止嵌套 killMob 重複消費）
+    if (mob._justTransformedTick != null && state.ticks - mob._justTransformedTick <= 5 && mob.curHp > 0) { window._killMobLooter = null; return; }   // 🌅 審查修：同一擊內的過時二次 killMob（on-hit 特效先殺→主判定又用舊 target.curHp 呼叫同槽位）→剛變身的滿血新階段不吃這種幽靈擊殺（真死亡 curHp<=0 不受影響）
+    if (mob.transformTo && DB.mobs[mob.transformTo]) { window._killMobLooter = null; doMobTransform(idx); return; }   // 🌅 三段變身：即使 HP=0 也不會死亡而是強制變身（先於 _dead/特效/獎勵）
     mob._dead = true;
     try { vfxKill(mob); } catch(e){}   // ✨ VFX：擊殺粒子爆裂（趁格子 DOM 仍在、重繪前）
     try { playMobKill(mob); } catch(e){}   // 🔊 音效：怪物死亡（依怪名對應專屬死亡音，查無→通用擊殺音）
@@ -351,6 +355,7 @@ function killMob(idx) {
         g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100));   // 🪆 魔法娃娃 goldBonus%（莫提斯）
         g = Math.floor(g * getGoldBonusMult());   // 💰 金幣倍率下拉選單（×1/×2/×3）
         player.gold += g;
+        if (_killerAlly) _killerAlly._goldGained = (_killerAlly._goldGained || 0) + g;   // 🎁 傭兵擊殺金幣同步累積→存檔時寫回
         // 🔧 金幣不再逐殺輸出於系統日誌；改由 gameLoop 累積、flushAwaySummary 以「掛機期間獲得總金幣」統一顯示。
 
     }
@@ -383,6 +388,8 @@ function killMob(idx) {
     }
 
     // === 🏅 精通任務：接取後擊敗職業對應頭目必得「精通之證」（身上已有一枚則不再掉落）===
+    // 🎁 任務/系統物品強制歸玩家（暫時關閉傭兵掉落路由）
+    let _savedLooter = window._killMobLooter; window._killMobLooter = null;
     if (player.masteryQuest === 'active' && MASTERY_DATA[player.cls] && mob.n === MASTERY_DATA[player.cls].boss
         && !player.inv.some(i => i.id === 'item_mastery_proof')) {
         gainItem('item_mastery_proof', 1);
@@ -423,6 +430,7 @@ function killMob(idx) {
         gainItem('item_dragon_egg', 1);
         logSys('<span class="text-amber-300 font-bold">✦ 你從巨龍的殘骸中拾起了一顆「頑皮幼龍蛋」——它似乎在呼喚著什麼……</span>');
     }
+    window._killMobLooter = _savedLooter;   // 🎁 恢復傭兵掉落路由（任務物品已發放完畢）
 
     // === 怪物專屬掉落（依「怪物掉落資料.md」）：每樣物品各自獨立判定一次 ===
     let dropList = _kbNoReward ? [] : (MOB_DROPS[mob.n] || []);   // 🔧 魔獸軍王之室：除頭目外不掉落物品
@@ -525,6 +533,7 @@ function killMob(idx) {
         _tradLootCtx = false;     // 🏛️ 傳統模式掠奪上下文一併關閉
         _vfxLootCtx = false;      // ✨ VFX：擊殺掉落上下文一併關閉
         _lootMobInfo = null;      // 🐾 掉落來源怪物上下文一併關閉（杜絕殘留洩漏到兌換/任務其他 gainItem）
+        window._killMobLooter = null;   // 🎁 清除傭兵掉落歸屬（try/finally：防止異常時殘留）
     }
     // 🔧 架構#2：不在此處位移輸送帶（呼叫點可能正在迭代怪物陣列）。
     // tick 內的擊殺延後到 gameLoop 的 settleDeadMobs()；手動操作則立即清算。

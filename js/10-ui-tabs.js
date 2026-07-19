@@ -2430,7 +2430,7 @@ function renderSquadPanel() {
 
 function switchSquadTab(t) {
     _squadTab = t;
-    ['team', 'skill'].forEach(id => {
+    ['team', 'skill', 'inv'].forEach(id => {
         let e = document.getElementById('squad-tab-' + id); if (e) e.classList.toggle('hidden', id !== t);
         let b = document.getElementById('squad-tab-btn-' + id);
         if (b) {
@@ -2440,6 +2440,39 @@ function switchSquadTab(t) {
             b.style.color = on ? '#ffffff' : '#cbd5e1';
         }
     });
+    if (t === 'inv') renderSquadInv();   // 🎁 切到背包分頁時渲染傭兵背包
+}
+
+// 🎁 傭兵背包渲染：顯示所有傭兵各自的掉落物品
+function renderSquadInv() {
+    let panel = document.getElementById('squad-tab-inv');
+    if (!panel) return;
+    let allies = (player && player.allies) ? player.allies.filter(Boolean) : [];
+    if (!allies.length) { panel.innerHTML = '<div class="text-slate-500 text-sm text-center py-4">無傭兵</div>'; return; }
+    panel.innerHTML = allies.map(a => {
+        let inv = a.inv || [];
+        let totalCnt = inv.reduce((s, i) => s + (i.cnt || 0), 0);
+        let _s = a._slot;
+        let itemHtml = inv.length ? inv.map((item, idx) => {
+            let info = { id: item.id, cnt: item.cnt || 1, en: item.en || 0, bless: !!item.bless, anc: !!item.anc, attr: item.attr || null, seteff: !!item.seteff };
+            let fullName = (typeof getItemFullName === 'function') ? getItemFullName(info) : (DB.items[item.id] ? DB.items[item.id].n : item.id);
+            let isRelicItem = !!(DB.items[item.id] && DB.items[item.id].relic);
+            let isAcc = !!(DB.items[item.id] && DB.items[item.id].type === 'acc');
+            let nameColor = item.anc ? 'text-amber-300' : (item.bless ? 'text-cyan-300' : (isRelicItem ? 'text-purple-300' : (item.en > 0 ? 'text-emerald-300' : 'text-slate-200')));
+            let enStr = item.en > 0 ? `+${item.en} ` : '';
+            return `<div class="flex items-center justify-between text-xs py-0.5 px-1 rounded hover:bg-slate-700/50" title="${fullName}">
+                <span class="${nameColor} truncate">${enStr}${fullName}</span>
+                <span class="text-slate-400 shrink-0 ml-2">${item.cnt > 1 ? '×' + item.cnt : ''}</span>
+            </div>`;
+        }).join('') : '<div class="text-slate-600 text-xs text-center py-2">空背包</div>';
+        return `<div class="bg-slate-800/60 border border-slate-600 rounded p-2 flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-amber-200">${a._allyName} <span class="text-slate-500 text-xs">Lv.${a.lv || 1}</span></span>
+                <span class="text-slate-400 text-xs">${totalCnt} 件</span>
+            </div>
+            <div class="max-h-40 overflow-y-auto flex flex-col gap-0.5">${itemHtml}</div>
+        </div>`;
+    }).join('');
 }
 
 function _findAlly(slot) { return (player.allies || []).find(a => a && String(a._slot) === String(slot)); }

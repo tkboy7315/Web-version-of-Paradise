@@ -1,4 +1,8 @@
 function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, deferUi=false) {
+    // 🎁 傭兵擊殺掉落路由：若有 _killMobLooter（傭兵擊殺），物品進傭兵背包而非主玩家
+    let _looterAlly = window._killMobLooter || null;
+    let _lootInv = (_looterAlly && _looterAlly.inv) ? _looterAlly.inv : null;
+
     // 卷軸變祝福／詛咒機率：各 1%（互斥）
     if (!forceNormal && (id === 'scroll_weapon' || id === 'scroll_armor')) {
         let _r = lootRng('scrollvar');   // 🎲 committed RNG（防 SL 重抽卷軸祝福/詛咒變體）
@@ -23,7 +27,8 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, de
 
     // 🔧 持有上限 maxHold（如精靈的私語=10）：裁切本次獲得量使總持有不超過上限；已達上限則不獲得
     if (d && d.maxHold) {
-        let _held = player.inv.reduce((s, i) => s + (i.id === id ? (i.cnt || 0) : 0), 0);
+        let _invRef = _lootInv || player.inv;
+        let _held = _invRef.reduce((s, i) => s + (i.id === id ? (i.cnt || 0) : 0), 0);
         if (_held >= d.maxHold) return null;
         if (_held + cnt > d.maxHold) cnt = d.maxHold - _held;
     }
@@ -46,28 +51,33 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, de
 
     let _tEn = 0;   // 🏛️ v3.0.83 傳統模式已取消：掉落自帶強化值停用（任何來源恆 +0·手動強化照常）
     let _probe = { id: id, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
-    let ex = player.inv.find(i => sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（itemSig 已含 en→+0 只併 +0、+3 只併 +3，永不誤併不同強化值）；🏛️ 傳統自帶強化：同名同強化值同詞綴自動疊加（移除原 en>0 不疊加限制）
+    let _targetInv = _lootInv || player.inv;   // 🎁 傭兵掉落→目標背包改為傭兵 inv
+    let ex = _targetInv.find(i => sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（itemSig 已含 en→+0 只併 +0、+3 只併 +3，永不誤併不同強化值）；🏛️ 傳統自帶強化：同名同強化值同詞綴自動疊加（移除原 en>0 不疊加限制）
     if(ex) ex.cnt += cnt;   // 不論是否鎖定都疊加；僅加數量、不更動既有堆疊的鎖定/廢品狀態
-    else player.inv.push({ id: id, uid: uid(), cnt: cnt, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff, lock: false, junk: !!(player.junkPrefs && player.junkPrefs[itemSig(_probe)]) && !(d && d.noJunk) });   // 🔧 廢品記憶改以完整簽章比對：詞綴物品也可自動標記，但僅限「完全相同詞綴」者；🎴 noJunk(收集冊)永不自動標記
+    else _targetInv.push({ id: id, uid: uid(), cnt: cnt, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff, lock: false, junk: _lootInv ? false : !!(player.junkPrefs && player.junkPrefs[itemSig(_probe)]) && !(d && d.noJunk) });   // 🔧 廢品記憶改以完整簽章比對；🎁 傭兵背包不設自動廢品標記
 
     // 紀錄這次產生的物品屬性
     let itemInfo = { id: id, cnt: cnt, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
     
     if (!silent && d) {
-        // 🐾 擊殺掉落來源怪物存在時→「怪名 給你 物品名 。」；其餘來源(商店/製作/NPC 兌換)維持「獲得物品:」
-        if (_lootMobInfo) {
+        // 🎁 傭兵擊殺掉落→顯示「傭兵名 從 怪名 獲得 物品名」
+        if (_looterAlly && _lootMobInfo) {
+            let _mc = (typeof getMobColor === 'function') ? getMobColor(_lootMobInfo.lv) : '';
+            logSys(`<span class="sys-item-gain"><span class="text-emerald-300 font-bold">${_looterAlly._allyName}</span> 從 <span class="${_mc}">${_lootMobInfo.n}</span> 獲得 <span class="font-bold">${getItemFullName(itemInfo)}</span> 。</span>`);
+        } else if (_lootMobInfo) {
+            // 🐾 擊殺掉落來源怪物存在時→「怪名 給你 物品名 。」；其餘來源(商店/製作/NPC 兌換)維持「獲得物品:」
             let _mc = (typeof getMobColor === 'function') ? getMobColor(_lootMobInfo.lv) : '';
             logSys(`<span class="sys-item-gain"><span class="${_mc}">${_lootMobInfo.n}</span> 給你 <span class="font-bold">${getItemFullName(itemInfo)}</span> 。</span>`);
         } else {
             logSys(`<span class="sys-item-gain">獲得物品: <span class="font-bold">${getItemFullName(itemInfo)}</span></span>`);
         }
     }
-    if (!deferUi) renderTabs();
+    if (!deferUi) { if (_lootInv) { try { renderSquadPanel(); } catch(e) {} } else renderTabs(); }   // 🎁 傭兵掉落→刷新傭兵面板；主玩家掉落→刷新背包面板
     if(DB.items[id] && DB.items[id].grantSkills) { calcStats(); renderSkillSelects(); }   // 取得授予技能的頭盔：立即生效
     
     if(typeof auditTrackGain === 'function') auditTrackGain(itemInfo);   // 統計：掉落計數
     try { if (_vfxLootCtx && d && d.gachaWeight === 1 && typeof vfxRareDrop === 'function') vfxRareDrop(d.n); } catch(e){}   // ✨ VFX：潘朵拉權重=1 的稀有掉落金色閃光
-    try { if (!deferUi && typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {}   // 🔧 v2.6.73 獲得物品時自動排列背包（每 10 秒最多 1 次·節流在函式內）；批次發放可延後至交易完成再統一重繪
+    if (!_lootInv) { try { if (!deferUi && typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {} }   // 🔧 v2.6.73 獲得物品時自動排列背包；🎁 傭兵背包不自動排列
     return itemInfo; // 👈 讓拉霸機可以讀取最終產生的物品
 }
 
