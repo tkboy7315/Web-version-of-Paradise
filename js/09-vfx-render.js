@@ -2067,7 +2067,7 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
     } else if (_pmState.el.parentElement !== bv) bv.appendChild(_pmState.el);
     { let _pw = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100; _pmState.el.style.left = 'calc(' + _partySpriteXs().P + ' - ' + Math.round(_pw / 2) + 'px)'; }   // 🗡️ v3.0.71 每輪更新：站怪物格縫隙(依 5格/3格版面動態)·免 transform
     // 🗡️ v3.0.70 權重站位：依 aggro 權重排前後（_partyBottoms 由 _allySpritesApply 每輪先算·權重高=前=bottom小·z 高）
-    if (typeof _partyBottoms !== 'undefined' && _partyBottoms && _partyBottoms.P != null) { _pmState.el.style.bottom = _partyBottoms.P + 'px'; _pmState.el.style.zIndex = String(30 - _partyBottoms.P); }
+    if (typeof _partyBottoms !== 'undefined' && _partyBottoms && _partyBottoms.P != null) { _pmState.el.style.bottom = '12px'; _pmState.el.style.zIndex = '58'; }
     if (CLASS_ANIM_3DIR.has(player.avatar) || MORPH_ANIM_3DIR.has(_playerMorphName() || '')) _class3Facing(player, _pmState.el);   // 🧭 v3.2.12 依攻擊目標更新朝向（寫 player._face3·下一幀 _classForm/_playerBattleForm 生效）·v3.5.10 三方向變身亦更新
     // 動作＋幀（比照 _mobAnimApply：單次動作播一輪回待機·death 凍結最後一幀）
     let act = null, f = 0, _useW = false;
@@ -2107,16 +2107,18 @@ if (typeof manualCast === 'function' && !manualCast._pmWrapped) {
     manualCast = function (skId) { try { if (typeof _playerMorphTrigger === 'function') _playerMorphTrigger('skill', skId); } catch (e) {} return _pmOrigManualCast.apply(this, arguments); };
     manualCast._pmWrapped = true;
 }
-// ===== 🤝 v3.0.70 隊員戰場 sprite（隊員1=主玩家組動畫·主玩家左側；隊員2/3=<avatar>2 組·中間偏右/更右；一律職業動畫·變身限定主玩家）=====
-// 🗡️ v3.0.71 隊伍站「怪物格縫隙中點」避免與怪物完全重疊：5格模式(前排flex1.2×3+後排0.8×2+gap16)怪物中心≈12/34.5/57/76/91%→隊伍站 23/45.5/66/83.5%；
-//    3格版面(純BOSS房/軍王之室·等寬格)怪物中心≈17.3/50/82.7%→兩縫各站兩人 28/39/62/72%。相對序恆為 隊員1＜主玩家＜隊員2＜隊員3（主玩家中間偏左·隊員2中間偏右·隊員3更右）。
+// ===== 🤝 v3.0.70 隊員戰場 sprite（動態站位·依出場人數均分畫面寬度）=====
 function _partySpriteXs() {
     let five = true; try { five = (typeof backSlotsActive !== 'function') || backSlotsActive(); } catch (e) {}
-    // 👑 v3.4.89 王族傭兵上限 7（allyActiveCap·魅力 0~60→3~7 名）→ A 擴到 7 個站位（原本只有 3 個·第 4~7 名全夾到 A[2] 疊在一起）。
-    //    前 3 名與主玩家維持原位不動；第 4~7 名補進各縫隙的側位＋左翼(5格 7%／3格 23%)·全部錯開怪物中心(5格 12/34.5/57/76/91％·3格 17.3/50/82.7％)。
-    //    前後感由既有權重站位(_partyRankBottom·bottom 2+rank*9px＋zIndex)負責——8 名成員縱向已錯 2~65px·此處只解決 X 疊點。
-    return five ? { P: '45.5%', A: ['23%', '66%', '83.5%', '28%', '51%', '70.5%', '7%'] }
-                : { P: '39%',   A: ['28%', '62%', '72%', '33.5%', '57%', '77.5%', '23%'] };
+    let allyCount = 0;
+    try { allyCount = (player && player.allies) ? player.allies.filter(Boolean).length : 0; } catch (e) {}
+    let playerPct = five ? 45.5 : 39;
+    let minPct = five ? 5 : 8, maxPct = five ? 95 : 92;
+    if (allyCount === 0) return { P: playerPct + '%', A: [] };
+    if (allyCount === 1) return { P: playerPct + '%', A: [(playerPct + 18).toFixed(1) + '%'] };
+    let step = (maxPct - minPct) / (allyCount - 1);
+    let A = []; for (let i = 0; i < allyCount; i++) A.push((minPct + i * step).toFixed(1) + '%');
+    return { P: playerPct + '%', A: A };
 }
 let _allySpriteStates = {};   // slot → { act, t, prevHp, el, imgs, key, skGen }
 let _partyBottoms = null;     // 每輪 _allySpritesApply 先算：{ P: bottom, <slot>: bottom }（權重高=前=bottom 小·主玩家 sprite 於 _playerMorphApply 消費）
@@ -2125,7 +2127,7 @@ function _partyRankBottom() {
     ((player && player.allies) || []).forEach(a => { if (a) members.push({ id: String(a._slot), w: (a._downed || (a.curHp || 0) <= 0) ? -1 : mercAggroWeight(a) }); });   // 倒地者權重視為最低（排最後方）
     members.sort((x, y) => y.w - x.w);
     let out = {};
-    members.forEach((m, i) => { out[m.id] = 2 + i * 9; });   // 最前 bottom 2px·每名往後 +9px（狩獵區帶內可辨識前後）
+    members.forEach((m, i) => { out[m.id] = 2; });   // 所有角色同一排（bottom=2px），前後不分層
     return out;
 }
 function _allySpriteTrigger(ally, k, skId) {   // js/06 掛點：allyAttackOnce→'attack'·三施法函式→'skill'
@@ -2155,9 +2157,10 @@ function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphAppl
         }
     }
     if (!inBattle) return;
+    let _ai = 0;   // 嚴格遞增計數器（跳過 null）→ 對齊 _partySpriteXs().A
     allies.forEach((ally, i) => {
         if (!ally) return;
-        let form = _actorBattleForm(ally, i > 0);   // 傭兵變身優先；未變身才使用原職業動畫
+        let form = _actorBattleForm(ally, true);   // 傭兵變身優先；未變身才使用原職業動畫
         if (!form) return;
         let a = _morphBattleCache[form.key];
         if (a === undefined) { _battleSpriteProbe(form); return; }
@@ -2187,8 +2190,8 @@ function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphAppl
         } else if (st.el.parentElement !== bv) bv.appendChild(st.el);
         let w = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
         st.el.style.width = w + 'px';
-        { let _xs = _partySpriteXs().A; st.el.style.left = 'calc(' + _xs[Math.min(i, _xs.length - 1)] + ' - ' + Math.round(w / 2) + 'px)'; }   // 每輪更新（隊員順位/地圖版面 5格↔3格 可能變）；👑 v3.4.89 夾點改隨站位表長度（原 Math.min(i,2)＝王族第 4~7 名全疊 A[2]）
-        if (_partyBottoms && _partyBottoms[slot] != null) { st.el.style.bottom = _partyBottoms[slot] + 'px'; st.el.style.zIndex = String(30 - _partyBottoms[slot]); }
+        { let _xs = _partySpriteXs().A; st.el.style.left = 'calc(' + _xs[Math.min(_ai, _xs.length - 1)] + ' - ' + Math.round(w / 2) + 'px)'; }   // 每輪更新（隊員順位/地圖版面 5格↔3格 可能變）；用 _ai（跳過 null 的遞增索引）對齊 _partySpriteXs().A
+        { let _aLen = _partySpriteXs().A.length; let _fromRight = _aLen - _ai; let _isTarget = (_fromRight === 3); st.el.style.bottom = (_isTarget ? 0 : 12) + 'px'; st.el.style.zIndex = String(70 - (_isTarget ? 0 : 12)); }   // 🔧 從右邊算第3位傭兵往後退（bottom低=後方）
         if (CLASS_ANIM_3DIR.has(ally.avatar) || MORPH_ANIM_3DIR.has(_actorMorphName(ally) || '')) _class3Facing(ally, st.el);   // 🧭 職業／變身皆依攻擊目標更新朝向
         // 動作＋幀（同主玩家邏輯·wskill 武器專屬 skill 優先·咆哮通用）
         let act = null, f = 0, _useW = false;
@@ -2211,8 +2214,9 @@ function _allySpritesApply() {   // 8fps ticker 驅動（先於 _playerMorphAppl
             } else if (st.act !== 'death') st.act = null;
             else act = null;
         }
-        if (act === null && a.idle) { act = 'idle'; f = (Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) + i * 3) % a.idle.length; _useW = false; }   // 隊員間錯相（+i*3）
-        if (act === null) return;
+        if (act === null && a.idle) { act = 'idle'; f = (Math.floor(Date.now() / (1000 / MOB_ANIM_FPS)) + _ai * 3) % a.idle.length; _useW = false; }   // 隊員間錯相（+_ai*3）
+        if (act === null) { _ai++; return; }
+        _ai++;
         let seq = (act === 'skill' && _useW) ? a.wskill : a[act]; if (!seq || !seq[f]) return;
         if (st.imgs.bd.src !== seq[f].src) st.imgs.bd.src = seq[f].src;
         let ss = (act === 'skill' && _useW) ? a.shadow.wskill : a.shadow[act];
