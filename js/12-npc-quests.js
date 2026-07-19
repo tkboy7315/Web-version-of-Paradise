@@ -1,12 +1,12 @@
 // ===== 共用倉庫（存檔角色共用，獨立於存檔位的 localStorage 鍵）=====
 // 🎮 經典模式與非經典模式角色的倉庫不共通：依 player.classicMode 切換 localStorage 鍵（傭兵走存檔位、與倉庫無關，仍共通）。
 const WH_KEY = 'lineage_idle_warehouse';
-// 🎮🏛️ 四種模式組合各自獨立的 localStorage 鍵後綴（倉庫桶／圖鑑桶／傭兵同模式招募共用·單一真相）：
-//   經典+傳統→'_trad'、一般+傳統→'_tradonly'、經典→'_classic'、一般→''。
-function modeSuffix(c, t){ return (c && t) ? '_trad' : t ? '_tradonly' : c ? '_classic' : ''; }
+// 🎮 模式桶鍵後綴（倉庫桶／圖鑑桶／傭兵同模式招募共用·單一真相）：經典→'_classic'、一般→''。
+//   ⚠️v3.0.83 傳統模式已取消：t 參數忽略（一般+傳統→一般、經典+傳統→經典）；舊 '_tradonly'/'_trad' 桶由下方 _mergeTradBuckets 一次性併入。
+function modeSuffix(c, t){ return c ? '_classic' : ''; }
 function whKey(p){ let _p = (p !== undefined) ? p : player; return WH_KEY + modeSuffix(!!(_p && _p.classicMode), !!(_p && _p.traditionalMode)); }   // 🏛️🎮 依模式組合取對應倉庫桶
 const WH_MAX = 5000;   // 倉庫格數上限（🔧 100 → 200 → 500 → 5000）
-const WH_NO_STORE = ['item_dk_insignia','new_item_239','new_item_241','new_item_collar_husky','new_item_238','new_item_184','new_item_185','new_collar_rabbit','new_collar_fox','new_collar_beagle','new_collar_stbernard','item_mastery_proof',
+const WH_NO_STORE = ['item_dk_insignia','new_item_241','item_mastery_proof',   // 🚫 v3.2.17 舊項圈 id 已隨項圈系統移除
     'item_pride_pass_11','item_pride_pass_21','item_pride_pass_31','item_pride_pass_41','item_pride_pass_51','item_pride_pass_61','item_pride_pass_71','item_pride_pass_81','item_pride_pass_91',
     'item_dantes_letter','item_elf_whisper','item_ancient_book','item_sealed_intel','item_spy_report','item_chaos_key','item_royal_order','wpn_shaha_arrow','item_dragon_egg','item_card_book','item_equip_book',
     // 🔥 v3.0.78 試煉接取制：所有試煉道具禁止存入倉庫（既有倉庫存量仍可取出）
@@ -17,7 +17,7 @@ const WH_NO_STORE = ['item_dk_insignia','new_item_239','new_item_241','new_item_
     'item_ant_fruit','item_ant_branch','item_ant_bark','item_elmore_heart','item_time_orb','item_wyvern_blood',
     'new_item_207','new_item_226','new_item_225','item_cyclops_blood','new_item_219','new_item_234',
     'item_demon_search','item_demon_spy','item_yeti_heart','item_soulfire_ash',
-    'new_item_197','new_item_211','item_lost_soul','mat_flame_sword','mat_flame_eye','mat_flame_claw','mat_flame_heart'];   // 禁止存入倉庫：潘朵拉抽獎卷、王族搜索狀、四種項圈、精通之證、傲慢之塔傳送符(11~91F)、🔥50級試煉任務道具＋全部試煉道具、🎴卡片收集冊
+    'new_item_197','new_item_211','item_lost_soul','mat_flame_sword','mat_flame_eye','mat_flame_claw','mat_flame_heart'];   // 禁止存入倉庫：王族搜索狀、四種項圈、精通之證、傲慢之塔傳送符(11~91F)、🔥50級試煉任務道具＋全部試煉道具、🎴卡片收集冊（潘朵拉抽獎卷已於 v3.5.49 隨舊抽獎機移除）
 // 倉庫分類過濾（武器 / 防具 / 道具）：存入、取出共用同一個下拉清單
 let _whFilter = 'weapon';
 let _whQtyInput = '';   // 🔧 倉庫存取「數量」共用輸入（取代 prompt()；空字串或 0 ＝整疊全部）。以模組變數保存→面板每次重繪後數值不流失
@@ -80,6 +80,12 @@ function whMatchFilter(id){
 //   兩者由 loadWarehouse 設定、saveWarehouse 讀取；所有寫入者皆「同步 loadWarehouse→…→saveWarehouse」相鄰成對（saveGame 不碰倉庫），故旗標必對應同一次操作。
 let _whLoadOk = true;
 let _whLoadUids = null;
+// 🪦 v3.2.70 倉庫領出墓碑（多分頁防復活＝防複製）：物品被移出倉庫（領出/製作消耗/兌換/清孤兒）成功寫入後，uid 記入 whKey()+'_rm'。
+//   實測重現的複製路徑：分頁B 先載入快照（含物品X）→ 分頁A 領出X（桶已移除·X進A背包）→ B 拿舊快照做任何倉庫寫入 → X 被寫回倉庫＝背包+倉庫各一份。
+//   安全網 B 只防「新增遺失」防不了「移除復活」→ 墓碑補上：寫入/讀取時把「快照殘留的墓碑 uid」丟棄；
+//   合法回歸（領出後又存回同 uid＝本次新增·不在 _whLoadUids）→ 解除墓碑並保留，不會誤刪。上限 400 筆淘汰最舊（uid=隨機9碼不重用）。
+function _whTombsRead(){ try { let raw = _lzGet(whKey() + '_rm'); if (raw == null || raw === '') return {}; let o = JSON.parse(raw); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; } catch(e){ return {}; } }
+function _whTombsWrite(t){ try { let ks = Object.keys(t); if (ks.length > 400) ks.slice(0, ks.length - 400).forEach(k => delete t[k]); _lzSet(whKey() + '_rm', JSON.stringify(t)); } catch(e){} }
 function loadWarehouse(){
     _whLoadOk = true; _whLoadUids = null;
     let key = whKey();
@@ -91,6 +97,7 @@ function loadWarehouse(){
         if(s == null || s === ''){ _whLoadOk = false; return { items: [], gold: 0 }; }   // 桶存在但解壓失敗→不可當成空倉庫
         let w = JSON.parse(s);
         let items = w.items || [];
+        try { let tombs = _whTombsRead(); items = items.filter(it => !(it && it.uid != null && tombs[it.uid])); } catch(e){}   // 🪦 墓碑 uid＝已被領出（他分頁復活殘留）→ 隱藏；下次任一寫入時自桶清除
         _whLoadUids = new Set(items.map(it => it && it.uid).filter(u => u != null));
         return { items: items, gold: w.gold || 0 };
     } catch(e){ _whLoadOk = false; return { items: [], gold: 0 }; }   // JSON 毀損→不可當成空倉庫
@@ -104,18 +111,36 @@ function saveWarehouse(w){
         return false;
     }
     let items = (w && w.items) || [];
-    // 安全網 B（多分頁）：寫入前重讀桶現值，併入「其他分頁在本快照之後新存入、本快照沒見過且本次也沒寫」的堆疊（以 uid 比對·只增不減·偏向重複而非遺失）。
+    // 🪦 墓碑過濾：快照殘留的墓碑 uid（他分頁已領出）→ 丟棄防復活；本次新增（不在 _whLoadUids＝剛存入的合法回歸）→ 解除墓碑並保留。
+    let tombs = _whTombsRead(); let tombsChanged = false;
+    try {
+        items = items.filter(it => {
+            if (!(it && it.uid != null && tombs[it.uid])) return true;
+            if (!_whLoadUids || !_whLoadUids.has(it.uid)) { delete tombs[it.uid]; tombsChanged = true; return true; }   // 合法回歸（偏向保留＝防遺失）
+            return false;   // 快照殘留＝已被領出→不寫回
+        });
+    } catch(e){}
+    // 安全網 B（多分頁）：寫入前重讀桶現值，併入「其他分頁在本快照之後新存入、本快照沒見過且本次也沒寫」的堆疊（以 uid 比對·只增不減·偏向重複而非遺失）。🪦 墓碑 uid 跳過（桶內殘留的已領出物）。
     try {
         if(_whLoadUids){
             let cs = _lzGet(key);
             if(cs != null && cs !== ''){
                 let cur = JSON.parse(cs);
                 let haveUid = new Set(items.map(it => it && it.uid).filter(u => u != null));
-                (cur.items || []).forEach(it => { if(it && it.uid != null && !_whLoadUids.has(it.uid) && !haveUid.has(it.uid)) items.push(it); });
+                (cur.items || []).forEach(it => { if(it && it.uid != null && !tombs[it.uid] && !_whLoadUids.has(it.uid) && !haveUid.has(it.uid)) items.push(it); });
             }
         }
     } catch(e){}
-    return _lzSet(key, JSON.stringify({ items: items, gold: (w && w.gold) || 0 }));
+    let ok = _lzSet(key, JSON.stringify({ items: items, gold: (w && w.gold) || 0 }));
+    // 🪦 成功寫入後：本次自倉庫移除的 uid（快照有、最終沒有）記入墓碑——涵蓋 領出/製作消耗/兌換/清孤兒 全部移除路徑，防其他分頁舊快照復活。
+    try {
+        if (ok && _whLoadUids) {
+            let now = new Set(items.map(it => it && it.uid).filter(u => u != null));
+            _whLoadUids.forEach(u => { if (!now.has(u)) { tombs[u] = 1; tombsChanged = true; } });
+        }
+        if (ok && tombsChanged) _whTombsWrite(tombs);
+    } catch(e){}
+    return ok;
 }
 // ===== 🎴🗡️ 共用收集圖鑑（卡片 cardDex／裝備 equipDex）：同模式角色共用，獨立於存檔位的 localStorage 鍵（概念同共用倉庫）=====
 const CARDDEX_KEY = 'lineage_idle_carddex';
@@ -274,9 +299,28 @@ if (typeof window !== 'undefined' && window.addEventListener) window.addEventLis
 function _whStackFind(arr, it){ return ((it.en||0)===0 && !it.lock) ? arr.find(x => !x.lock && (x.en||0)===0 && sameItemSig(x, it)) : null; }   // 🔧 架構#3：統一簽章比對
 // 物品完整簽章：名字(id)+強化值(en)+詞綴(祝福/遠古/屬性)；一鍵存入用來比對「完全相同」
 function whSig(it){ return itemSig(it); }   // 🔧 架構#3：委派給單一事實來源 itemSig
+// 倉庫與角色是兩個獨立儲存桶。每次轉移先保存角色，再保存倉庫；任一步失敗就還原記憶體中的背包/金幣，
+// 避免角色存檔失敗但倉庫成功寫入後，重新整理造成物品複製。
+function whTxnSnapshot(){ return { inv: JSON.parse(JSON.stringify(player.inv || [])), gold: player.gold || 0 }; }
+function whTxnRestore(s){ if(!s) return; player.inv = s.inv; player.gold = s.gold; }
+function whTxnCommit(w, snap){
+    if(typeof saveGame !== 'function' || !saveGame()) {
+        whTxnRestore(snap);
+        if(typeof logSys === 'function') logSys('<span class="text-red-400 font-bold">倉庫操作取消：角色進度無法安全儲存，物品與金幣已還原。</span>');
+        return false;
+    }
+    if(!saveWarehouse(w)) {
+        whTxnRestore(snap);
+        let restored = (typeof saveGame === 'function') && saveGame();
+        if(typeof logSys === 'function') logSys('<span class="text-red-400 font-bold">倉庫操作失敗：倉庫無法寫入，角色物品已' + (restored ? '還原' : '在記憶體中還原，請勿繼續操作並重新整理') + '。</span>');
+        return false;
+    }
+    return true;
+}
 // 一鍵存入：背包中「與倉庫現有物品 詞綴+名字+強化值 完全相同」者自動存入（鎖定物品保護、不可存物品略過）
 function whOneClickDeposit(){
     let w = loadWarehouse();
+    let _txn = whTxnSnapshot();
     let whSigs = new Set(w.items.map(whSig));   // 倉庫現有物品簽章集合
     let deposited = 0, full = false;
     for(let it of player.inv.slice()){          // 用副本走訪，過程會改動 player.inv
@@ -292,7 +336,8 @@ function whOneClickDeposit(){
         if(stack){ stack.cnt += cur.cnt; } else { w.items.push(cur); whSigs.add(whSig(cur)); }
         deposited++;
     }
-    saveWarehouse(w); saveGame(); renderTabs(true); updateUI();
+    if(!whTxnCommit(w, _txn)){ renderTabs(true); updateUI(); renderWarehouseNPC(document.getElementById('interaction-content')); return; }
+    renderTabs(true); updateUI();
     renderWarehouseNPC(document.getElementById('interaction-content'));
     if(deposited > 0) logSys(`<span class="text-cyan-300 font-bold">一鍵存入：已存入 ${deposited} 項與倉庫現有物品相同的物品${full ? '（倉庫已滿，部分未存入）' : ''}。</span>`);
     else logSys(full ? `<span class="text-red-400">倉庫已滿，無法存入。</span>` : `背包中沒有與倉庫現有物品完全相同的可存入物品。`);
@@ -308,6 +353,7 @@ function sortWarehouse(){
 }
 function whDeposit(uidv, qty){
     let w = loadWarehouse();
+    let _txn = whTxnSnapshot();
     let idx = player.inv.findIndex(i => i.uid === uidv);
     if(idx < 0) return;
     let it = player.inv[idx];
@@ -327,11 +373,13 @@ function whDeposit(uidv, qty){
         it.cnt = total - qty;
         if(stack) stack.cnt += qty; else w.items.push({ ...it, uid: uid(), cnt: qty });
     }
-    saveWarehouse(w); saveGame(); renderTabs(true); updateUI();
+    if(!whTxnCommit(w, _txn)){ renderTabs(true); updateUI(); renderWarehouseNPC(document.getElementById('interaction-content')); return; }
+    renderTabs(true); updateUI();
     renderWarehouseNPC(document.getElementById('interaction-content'));
 }
 function whWithdraw(uidv, qty){
     let w = loadWarehouse();
+    let _txn = whTxnSnapshot();
     let idx = w.items.findIndex(i => i.uid === uidv);
     if(idx < 0) return;
     let it = w.items[idx];
@@ -350,22 +398,23 @@ function whWithdraw(uidv, qty){
         let stack = _whStackFind(player.inv, moved);
         if(stack) stack.cnt += qty; else player.inv.push(moved);
     }
-    // 🗡️🧰 v3.0.61 收集冊：「提領＝獲得」也登錄圖鑑（原本只在 gainItem 登錄→倉庫提領不點亮；傳統模式裝備自帶強化、常整批進出倉庫最易踩到）
+    if(!whTxnCommit(w, _txn)){ renderTabs(true); updateUI(); renderWarehouseNPC(document.getElementById('interaction-content')); return; }
+    // 🗡️🧰 收集冊：只有角色與倉庫都成功寫入後才登錄，避免失敗交易留下未實際取得的圖鑑進度。
     if (typeof registerEquipObtained === 'function') registerEquipObtained(it.id);
     if (typeof registerMiscObtained === 'function') registerMiscObtained(it.id);
-    if (typeof registerRelicObtained === 'function') registerRelicObtained(it.id);   // 🏺 提領＝獲得：遺物也登錄
-    // 🔧 先存玩家存檔（已收到物品）再存倉庫（已移除物品）：萬一第二次寫入失敗（如 localStorage 容量爆），
-    //    結果是「物品重複」而非「庫存消失卻沒領到」，避免領取時遺失物品。
-    saveGame(); saveWarehouse(w); renderTabs(true); updateUI();
+    if (typeof registerRelicObtained === 'function') registerRelicObtained(it.id);
+    renderTabs(true); updateUI();
     renderWarehouseNPC(document.getElementById('interaction-content'));
 }
 function whGold(dir){
     let amt = parseInt(document.getElementById('wh-gold-amt').value) || 0;
     if(amt <= 0) return;
     let w = loadWarehouse();
+    let _txn = whTxnSnapshot();
     if(dir === 'in'){ amt = Math.min(amt, player.gold); player.gold -= amt; w.gold = (w.gold||0) + amt; }
     else { amt = Math.min(amt, w.gold||0); w.gold -= amt; player.gold += amt; }
-    saveWarehouse(w); saveGame(); updateUI();
+    if(!whTxnCommit(w, _txn)){ updateUI(); renderWarehouseNPC(document.getElementById('interaction-content')); return; }
+    updateUI();
     renderWarehouseNPC(document.getElementById('interaction-content'));
 }
 function renderWarehouseNPC(div){
@@ -423,91 +472,8 @@ function renderWarehouseNPC(div){
     let _ni = document.getElementById('wh-inv-list'); if(_ni) _ni.scrollTop = _whInvScroll;
     let _ns = document.getElementById('wh-store-list'); if(_ns) _ns.scrollTop = _whStoreScroll;
 }
-// ===== 🐾 包武：寵物保管（項圈保管，最多 8 個；存於 player.petStorage，與其他存檔角色不共通）=====
-//  ・回憶蠟燭(resetStatsCandle)只清背包項圈、不碰 petStorage（兩者天生分離，無需改 useCandle）。
-//  ・提領受「魅力攜帶上限 floor(魅力/7)」限制（與誘捕同規則）；保管不受魅力限制。
-const PET_STORAGE_MAX = 8;
-function petCollarIds() { return Object.keys(PET_DEF).map(nm => PET_DEF[nm].collar); }   // 8 種項圈 id（基礎4＋進化4）
-function petStorageList() { if (!Array.isArray(player.petStorage)) player.petStorage = []; return player.petStorage; }
-function petStorageCount() { return petStorageList().reduce((s, it) => s + (it.cnt || 0), 0); }
-function petStoreDeposit(collarId, locked) {
-    if (!petCollarIds().includes(collarId)) return;
-    locked = !!locked;   // 🔒 鎖定的項圈也可存入；鎖定/未鎖定的同種項圈各自分開保管
-    let store = petStorageList();
-    if (petStorageCount() >= PET_STORAGE_MAX) { logSys(`<span class="text-red-400">包武：保管箱已滿（上限 ${PET_STORAGE_MAX} 個項圈）。</span>`); return; }
-    let invItem = player.inv.find(i => i.id === collarId && !!i.lock === locked && (i.cnt || 0) > 0);
-    if (!invItem) { logSys('<span class="text-red-400">背包沒有這個項圈。</span>'); return; }
-    invItem.cnt -= 1;
-    if (invItem.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== invItem.uid);
-    let st = store.find(s => s.id === collarId && !!s.lock === locked);
-    if (st) st.cnt += 1; else store.push({ id: collarId, cnt: 1, lock: locked });
-    logSys(`<span class="text-amber-300">已將 <b>${DB.items[collarId].n}</b>${locked ? '（鎖定）' : ''} 交給包武保管。</span>`);
-    saveGame(); renderTabs();
-    let _d = document.getElementById('interaction-content'); if (_d) renderPetStorageNPC(_d);
-}
-function petStoreWithdraw(collarId, locked) {
-    locked = !!locked;
-    let store = petStorageList();
-    let st = store.find(s => s.id === collarId && !!s.lock === locked && (s.cnt || 0) > 0);
-    if (!st) return;
-    let limit = Math.min(8, Math.floor((player.d.cha || 0) / 7));   // 攜帶上限＝min(8, 魅力÷7)：硬上限 8（與誘捕同規則）
-    if (totalCollarCount() >= limit) {
-        logSys(`<span class="text-red-400">包武：你的魅力不足以攜帶更多項圈（攜帶上限 ${limit}），無法提領。請先提升魅力或放走部分夥伴。</span>`);
-        return;
-    }
-    st.cnt -= 1;
-    player.petStorage = store.filter(s => (s.cnt || 0) > 0);
-    // 🔒 加回背包並還原鎖定狀態（不可用 gainItem：其堆疊簽章比對忽略 lock，會誤併入未鎖定堆而丟失鎖定）
-    let inv = player.inv.find(i => i.id === collarId && !!i.lock === locked);
-    if (inv) inv.cnt += 1;
-    else player.inv.push({ id: collarId, uid: uid(), cnt: 1, en: 0, bless: false, anc: false, attr: false, seteff: false, lock: locked, junk: false });
-    logSys(`<span class="text-amber-300">從包武處取回了 <b>${DB.items[collarId].n}</b>${locked ? '（鎖定）' : ''}。</span>`);
-    saveGame(); renderTabs();
-    let _d = document.getElementById('interaction-content'); if (_d) renderPetStorageNPC(_d);
-}
-function renderPetStorageNPC(div) {
-    if (!Array.isArray(player.petStorage)) player.petStorage = [];
-    let ids = petCollarIds();
-    let stored = petStorageCount(), cap = PET_STORAGE_MAX;
-    let carryLimit = Math.min(8, Math.floor((player.d.cha || 0) / 7)), carried = totalCollarCount();
-    // 🔒 依 (id, 鎖定狀態) 分列：鎖定與未鎖定的同種項圈各自一列、各自存取，提領後維持原鎖定狀態
-    let invRows = [], storeRows = [];
-    ids.forEach(id => [false, true].forEach(lk => {
-        let ic = player.inv.filter(i => i.id === id && !!i.lock === lk).reduce((s, i) => s + (i.cnt || 0), 0);
-        if (ic > 0) invRows.push({ id, lock: lk, cnt: ic });
-        let sc = player.petStorage.filter(s => s.id === id && !!s.lock === lk).reduce((s2, s) => s2 + (s.cnt || 0), 0);
-        if (sc > 0) storeRows.push({ id, lock: lk, cnt: sc });
-    }));
-    let full = stored >= cap, blocked = carried >= carryLimit;
-    let invHtml = invRows.length ? invRows.map(r => { let dd = DB.items[r.id];
-        return `<div class="flex items-center justify-between gap-2 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-sm">
-            <span class="${dd.c || 'text-white'}">${r.lock ? '🔒 ' : ''}${dd.n} ×${r.cnt}</span>
-            <button onclick="petStoreDeposit('${r.id}',${r.lock})" ${full ? 'disabled' : ''} class="btn px-3 py-1 text-xs font-bold ${full ? 'opacity-40 cursor-not-allowed' : ''}" style="background:linear-gradient(135deg,#0c4a5e,#0e7490);color:#a5f3fc;border-color:#0891b2;">存入 ▶</button>
-        </div>`; }).join('') : '<div class="text-slate-500 text-sm text-center py-4">背包沒有項圈</div>';
-    let storeHtml = storeRows.length ? storeRows.map(r => { let dd = DB.items[r.id];
-        return `<div class="flex items-center justify-between gap-2 bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-sm">
-            <span class="${dd.c || 'text-white'}">${r.lock ? '🔒 ' : ''}${dd.n} ×${r.cnt}</span>
-            <button onclick="petStoreWithdraw('${r.id}',${r.lock})" ${blocked ? 'disabled' : ''} class="btn px-3 py-1 text-xs font-bold ${blocked ? 'opacity-40 cursor-not-allowed' : ''}" style="background:linear-gradient(135deg,#6b2a10,#b3490e);color:#fed7aa;border-color:#c2410c;">◀ 提領</button>
-        </div>`; }).join('') : '<div class="text-slate-500 text-sm text-center py-4">保管箱是空的</div>';
-    div.innerHTML = `
-    <div class="flex flex-col gap-3 p-1">
-        <div class="text-slate-300 text-sm leading-relaxed">包武：我幫你保管項圈。<b class="text-amber-300">最多 ${cap} 個，且與其他存檔角色不共通</b>。使用回憶蠟燭時只會清除背包中攜帶的項圈，<b class="text-amber-300">保管中的不受影響</b>。<b class="text-amber-300">🔒 鎖定的項圈也可保管，提領後仍維持鎖定</b>。提領時若魅力不足以攜帶更多項圈（攜帶上限＝魅力÷7）則無法提領。</div>
-        <div class="flex items-center gap-4 bg-slate-800/60 border border-slate-600 rounded p-3 text-sm flex-wrap">
-            <span>保管箱：<span class="text-amber-300 font-bold">${stored}/${cap}</span></span>
-            <span>攜帶中項圈：<span class="${blocked ? 'text-red-400' : 'text-green-400'} font-bold">${carried}/${carryLimit}</span>（魅力 ${player.d.cha || 0}）</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-            <div class="flex flex-col min-h-0">
-                <div class="font-bold text-cyan-300 mb-1 text-sm">背包項圈（存入 ▶）</div>
-                <div class="flex flex-col gap-1 overflow-y-auto pr-1" style="max-height:340px">${invHtml}</div>
-            </div>
-            <div class="flex flex-col min-h-0">
-                <div class="font-bold text-amber-300 mb-1 text-sm">保管中（◀ 提領）</div>
-                <div class="flex flex-col gap-1 overflow-y-auto pr-1" style="max-height:340px">${storeHtml}</div>
-            </div>
-        </div>
-    </div>`;
-}
+// 🚫 v3.2.17 舊「包武項圈保管」(PET_STORAGE_MAX=8/petStoreDeposit/petStoreWithdraw/renderPetStorageNPC) 已隨項圈系統移除——
+// 新寵物保管（上限20·同模式共通·出戰/鎖定/放生/進化）＝js/22-pets.js 的 renderPetStorageNPC（同名接手·js/11 路由不變）。
 // ===== 血盟 NPC：依詩蒂(海音) / 特羅斯(歐瑞) =====
 const PLEDGE_CFG = {
     esti: { name: '依詩蒂', img: 'assets/character/依詩蒂.png', honor: '依詩蒂公主', pledgeName: '依詩蒂血盟', enemy: 'tros', enemyName: '特羅斯', seekLine: '我一直在尋覓著，願與我以血盟誓、生死相隨的夥伴呢…你，會是那個人嗎？' },
@@ -549,9 +515,9 @@ function renderPledgeNPC(div, faction) {
             </button>`;
         }).join('');
         div.innerHTML = `
-        <div class="flex flex-row gap-4 items-start p-3">
-            <div class="w-[200px] h-[280px] border-4 border-amber-800 p-2 bg-slate-950/40 rounded-lg shadow-[0_0_30px_rgba(0,0,0,0.9)] outline outline-1 outline-offset-4 outline-amber-700/40 flex items-center justify-center shrink-0 overflow-hidden">
-                <img src="${cfg.img}" alt="${cfg.name}" onerror="this.style.display='none';" class="w-full h-full object-cover object-top rounded pointer-events-none drop-shadow-[0_10px_15px_rgba(0,0,0,0.8)]">
+        <div class="pledge-leader-layout flex flex-row gap-4 items-start p-3">
+            <div class="pledge-leader-portrait">
+                <img src="${cfg.img}" alt="${cfg.name}" onerror="this.style.display='none';" class="pledge-leader-portrait-img">
             </div>
             <div class="flex-1 min-w-0 flex flex-col gap-2.5">
                 <div class="text-slate-200 text-base leading-relaxed">${cfg.name}：讓我們一起為血盟努力，並肩作戰吧！</div>
@@ -581,9 +547,9 @@ function renderPledgeNPC(div, faction) {
         btn = `<button class="btn w-full bg-blue-800 hover:bg-blue-700 border-blue-500 py-3 text-lg font-bold mt-4" onclick="confirmJoinPledge('${faction}')">加入血盟</button>`;
     }
     div.innerHTML = `
-        <div class="flex flex-row gap-5 items-start p-4">
-            <div class="w-[200px] h-[280px] border-4 border-amber-800 p-2 bg-slate-950/40 rounded-lg shadow-[0_0_30px_rgba(0,0,0,0.9)] outline outline-1 outline-offset-4 outline-amber-700/40 flex items-center justify-center shrink-0 overflow-hidden">
-                <img src="${cfg.img}" alt="${cfg.name}" onerror="this.style.display='none';" class="w-full h-full object-cover object-top rounded pointer-events-none drop-shadow-[0_10px_15px_rgba(0,0,0,0.8)]">
+        <div class="pledge-leader-layout flex flex-row gap-5 items-start p-4">
+            <div class="pledge-leader-portrait">
+                <img src="${cfg.img}" alt="${cfg.name}" onerror="this.style.display='none';" class="pledge-leader-portrait-img">
             </div>
             <div class="flex-1 min-w-0">
                 <div class="text-slate-200 text-lg leading-relaxed">${dialogue}</div>
@@ -646,9 +612,9 @@ function joinPledge(faction) {
     if (player.cls === 'royal') return;   // 👑 王族陣營於創角時固定指派，不可由此變更
     if (player.bloodPledge) return;
     player.bloodPledge = faction;   // 設定血盟陣營標籤（供日後戰鬥遭遇特殊敵人觸發）
-    if (!traditionalActive()) PLEDGE_GIFT.forEach(g => gainItem(g.id, g.cnt, true, true));   // 🏛️ 傳統模式：卷軸無用，不發放入盟禮
+    PLEDGE_GIFT.forEach(g => gainItem(g.id, g.cnt, true, true));   // 🏛️ v3.0.83 傳統模式已取消：入盟禮一律發放
     logSys(`<span class="text-green-300 font-bold">${cfg.name}：太好了，歡迎加入${cfg.pledgeName}，我的好夥伴！這些見面禮收下吧。</span>`);
-    if (!traditionalActive()) logSys(`你獲得了 對武器施法的卷軸 x5 與 對盔甲施法的卷軸 x10。`);
+    logSys(`你獲得了 對武器施法的卷軸 x5 與 對盔甲施法的卷軸 x10。`);
     saveGame();
     renderTabs();
     updateUI();
@@ -659,7 +625,7 @@ function leavePledge(faction) {
     let cfg = PLEDGE_CFG[faction];
     if (player.cls === 'royal') { logSys('<span class="text-amber-300">👑 王族世代效忠，無法退出血盟。</span>'); return; }   // 👑 王族不可退出
     if (player.bloodPledge !== faction) return;
-    if (!traditionalActive()) {
+    {   // 🏛️ v3.0.83 傳統模式已取消：退盟一律交還入盟禮（舊傳統角色於 loadGame 遷移時已補發）
         if (!confirm(`${cfg.name}：你必須交還贈送的禮物（對武器施法的卷軸 x5、對盔甲施法的卷軸 x10）才能退出血盟。確定交還並退出？`)) return;
         let lack = PLEDGE_GIFT.some(g => player.inv.filter(i => i.id === g.id && !i.lock).reduce((s, i) => s + i.cnt, 0) < g.cnt);   // 🔧 只計入未鎖定的卷軸
         if (lack) {
@@ -679,7 +645,7 @@ function leavePledge(faction) {
         player.inv = player.inv.filter(i => i.cnt > 0);
     }
     player.bloodPledge = null;
-    logSys(`<span class="text-slate-300">${cfg.name}：你已退出${cfg.pledgeName}。</span>`);
+    logSys(`<span class="text-slate-300">${cfg.name}：很遺憾……你交還了禮物，已退出${cfg.pledgeName}。</span>`);
     saveGame();
     renderTabs();
     updateUI();
@@ -914,8 +880,7 @@ function trialQHTML(key, rr) {
     h += `<div class="text-xs text-slate-400 mb-2">完成獎勵（全數獲得）：${c.rewards.map(id => `<b class="text-sky-300">${DB.items[id].n}</b>`).join('＋')}</div>`;
     if (!ok) return h + `<div class="text-red-400 text-xs">尚未備齊。</div></div>`;
     h += `<div class="flex flex-wrap gap-2"><button class="btn bg-emerald-800 hover:bg-emerald-700 py-2 px-4 font-bold" onclick="trialQComplete('${key}','${rr}')">完成試煉（獲得全部獎勵）</button>`;
-    let elig = player.classicMode ? [] : c.rewards.filter(id => sherineSetEligible(DB.items[id]));
-    if (elig.length) h += `<button class="btn bg-green-900 hover:bg-green-800 border-green-600 py-2 px-4 font-bold" onclick="trialQComplete('${key}','${rr}',true)" title="可附帶套裝效果的裝備每件額外消耗 1 席琳結晶，必定附帶隨機席琳套裝效果"><span class="c-sherine">席琳完成</span>（耗 ${elig.length} 結晶）</button>`;
+    // 🚫 v3.2.16 用戶明令移除：試煉「席琳完成」選項（耗結晶必附套裝詞綴）——結晶用途回歸伊奧兌換/席琳製作等非試煉管道
     return h + `</div></div>`;
 }
 function trialQAccept(key, rr) {
@@ -926,20 +891,14 @@ function trialQAccept(key, rr) {
     logSys(`<span class="text-amber-300 font-bold">${c.npc}：試煉開始！</span>去收集 ${c.reqs.map(p => DB.items[p[0]].n + '×' + p[1]).join('、')}（擊殺指定怪物必定掉落）。`);
     saveGame(); _trialRerender(rr);
 }
-function trialQComplete(key, rr, sherine) {
+function trialQComplete(key, rr) {   // 🚫 v3.2.16 移除席琳完成：原第 3 參 sherine（耗結晶必附套裝詞綴）廢止
     let c = TRIAL_Q[key];
     if (!c || player.cls !== c.cls || trialQState(key) !== 1) return;
     if (!c.reqs.every(p => questCountId(p[0]) >= p[1])) { logSys('試煉道具尚未備齊。'); return; }
-    let elig = (sherine && !player.classicMode) ? c.rewards.filter(id => sherineSetEligible(DB.items[id])) : [];
-    if (sherine && questCountId('sherine_crystal') < elig.length) { logSys('<span class="text-red-400">席琳結晶不足。</span>'); return; }
     c.reqs.forEach(p => questConsumeId(p[0], p[1]));
     let _sv = _tradLootCtx; _tradLootCtx = true;   // 🏛️ 傳統模式：試煉獎勵裝備隨機自帶強化值
     try {
-        c.rewards.forEach(id => {
-            if (elig.includes(id)) { questConsumeId('sherine_crystal', 1); _forceSherineSet = true; }
-            gainItem(id, 1, false, false);
-            _forceSherineSet = false;
-        });
+        c.rewards.forEach(id => { gainItem(id, 1, false, false); });
     } finally { _tradLootCtx = _sv; }
     player.trialQ[key] = 2;
     logSys(`<span class="c-legend font-bold">${c.npc}：試煉通過！</span><span class="text-amber-200">你獲得了 ${c.rewards.map(id => DB.items[id].n).join('、')}。（此試煉已完成，無法再次接取）</span>`);
@@ -1147,14 +1106,12 @@ function build50TrialHTML(npcName) {
     // 🔥 v3.0.78：最終兌換改「一次性·全拿」（trialStage = 階段數+2 ＝已完成；魔族神殿維持開放）
     if (st >= nStages + 2) return h + `<span class="text-emerald-400">✅ 50 級試煉已全數完成（每個角色僅能完成一次）。魔族神殿永久對你開放。</span></div>`;
     let need = cfg.exMatCnt || 1, have = questCountId(cfg.exMat);
-    let elig = player.classicMode ? [] : cfg.rewards.filter(r => sherineSetEligible(DB.items[r.id]));
     h += `魔族神殿已對你開放。<br>最終試煉：交付 <b class="text-red-300">${cfg.exMatNm}</b> × ${need}（持有 ${Math.min(have, need)}/${need}·接取階段中擊殺指定怪物必定掉落·達需求即停）<br>一次性換取全部獎勵：${cfg.rewards.map(r => `<b class="text-sky-300">${r.nm}</b>`).join('＋')}`;
-    h += elig.length ? `<br><span class="text-slate-400 text-sm">🔮 <span class="c-sherine font-bold">席琳完成</span>：可附帶套裝效果的裝備每件額外消耗 1 個<b class="c-sherine">席琳結晶</b>（持有 ${questCountId('sherine_crystal')}），必定附帶隨機<span class="c-sherine">席琳套裝效果</span>。</span>` : ``;
     h += `</div>`;
     if (have < need) return h + `<div class="px-4 pb-4 text-red-400 text-sm">需要 ${need} 個 ${cfg.exMatNm} 才能完成試煉。</div>`;
     h += `<div class="p-4"><div class="flex flex-wrap gap-2">`;
     h += `<button class="btn bg-emerald-800 hover:bg-emerald-700 py-3 px-4 font-bold" onclick="trial50Complete()">完成試煉（獲得全部獎勵）</button>`;
-    if (elig.length) h += `<button class="btn bg-green-900 hover:bg-green-800 border-green-600 py-3 px-4 font-bold" onclick="trial50Complete(true)"><span class="c-sherine">席琳完成</span>（耗 ${elig.length} 結晶）</button>`;
+    // 🚫 v3.2.16 用戶明令移除：50 級試煉「席琳完成」選項與說明列
     return h + `</div></div>`;
 }
 function renderDigallatin(div) {
@@ -1192,23 +1149,17 @@ function trial50TurnIn() {
     purgeCompletedElfWhisper();   // 🔥 交付精靈的私語階段完成 → 自動清除剩餘的精靈的私語
     saveGame(); closeNpcInteraction();
 }
-function trial50Complete(sherine) {   // 🔥 v3.0.78 最終兌換一次性·全拿；🔮 sherine=true：可附套裝的裝備每件額外 1 結晶
+function trial50Complete() {   // 🔥 v3.0.78 最終兌換一次性·全拿；🚫 v3.2.16 移除席琳完成（原參數 sherine 廢止）
     let cfg = TRIAL_50_CFG[player.cls];
     if (!cfg) return;
     let nStages = cfg.stages.length, st = player.trialStage || 0;
     if (st !== nStages + 1) return;   // 只有「魔族神殿已開·尚未完成最終兌換」可完成
     let need = cfg.exMatCnt || 1;
     if (questCountId(cfg.exMat) < need) { logSys(`${cfg.exMatNm} 不足 ${need}。`); return; }
-    let elig = (sherine && !player.classicMode) ? cfg.rewards.filter(r => sherineSetEligible(DB.items[r.id])) : [];
-    if (sherine && questCountId('sherine_crystal') < elig.length) { logSys('<span class="text-red-400">席琳結晶不足。</span>'); return; }
     questConsumeId(cfg.exMat, need);
     let _sv = _tradLootCtx; _tradLootCtx = true;   // 🏛️ 傳統模式：獎勵裝備隨機自帶強化值
     try {
-        cfg.rewards.forEach(r => {
-            if (elig.includes(r)) { questConsumeId('sherine_crystal', 1); _forceSherineSet = true; }
-            gainItem(r.id, 1, false, false);
-            _forceSherineSet = false;
-        });
+        cfg.rewards.forEach(r => { gainItem(r.id, 1, false, false); });
     } finally { _tradLootCtx = _sv; }
     player.trialStage = nStages + 2;   // ✅ 全數完成（demonTempleOpen 維持 true）
     saveGame();

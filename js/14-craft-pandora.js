@@ -64,6 +64,8 @@ const CRAFT_RECIPES = {
     // 🔮 巴特爾（希培利亞村莊）：龜裂之核＝時空裂痕碎片×100；黑曜石奇古獸＝四種高品質寶石×10＋龜裂之核×2＋原石碎片×30＋精靈粉末×30＋金幣 100 萬
     npc_bartel: [
         { result: 'mat_crack_core', req: [{ id: 'mat_rift_shard', cnt: 100 }] },
+        { result: 'mat_gasha_soul', req: [{ id: 'mat_youkai_soul', cnt: 100 }] },   // 🌅 日出之國：巨大骷髏的妖魂（使用+100萬經驗·可批量）
+
         { result: 'item_osiris_box_basic', req: [{ id: 'mat_osiris_basic_up', cnt: 1 }, { id: 'mat_osiris_basic_down', cnt: 1 }] },
         { result: 'item_osiris_box_high', req: [{ id: 'mat_osiris_high_up', cnt: 1 }, { id: 'mat_osiris_high_down', cnt: 1 }] },
         { result: 'item_kukulkan_box_basic', req: [{ id: 'mat_kukulkan_basic_up', cnt: 1 }, { id: 'mat_kukulkan_basic_down', cnt: 1 }] },   // 🐍 提卡爾 初級寶箱
@@ -78,12 +80,21 @@ const CRAFT_RECIPES = {
         result: 'item_pride_dom_' + N,
         req: [{ id: 'item_pride_pass_' + N, cnt: 1 }, { id: 'item_pride_scroll_' + N, cnt: 100 }]
     })),
-    // 🦴 諾斯（亞丁）：寵物裝備『之牙』鍛造
+    // 🦴 諾斯（亞丁）：寵物裝備『之牙』鍛造＋🐾 v3.2.17 寵物進化材料（進化果實/勝利果實）
     npc_norse: [
         { result: 'pet_fang_hound',   req: [{ id: 'new_item_180', cnt: 50 },  { id: 'new_item_152', cnt: 3 },  { id: 'gold', cnt: 100000 }] },
         { result: 'pet_fang_steel',   req: [{ id: 'new_item_180', cnt: 100 }, { id: 'new_item_161', cnt: 1 },  { id: 'gold', cnt: 100000 }] },
         { result: 'pet_fang_ruin',    req: [{ id: 'pet_fang_hound', cnt: 1 }, { id: 'mat_black_mithril', cnt: 10 }, { id: 'new_phoenix_heart', cnt: 1 }, { id: 'gold', cnt: 1000000 }] },
-        { result: 'pet_fang_victory', req: [{ id: 'pet_fang_steel', cnt: 1 }, { id: 'new_item_180', cnt: 50 }, { id: 'new_item_161', cnt: 2 }, { id: 'new_item_162', cnt: 1 }, { id: 'gold', cnt: 1000000 }] }
+        { result: 'pet_fang_victory', req: [{ id: 'pet_fang_steel', cnt: 1 }, { id: 'new_item_180', cnt: 50 }, { id: 'new_item_161', cnt: 2 }, { id: 'new_item_162', cnt: 1 }, { id: 'gold', cnt: 1000000 }] },
+        { result: 'item_evo_fruit',     req: [{ id: 'new_item_221', cnt: 100 }, { id: 'new_item_154', cnt: 20 }, { id: 'gold', cnt: 20000 }] },   // 進化果實＝光明的鱗片×100＋綠寶石×20＋金幣20000
+        { result: 'item_victory_fruit', req: [{ id: 'item_dragon_heart', cnt: 1 }, { id: 'new_item_159', cnt: 5 }] },                               // 勝利果實＝龍之心×1＋高品質紅寶石×5
+        // 🛡️ v3.2.37 寵物防具鍛造（皮→骷髏；鋼鐵→十字/鏈→米索莉·成品可作上位材料·doCraft 自動遞迴補製中間物）
+        { result: 'pet_arm_leather', req: [{ id: 'new_item_182', cnt: 20 }, { id: 'gold', cnt: 10000 }] },                                                                                             // 寵物皮盔甲＝高級皮革×20＋金幣10000
+        { result: 'pet_arm_bone',    req: [{ id: 'pet_arm_leather', cnt: 1 }, { id: 'new_item_182', cnt: 10 }, { id: 'new_item_183', cnt: 20 }, { id: 'gold', cnt: 50000 }] },                        // 寵物骷髏盔甲＝寵物皮盔甲×1＋高級皮革×10＋骨頭碎片×20＋金幣50000
+        { result: 'pet_arm_steel',   req: [{ id: 'mat_steel_chunk', cnt: 20 }, { id: 'new_item_180', cnt: 20 }, { id: 'gold', cnt: 100000 }] },                                                       // 寵物鋼鐵盔甲＝鋼鐵塊×20＋金屬塊×20＋金幣100000
+        { result: 'pet_arm_cross',   req: [{ id: 'pet_arm_steel', cnt: 1 }, { id: 'new_item_182', cnt: 50 }, { id: 'mat_steel_chunk', cnt: 20 }, { id: 'gold', cnt: 200000 }] },                      // 寵物十字盔甲＝寵物鋼鐵盔甲×1＋高級皮革×50＋鋼鐵塊×20＋金幣200000
+        { result: 'pet_arm_chain',   req: [{ id: 'pet_arm_steel', cnt: 1 }, { id: 'new_item_182', cnt: 50 }, { id: 'mat_steel_chunk', cnt: 100 }, { id: 'gold', cnt: 200000 }] },                     // 寵物鏈甲＝寵物鋼鐵盔甲×1＋高級皮革×50＋鋼鐵塊×100＋金幣200000
+        { result: 'pet_arm_mithril', req: [{ id: 'pet_arm_cross', cnt: 1 }, { id: 'new_item_182', cnt: 50 }, { id: 'new_item_153', cnt: 2 }, { id: 'new_item_177', cnt: 10 }, { id: 'mat_dragon_heart', cnt: 1 }, { id: 'gold', cnt: 300000 }] }   // 寵物米索莉盔甲＝寵物十字盔甲×1＋高級皮革×50＋高品質鑽石×2＋米索莉金屬板×10＋飛龍之心×1＋金幣300000
     ],
     // 🔥 炎魔之影（炎魔謁見所）：墮落鐮刀 + 墮落首級 → 炎魔的血光斗篷
     npc_flame_shadow: [
@@ -387,7 +398,22 @@ const CRAFT_RECIPES = {
         { result: 'amr_old_plate', req: [{ id: 'item_forgotten_plate', cnt: 1 }, { id: 'item_ancient_scroll', cnt: 1 }] }
     ],
     // 🔷🔶 象牙塔・神秘的魔法師（魔杖改造）：僅有客製配方（見 MYSTICWAND_RECIPES），空陣列讓 renderUniversalCraft 通過並附加客製區塊
-    'npc_mystic_mage': []
+    'npc_mystic_mage': [],
+    // 🌑 v3.3.33 長老會議廳・亞提利歐（黑暗妖精聖地.md）：召喚球合成＋真．冥皇系列防具鍛造
+    npc_atelier: [
+        { result: 'item_summonorb_full', req: [{ id: 'mat_summonorb_core', cnt: 1 }, { id: 'mat_summonorb_shard', cnt: 4 }] },
+        { result: 'mat_emperor_manual',  req: [{ id: 'mat_summonorb_core', cnt: 1 }, { id: 'mat_summonorb_shard', cnt: 4 }] },
+        { result: 'clk_emperor', req: [{ id: 'mat_emperor_manual', cnt: 1 }, { id: 'mat_ascetic_classic', cnt: 5 },  { id: 'mat_de_soul_crystal', cnt: 50 },  { id: 'mat_black_powder', cnt: 15 }, { id: 'arm_official_cloak', cnt: 1 }, { id: 'mat_blackmithril_plate', cnt: 5 },  { id: 'new_item_159', cnt: 10 }] },
+        { result: 'amr_emperor', req: [{ id: 'mat_emperor_manual', cnt: 1 }, { id: 'mat_ascetic_classic', cnt: 10 }, { id: 'mat_de_soul_crystal', cnt: 100 }, { id: 'mat_black_powder', cnt: 30 }, { id: 'amr_official', cnt: 1 },        { id: 'mat_blackmithril_plate', cnt: 10 }, { id: 'new_item_153', cnt: 20 }] },
+        { result: 'hlm_emperor', req: [{ id: 'mat_emperor_manual', cnt: 1 }, { id: 'mat_ascetic_classic', cnt: 5 },  { id: 'mat_de_soul_crystal', cnt: 50 },  { id: 'mat_black_powder', cnt: 15 }, { id: 'hlm_official', cnt: 1 },        { id: 'mat_blackmithril_plate', cnt: 5 },  { id: 'new_item_162', cnt: 10 }] },
+        { result: 'glv_emperor', req: [{ id: 'mat_emperor_manual', cnt: 1 }, { id: 'mat_ascetic_classic', cnt: 5 },  { id: 'mat_de_soul_crystal', cnt: 50 },  { id: 'mat_black_powder', cnt: 15 }, { id: 'glv_official', cnt: 1 },        { id: 'mat_blackmithril_plate', cnt: 5 },  { id: 'new_item_156', cnt: 10 }] },
+        { result: 'bot_emperor', req: [{ id: 'mat_emperor_manual', cnt: 1 }, { id: 'mat_ascetic_classic', cnt: 5 },  { id: 'mat_de_soul_crystal', cnt: 50 },  { id: 'mat_black_powder', cnt: 15 }, { id: 'bot_official', cnt: 1 },        { id: 'mat_blackmithril_plate', cnt: 5 },  { id: 'new_item_153', cnt: 10 }] },
+        // 🌑 靈魂耳環系列（淨化藥水＝四大氣息×10＋品質綠寶石；受詛咒黑色耳環＋淨化藥水→對應職業靈魂耳環）
+        { result: 'mat_purify_potion', req: [{ id: 'mat_earth_breath', cnt: 10 }, { id: 'mat_wind_breath', cnt: 10 }, { id: 'mat_water_breath', cnt: 10 }, { id: 'mat_fire_breath', cnt: 10 }, { id: 'new_item_155', cnt: 1 }] },
+        { result: 'ear_soul_mage',    req: [{ id: 'ear_cursed_black', cnt: 1 }, { id: 'mat_purify_potion', cnt: 1 }] },
+        { result: 'ear_soul_fighter', req: [{ id: 'ear_cursed_black', cnt: 1 }, { id: 'mat_purify_potion', cnt: 1 }] },
+        { result: 'ear_soul_knight',  req: [{ id: 'ear_cursed_black', cnt: 1 }, { id: 'mat_purify_potion', cnt: 1 }] }
+    ]
 };
 
 // 製作數量選擇器 + 製作按鈕（預設數量 1）
@@ -424,7 +450,7 @@ function renderUniversalCraft(div, npcId) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -442,6 +468,7 @@ function renderUniversalCraft(div, npcId) {
     if (npcId === 'npc_flame_shadow') div.innerHTML += buildDemonKingCraftHTML();   // 👑 炎魔之影：在通用配方下方附加惡魔王武器客製製作區
     if (npcId === 'npc_lumiel') div.innerHTML += buildLumielCraftHTML();   // ⚔️ 琉米埃爾：在通用配方下方附加神聖執行團裝備客製製作區
     if (npcId === 'npc_mystic_mage') div.innerHTML += buildMysticWandCraftHTML();   // 🔷🔶 神秘的魔法師：鋼鐵瑪那魔杖客製製作區（該 NPC 無通用配方）
+    if (npcId === 'npc_zeus_golem') div.innerHTML += buildSlayerCraftHTML();   // 🔥 宙斯之熔岩高崙：在通用配方下方附加滅魔裝備客製製作區
 }
 
 // ===== 👑 惡魔王武器客製製作（炎魔之影）：消耗 +11 以上「指定」惡魔武器，繼承其強化值／詞綴／席琳套裝效果；不支援席琳製作 =====
@@ -477,7 +504,7 @@ function buildDemonKingCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -540,7 +567,7 @@ function buildLumielCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -605,7 +632,7 @@ function buildMysticWandCraftHTML() {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -638,6 +665,63 @@ function doMysticWandCraft(idx) {
     renderUniversalCraft(document.getElementById('interaction-content'), 'npc_mystic_mage');
 }
 
+// ===== 🔥 滅魔裝備客製製作（威頓村・宙斯之熔岩高崙·依《滅魔裝備.md》）：消耗 +7 以上抗魔法鏈甲，成品恆為 +0（不繼承強化值／詞綴）=====
+//   來源鏈甲的挑選重用 findMysticWandSource（背包＋倉庫·+7 以上·未鎖定·挑最不值錢那件）。
+const SLAYER_SRC_ID = 'arm_69', SLAYER_SRC_NAME = '抗魔法鏈甲';
+const SLAYER_RECIPES = [
+    { result: 'amr_slayer_plate', mats: [{ id: 'amr_old_plate',   cnt: 1 }, { id: 'gold', cnt: 10000000 }] },
+    { result: 'amr_slayer_scale', mats: [{ id: 'amr_old_scale',   cnt: 1 }, { id: 'gold', cnt: 10000000 }] },
+    { result: 'amr_slayer_vine',  mats: [{ id: 'amr_old_leather', cnt: 1 }, { id: 'gold', cnt: 10000000 }] },
+    { result: 'amr_slayer_shawl', mats: [{ id: 'amr_old_robe',    cnt: 1 }, { id: 'gold', cnt: 10000000 }] },
+];
+function buildSlayerCraftHTML() {
+    let html = `<div class="text-amber-300 font-bold text-sm mt-4 mb-2 px-1 border-t border-slate-700 pt-3">🔥 滅魔裝備（消耗 +7 以上的抗魔法鏈甲；成品為 +0）</div>`;
+    SLAYER_RECIPES.forEach((r, idx) => {
+        let resItem = DB.items[r.result];
+        let imgUrl = getIconUrl(resItem);
+        let matsOk = r.mats.every(m => materialObtainable(m.id, m.cnt));
+        let src = findMysticWandSource(SLAYER_SRC_ID);
+        let canMake = matsOk && !!src;
+        let srcColor = src ? 'text-green-400' : 'text-red-400';
+        let srcExtra = src ? `（將消耗 +${src.en || 0}）` : '';
+        let reqHtml = craftReqHtml(r.mats)
+            + `<span class="text-slate-500 mx-2 leading-none">+</span><span class="text-sm font-bold leading-none ${srcColor}">+7以上 ${SLAYER_SRC_NAME} ×1</span><span class="text-amber-300 text-xs ml-0.5">${srcExtra}</span>`;
+        html += `
+        <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
+            <div class="flex items-center gap-4 min-w-0 flex-1">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
+                    <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
+                </div>
+                <div class="flex flex-col items-start gap-1.5">
+                    <span class="${getItemColor({ id: r.result })} font-bold text-lg leading-none truncate">${resItem.n}</span>
+                    <div class="flex items-center gap-2 flex-wrap"><span class="text-slate-400 text-sm">需求：</span>${reqHtml}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button class="btn ${canMake ? 'bg-blue-700 hover:bg-blue-600 border-blue-500' : 'bg-slate-700 border-slate-600 opacity-60'} py-2 px-6 font-bold shadow" ${canMake ? '' : 'disabled'} onclick="doSlayerCraft(${idx})">製作</button>
+            </div>
+        </div>`;
+    });
+    return html;
+}
+function doSlayerCraft(idx) {
+    let r = SLAYER_RECIPES[idx];
+    if (!r) return;
+    if (!RECIPE_BY_RESULT) buildRecipeIndex();
+    let lack = r.mats.filter(m => !materialObtainable(m.id, m.cnt)).map(m => m.id === 'gold' ? `金幣 ${Math.max(0, m.cnt - player.gold).toLocaleString()}` : `${DB.items[m.id].n} ${Math.max(0, m.cnt - invCountId(m.id))}`);
+    let src = findMysticWandSource(SLAYER_SRC_ID);
+    if (!src) lack.push(`+7以上 ${SLAYER_SRC_NAME} ×1`);
+    if (lack.length) { logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">（尚缺：${lack.join('、')}）</span>`); return; }
+    r.mats.forEach(m => ensureMaterial(m.id, m.cnt, 0));   // 🔧 先自動補製可合成的中間物（古老的盔甲可由迪泰特配方遞迴合成）
+    r.mats.forEach(m => consumeMaterialById(m.id, m.cnt));
+    if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 來源鏈甲在倉庫：自倉庫精準消耗該實例
+    else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 件來源鏈甲（背包）
+    gainItem(r.result, 1, true, false);   // 成品恆 +0（不繼承來源的強化值／詞綴）；走 gainItem → 自動登錄裝備收集冊＋1% 祝福擲骰
+    logSys(`<span class="text-amber-200 font-bold">宙斯之熔岩高崙</span> 製作完成：<span class="${getItemColor({ id: r.result })} font-bold">${DB.items[r.result].n}</span>`);
+    updateUI(); renderTabs(true); saveGame();
+    renderUniversalCraft(document.getElementById('interaction-content'), 'npc_zeus_golem');
+}
+
 // 2. 渲染茉莉的製作介面
 function renderMoliCraft(div) {
     let recipes = CRAFT_RECIPES['npc_moli'];
@@ -654,7 +738,7 @@ function renderMoliCraft(div) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -685,7 +769,7 @@ function renderBraboCraft(div) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -715,7 +799,7 @@ function renderFinnCraft(div, npcId) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -745,7 +829,7 @@ function renderJoelCraft(div, npcId) {
         html += `
         <div class="list-item bg-slate-800 rounded mb-2 border border-slate-700 p-3 hover:bg-slate-700 transition-colors" style="display:flex !important; justify-content:space-between !important; align-items:center !important; width:100% !important; box-sizing:border-box !important;">
             <div class="flex items-center gap-4 min-w-0 flex-1">
-                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host">
+                <div class="w-12 h-12 bg-slate-900 rounded border border-slate-600 flex items-center justify-center shrink-0 tip-host" data-tip-id="${r.result}" data-tip-craft="1">
                     <img src="${imgUrl}" onerror="this.style.display='none';" class="w-10 h-10 object-contain pointer-events-none">
                 </div>
                 <div class="flex flex-col items-start gap-1.5">
@@ -977,7 +1061,7 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine 參數保留簽�
 
     // 產出（逐個產生，使每件各自有 1% 機率取得隨機詞綴；靜音後統一記錄一次）
     _tradLootCtx = true;   // 🏛️ 傳統模式：製作的武器/防具/飾品/寵物裝備隨機自帶強化值（材料非裝備→不受影響、恆 +0）
-    let _isPetGear = !!(DB.items[recipe.result] && DB.items[recipe.result].slot === 'pet');   // 🦴 寵物裝備（type:acc）
+    let _isPetGear = !!(DB.items[recipe.result] && ['petwpn', 'petarm'].includes(DB.items[recipe.result].slot));   // 🦴 寵物裝備（之牙 petwpn／防具 petarm）＝白板
     _noAffixCtx = _isPetGear;   // 🦴 寵物裝備＝白板：擋詞綴/套裝效果
     try {
         for (let k = 0; k < makeCount; k++) {
@@ -1013,8 +1097,6 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine 參數保留簽�
 
     saveGame();
 }
-let gachaRolling = false; // 防止玩家狂點按鈕
-
 function renderPandoraGacha(div) {
     // 🔧 潘朵拉黑市（取代舊抽獎機）：每 10 分鐘上架一件商品，可直接購買
     _pandoraDiv = div;
@@ -1023,149 +1105,37 @@ function renderPandoraGacha(div) {
     try { renderPandoraBanner(); } catch (e) {}
     try { saveGame(); } catch (e) {}          // 🔧 點擊潘朵拉即自動存檔，鎖定當下商品與剩餘時間
     pandoraRenderMarket(div);
-    return;
-    /* ===== 以下為舊抽獎機 UI，已停用（保留不執行） ===== */
-    let ticketId = "new_item_239";
-    let ticketItem = player.inv.find(i => i.id === ticketId);
-    let ticketCount = (ticketItem && ticketItem.cnt > 0) ? ticketItem.cnt : 0;
-    if (!window._gachaMode) window._gachaMode = 'single';
-    let mode = window._gachaMode;
-
-    let cells = '';
-    for (let k = 0; k < 10; k++) {
-        cells += `<div class="bg-slate-900 border-2 border-purple-700 rounded-lg aspect-square overflow-hidden"><div class="gacha10-icon w-full h-full flex items-center justify-center text-xl" data-idx="${k}">❓</div></div>`;
-    }
-
-    let html = `
-    <div class="flex flex-col items-center justify-start h-full p-4 w-full">
-        <h3 class="text-3xl font-bold text-purple-400 mb-1 drop-shadow-md">潘朵拉的黑市</h3>
-        <p class="text-slate-300 text-xs mb-1 text-center">擁有潘朵拉抽獎卷：<span id="gacha-ticket-count" class="text-green-400 font-bold">${ticketCount}</span> 張</p>
-        <p class="text-slate-400 text-xs mb-3 text-center">抽中的武器 / 防具 / 飾品各有 1% 機率帶有 屬性 / 遠古 / 祝福 詞綴！</p>
-
-        <div class="flex gap-2 mb-4">
-            <button id="gacha-tab-single" class="btn py-1.5 px-4 text-sm rounded-full ${mode==='single'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}" onclick="setGachaMode('single')">單抽</button>
-            <button id="gacha-tab-ten" class="btn py-1.5 px-4 text-sm rounded-full ${mode==='ten'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}" onclick="setGachaMode('ten')">10 連抽</button>
-        </div>
-
-        <div id="gacha-single" class="${mode==='single'?'':'hidden'} flex flex-col items-center w-full">
-            <div id="gacha-display" class="w-44 h-44 bg-slate-900 border-4 border-purple-700 rounded-xl shadow-[0_0_30px_rgba(126,34,206,0.6)] flex flex-col items-center justify-center mb-4 relative overflow-hidden">
-                <span class="text-6xl" id="gacha-icon">❓</span>
-                <div id="gacha-name" class="absolute bottom-0 w-full text-center text-sm font-bold text-white bg-black/80 px-2 py-1.5 hidden"></div>
-            </div>
-            <button id="btn-gacha" class="btn bg-purple-700 hover:bg-purple-600 border-purple-500 py-3 px-8 text-lg font-bold rounded-full shadow-[0_0_15px_rgba(126,34,206,0.5)] transition-all transform hover:scale-105" onclick="doPandoraGacha()">
-                🎰 抽獎（${ticketCount>0?'1 張抽獎卷':(shopPrice(30000).toLocaleString()+' 金幣')}）
-            </button>
-        </div>
-
-        <div id="gacha-ten" class="${mode==='ten'?'':'hidden'} flex flex-col items-center w-full">
-            <div class="grid grid-cols-5 gap-1.5 w-full max-w-sm mb-3">${cells}</div>
-            <button id="btn-gacha10" class="btn bg-purple-700 hover:bg-purple-600 border-purple-500 py-3 px-8 text-lg font-bold rounded-full shadow-[0_0_15px_rgba(126,34,206,0.5)] transition-all transform hover:scale-105" onclick="doPandoraGacha10()">
-                🎰 10 連抽（${ticketCount>=10?'10 張抽獎卷':(shopPrice(300000).toLocaleString()+' 金幣')}）
-            </button>
-            <div id="gacha10-results" class="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-3 text-sm"></div>
-        </div>
-
-        <p id="gacha-msg" class="text-yellow-300 mt-3 font-bold text-base min-h-8 text-center"></p>
-    </div>
-    `;
-
-    div.innerHTML = html;
 }
 
-// 切換單抽 / 10連抽（抽獎進行中不可切換）
-function setGachaMode(m) {
-    if (gachaRolling) return;
-    window._gachaMode = m;
-    document.getElementById('gacha-single').classList.toggle('hidden', m !== 'single');
-    document.getElementById('gacha-ten').classList.toggle('hidden', m !== 'ten');
-    document.getElementById('gacha-tab-single').className = `btn py-1.5 px-4 text-sm rounded-full ${m==='single'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}`;
-    document.getElementById('gacha-tab-ten').className = `btn py-1.5 px-4 text-sm rounded-full ${m==='ten'?'bg-purple-700 border-purple-500':'bg-slate-700 border-slate-600'}`;
-    document.getElementById('gacha-msg').innerHTML = '';
-}
-
-// 更新面板上顯示的抽獎卷數量，並依目前卷數重新判斷兩個抽獎按鈕的成本顯示：
-//   單抽：有 ≥1 張→只顯示「1 張抽獎卷」；不足→只顯示「30,000 金幣」。
-//   10連：有 ≥10 張→只顯示「10 張抽獎卷」；不足（含有卷但<10）→只顯示「300,000 金幣」。
-function refreshGachaTicketCount() {
-    let t = player.inv.find(i => i.id === 'new_item_239');
-    let cnt = t ? t.cnt : 0;
-    let el = document.getElementById('gacha-ticket-count');
-    if (el) el.innerText = cnt;
-    let b1 = document.getElementById('btn-gacha');
-    if (b1) b1.innerHTML = `🎰 抽獎（${cnt > 0 ? '1 張抽獎卷' : (shopPrice(30000).toLocaleString()+' 金幣')}）`;
-    let b10 = document.getElementById('btn-gacha10');
-    if (b10) b10.innerHTML = `🎰 10 連抽（${cnt >= 10 ? '10 張抽獎卷' : (shopPrice(300000).toLocaleString()+' 金幣')}）`;
-}
 
 
 // 🔧 已刪除重複定義的 getWeightedGachaResult（死碼）：與下方版本逐行等價，僅後者生效。
 
 // ==========================================
-// 👇 新增：1. 權重初始化函數 (遊戲載入時自動執行一次)
+// 👇 權重初始化（遊戲載入時執行一次）：🎯 v3.4.2 用戶拍板「物品權重完全看標示」＋ v3.4.3 兩項補充——
+//    ① 有標示 gachaWeight → 一律照標示（唯一真相·不再有 商店/製作→0、僅BOSS掉落→1、逐件強制 等覆寫層）。
+//    ② 未標示＋是「商店販賣物」（SHOP_LISTS 聯集）→ 依價格自動分配（1/10/20/50/100 五階·無價/鑰匙/地圖→0）。
+//    ③ 未標示＋非商店販賣物 → 0（要進抽獎池必須顯式標 >0）。
+//    ④ 遺物（relic:true）→ 一律 0（最後執行·蓋過標示·永不進黑市/抽獎/10連抽/血盟野外/裂痕池）。
 // ==========================================
 (function initGachaWeights() {
+    let SHOP_SOLD = new Set();
+    if (typeof SHOP_LISTS !== 'undefined') for (let _k in SHOP_LISTS) (SHOP_LISTS[_k] || []).forEach(_id => SHOP_SOLD.add(_id));
     for (let id in DB.items) {
         let item = DB.items[id];
-        
-        // 如果已經有手動設定權重就跳過
-        if (item.gachaWeight !== undefined) continue;
-
-        // 任務道具、沒價格的物品，不放進抽獎池 (權重 0)
-        if (!item.p || item.p <= 1 || (item.n && (item.n.includes("鑰匙") || item.n.includes("地圖")))) {
-            item.gachaWeight = 0;
-            continue;
+        if (!item) continue;
+        if (item.gachaWeight === undefined) {
+            if (SHOP_SOLD.has(id)) {   // 未標示的商店販賣物 → 依價格自動分配
+                if (!item.p || item.p <= 1 || (item.n && (item.n.includes("鑰匙") || item.n.includes("地圖")))) item.gachaWeight = 0;
+                else if (item.p > 100000) item.gachaWeight = 1;     // 十萬以上極度稀有
+                else if (item.p > 30000) item.gachaWeight = 10;     // 三萬以上稀有
+                else if (item.p > 10000) item.gachaWeight = 20;     // 一萬以上罕見
+                else if (item.p > 1000) item.gachaWeight = 50;      // 一千以上一般
+                else item.gachaWeight = 100;                        // 便宜貨超容易抽到
+            } else item.gachaWeight = 0;   // 其他未標示 → 0
         }
-
-        // 依照價格 (p) 自動分配機率權重
-        if (item.p > 100000) {
-            item.gachaWeight = 1;     // 十萬以上極度稀有
-        } else if (item.p > 30000) {
-            item.gachaWeight = 10;    // 三萬以上稀有
-        } else if (item.p > 10000) {
-            item.gachaWeight = 20;    // 一萬以上罕見
-        } else if (item.p > 1000) {
-            item.gachaWeight = 50;   // 一千以上一般
-        } else {
-            item.gachaWeight = 100;  // 便宜貨超容易抽到
-        }
+        if (item.relic) item.gachaWeight = 0;   // 🏺 遺物一律 0（蓋過標示）
     }
-    // 🔧 v3.0.81 使用者規格：移除「權重 ≥50 ×2」出現率加倍——黑市出現機率全部以原始權重計算
-})();
-
-// ==========================================
-// 🔧 潘朵拉黑市權重覆寫（於 initGachaWeights 之後執行，覆蓋上方權重）：
-//    ① 商店有販售的物品（武器／防具／道具）＋ 製作材料 → 權重 0（不會出現在黑市）
-//    ② 只有 BOSS 才會掉落的物品 → 權重 1（黑市稀有商品）
-//    ⚠️ PANDORA_SHOP_SOLD_IDS 需與 getShopItemsForNpc 的各商人販售清單保持一致；日後新增商店商品請同步補上。
-// ==========================================
-(function applyPandoraWeightRules() {
-    // 商店販售品聯集（所有商人清單，不分職業；對應 getShopItemsForNpc）
-    let PANDORA_SHOP_SOLD_IDS = new Set();
-    for (let _k in SHOP_LISTS) (SHOP_LISTS[_k] || []).forEach(_id => PANDORA_SHOP_SOLD_IDS.add(_id));   // 🔧 商店販售品聯集（單一來源：SHOP_LISTS）
-    // 製作材料：所有配方 req 輸入
-    let craftMatSet = new Set();
-    if (typeof CRAFT_RECIPES !== 'undefined') for (let npc in CRAFT_RECIPES) (CRAFT_RECIPES[npc] || []).forEach(r => (r.req || []).forEach(m => craftMatSet.add(m.id)));
-    // 掉落來源彙整：itemId → { boss:有BOSS掉, normal:有非BOSS掉 }（怪名→怪物以判斷 boss 旗標）
-    let mobByName = {};
-    for (let mid in DB.mobs) { let mb = DB.mobs[mid]; if (mb && mb.n) mobByName[mb.n] = mb; }
-    let dropFrom = {};
-    let addDrop = (mobName, itemId) => { let mob = mobByName[mobName]; let e = dropFrom[itemId] || (dropFrom[itemId] = { boss: false, normal: false }); if (mob && mob.boss) e.boss = true; else e.normal = true; };
-    let scan = tbl => { if (!tbl) return; for (let nm in tbl) (tbl[nm] || []).forEach(en => { let id = Array.isArray(en) ? en[0] : en; if (id) addDrop(nm, id); }); };
-    if (typeof MOB_DROPS !== 'undefined') scan(MOB_DROPS);
-    if (typeof DARK_WEAPON_DROPS !== 'undefined') scan(DARK_WEAPON_DROPS);
-    if (typeof DARK_CRYSTAL_DROPS !== 'undefined') scan(DARK_CRYSTAL_DROPS);
-    // 套用覆寫
-    for (let id in DB.items) {
-        let item = DB.items[id];
-        if (PANDORA_SHOP_SOLD_IDS.has(id) || craftMatSet.has(id)) { item.gachaWeight = 0; continue; }   // 商店品／製作材料 → 0
-        let df = dropFrom[id];
-        if (df && df.boss && !df.normal) item.gachaWeight = 1;   // 僅 BOSS 掉落 → 1
-    }
-    ['wpn_dragonslayer','wpn_baless'].forEach(_id => { if (DB.items[_id]) DB.items[_id].gachaWeight = 1; });   // 🔧 屠龍劍／巴列斯魔杖：固定權重 1
-    ['hlm_icequeen_charm','amr_icequeen_charm','bot_icequeen_charm'].forEach(_id => { if (DB.items[_id]) DB.items[_id].gachaWeight = 1; });   // ❄️👸 冰之女王魅力套裝：雖兼任寒冰製作素材(會被 craftMatSet 設0)，仍強制黑市權重 1
-    [['hlm_official',10],['amr_official',10],['wpn_baranka_claw',10],['wpn_assassin_mark',10],['wpn_priest_wand',10],['wpn_laia_wand',1],['shd_priest_book',5]].forEach(([_id,_w]) => { if (DB.items[_id]) DB.items[_id].gachaWeight = _w; });   // 🔧 BOSS掉落但指定較高潘朵拉權重（不套用 BOSS專屬→1）；🔧 v2.6.67 蕾雅魔杖 10→1（傳說級稀有度對齊）
-    // 🏺 遺物（relic:true）：永不進潘朵拉黑市／抽獎／10連抽／血盟野外特殊掉落／時空裂痕獎勵池。最後執行→覆蓋以上所有權重規則（含 BOSS→1）；四個抽獎池皆已排除 gachaWeight<=0。
-    for (let _rid in DB.items) { if (DB.items[_rid] && DB.items[_rid].relic) DB.items[_rid].gachaWeight = 0; }
 })();
 
 // ==========================================
@@ -1177,8 +1147,7 @@ function getWeightedGachaResult(doubleNonRare) {
 
     // 建立抽獎池並計算總權重
     for (let id in DB.items) {
-        if (tradNoScrolls() && TRAD_NO_SCROLLS[id]) continue;   // 🏛️ 傳統模式：潘朵拉池與血盟掉落排除施法卷軸
-        let weight = DB.items[id].gachaWeight !== undefined ? DB.items[id].gachaWeight : 100;
+        let weight = DB.items[id].gachaWeight !== undefined ? DB.items[id].gachaWeight : 0;   // 🎯 v3.4.2 沒有標示視同 0（initGachaWeights 已正規化·此為雙保險）
         if (weight > 0) {
             if (doubleNonRare && weight !== 1) weight *= 2;   // 🔧 血盟野外特殊掉落：潘朵拉權重 1 以外的物品以 2 倍權重計算（權重100→200）
             totalWeight += weight;
@@ -1201,13 +1170,14 @@ function getWeightedGachaResult(doubleNonRare) {
 }
 
 // ==========================================
-// 🔧 潘朵拉黑市 v3.0.81：一次陳列 20 件商品（緊湊格·icon/名稱/價格/購買·能力走 tooltip）。
-//    每 5 分鐘輪換 1 格（round-robin），每件商品自上架起持續 100 分鐘（20 格 × 5 分鐘一圈）才再刷新。
-//    以遊戲 tick 計時（存讀檔保留·離線經補跑自然推進）；離線超過一圈(100分鐘)直接全面換貨。
+// 🔧 潘朵拉黑市：一次陳列 24 件商品（桌面 3 欄 × 8 列；icon/名稱/價格/購買·能力走 tooltip）。
+//    每 10 分鐘輪換 1 格（round-robin），每件商品自上架起持續 240 分鐘（24 格 × 10 分鐘一圈）才再刷新。
+//    以遊戲 tick 計時（存讀檔保留·離線經補跑自然推進）；離線超過一圈(240分鐘)直接全面換貨。
 //    出現機率＝原始 gachaWeight（v3.0.81 起 initGachaWeights 的 ≥50 ×2 加倍已移除）。
 // ==========================================
-const PANDORA_SLOT_COUNT = 20;
-const PANDORA_SLOT_TICKS = 3000;   // 5 分鐘 = 300 秒 × 10 tick/秒（每 5 分鐘輪換一格 → 每格 100 分鐘刷新一次）
+const PANDORA_SLOT_COUNT = 24;
+const PANDORA_SLOT_TICKS = 6000;   // 10 分鐘 = 600 秒 × 10 tick/秒
+const PANDORA_LIFETIME_TICKS = PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT;   // 240 分鐘
 let _pandoraDiv = null;            // 目前黑市面板容器（購買/輪換後重繪用）
 
 // 🔧 v3.0.81 售價公式（使用者規格）：權重 w 夾 [1,100]
@@ -1224,11 +1194,175 @@ function pandoraPrice(id) {
     return Math.max(1, Math.round(base * mult));
 }
 
-// 上架一件新商品（依原始權重抽選＋擲售價）
-function _pandoraStock(nowT) {
+const PANDORA_BUY_EQUIP_SLOTS = new Set(['helm', 'armor', 'cloak', 'gloves', 'boots', 'tshirt', 'shield', 'ring', 'amulet', 'belt']);
+
+function pandoraIsEarring(id, d) {
+    let n = String((d && d.n) || '');
+    let slot = String((d && d.slot) || '');
+    return slot === 'ear' || slot === 'ear1' || slot === 'ear2' || /^acc_.*ear/.test(String(id || '')) || n.includes('耳環');
+}
+
+function pandoraIsPlayerWearableEquip(id, d) {
+    if (!d || d.relic || d.remains || d.doll || d.isArrow) return false;
+    if (d.slot === 'petwpn' || d.slot === 'petarm') return false;
+    if (d.type === 'wpn') return true;
+    if (d.type === 'arm') return PANDORA_BUY_EQUIP_SLOTS.has(String(d.slot || ''));
+    if (d.type === 'acc') return PANDORA_BUY_EQUIP_SLOTS.has(String(d.slot || '')) && !pandoraIsEarring(id, d);
+    return false;
+}
+
+function pandoraBuyOrderAllowed(id) {
+    let d = DB.items[id];
+    if (!d || !d.n || d.relic || d.remains || d.doll) return false;
+    if (pandoraIsEarring(id, d)) return false;
+    if (/^item_pride_dom_/.test(String(id || '')) || String(d.n || '').includes('支配符')) return false;
+    if (d.type === 'skillbk') return true;
+    if (d.eff === 'panacea') return true;   // 💊 v3.5.67 萬能藥（六屬性）開放喊價收購：唯一獲准的消耗品例外
+    return pandoraIsPlayerWearableEquip(id, d);
+}
+
+function pandoraBuyOrderPriceProfile(id) {
+    let d = DB.items[id] || {};
+    let premium = d.type === 'skillbk' || (d.legend && pandoraIsPlayerWearableEquip(id, d));
+    let minMult = premium ? 100 : 10;
+    let maxMult = premium ? 2000 : 1000;
+    let base = Math.max(0, Number(d.p) || 0);
+    if (base <= 0 && pandoraIsPlayerWearableEquip(id, d)) base = 100000;
+    if (base <= 0) base = 1000;
+    return {
+        base: base,
+        minMult: minMult,
+        maxMult: maxMult
+    };
+}
+
+function pandoraBuyOrderPrice(id) {
+    let r = pandoraBuyOrderPriceProfile(id);
+    let mult = r.minMult + Math.floor(Math.random() * (r.maxMult - r.minMult + 1));
+    return Math.max(1, Math.round(r.base * mult));
+}
+
+// 上架一件新商品：若有收購單，先替指定物品擲一次市場價；市場價不高於喊價才命中，
+// 並以玩家喊價上架。失敗時不影響收購單，改走正常權重抽選。
+function _pandoraStock(nowT, market) {
+    let order = market && market.buyOrder;
+    if (order && pandoraBuyOrderAllowed(order.id) && Number.isSafeInteger(order.price) && order.price > 0) {
+        let rolledPrice = pandoraBuyOrderPrice(order.id);
+        if (rolledPrice <= order.price) {
+            let od = DB.items[order.id];
+            let hit = { id: order.id, price: order.price, weight: od.gachaWeight || (od.legend ? 1 : 100), setTick: nowT, sold: false, buyOrder: true };
+            market.buyOrder = null;   // 單一收購單命中即完成，不再重複上架
+            market.notice = { type: 'success', text: `玩家收購物品上架了：${od.n}（${order.price.toLocaleString()} 金幣）` };
+            return hit;
+        }
+    }
     let id = getWeightedGachaResult();
     let d = DB.items[id] || {};
     return { id: id, price: pandoraPrice(id), weight: d.gachaWeight || 100, setTick: nowT, sold: false };
+}
+
+function _pandoraEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function _pandoraSetNotice(m, type, text) {
+    if (m) m.notice = { type: type || 'info', text: String(text || '') };
+}
+
+function _pandoraNoticeHTML(m) {
+    let n = m && m.notice;
+    if (!n || !n.text) return '';
+    let c = n.type === 'success' ? 'text-green-400' : n.type === 'error' ? 'text-red-400' : 'text-amber-300';
+    return `<span class="${c}">${_pandoraEsc(n.text)}</span>`;
+}
+
+// 收購名稱自動提示：輸入至少 2 個連續字元後，搜尋可指定收購的魔法書、一般穿著裝備與萬能藥。
+function pandoraSuggestBuyItems(value) {
+    let box = document.getElementById('pandora-buy-suggestions');
+    if (!box) return;
+    let q = String(value || '').trim();
+    try { if (typeof pandoraRelicOnSearchInput === 'function') pandoraRelicOnSearchInput(q); } catch (e) {}
+    if (q.length < 2) { box.innerHTML = ''; box.classList.add('hidden'); return; }
+    // 輸入「遺物」時改列三種遺物搜尋，不與一般金幣收購混用。
+    try {
+        if (typeof pandoraRelicSuggestionHTML === 'function') {
+            let relicSuggestions = pandoraRelicSuggestionHTML(q);
+            if (relicSuggestions) {
+                box.innerHTML = relicSuggestions;
+                box.classList.remove('hidden');
+                return;
+            }
+        }
+    } catch (e) {}
+    let seen = new Set();
+    let suggestions = Object.keys(DB.items).reduce((arr, id) => {
+        let d = DB.items[id];
+        if (!d || !d.n || !pandoraBuyOrderAllowed(id) || !d.n.includes(q) || seen.has(d.n)) return arr;
+        seen.add(d.n); arr.push({ id: id, n: d.n }); return arr;
+    }, []).sort((a, b) => {
+        let ap = a.n.startsWith(q) ? 0 : 1, bp = b.n.startsWith(q) ? 0 : 1;
+        return ap - bp || a.n.length - b.n.length || a.n.localeCompare(b.n, 'zh-Hant');
+    }).slice(0, 8);
+    if (!suggestions.length) {
+        box.innerHTML = '<div class="pandora-buy-suggestion-empty">沒有可指定收購的相符物品</div>';
+    } else {
+        box.innerHTML = suggestions.map(it =>
+            `<button type="button" class="pandora-buy-suggestion" data-name="${encodeURIComponent(it.n)}"
+                onclick="pandoraChooseBuyItem(decodeURIComponent(this.dataset.name))"><span class="${getItemColor({ id: it.id })}">${_pandoraEsc(it.n)}</span></button>`
+        ).join('');
+    }
+    box.classList.remove('hidden');
+}
+
+function pandoraChooseBuyItem(name) {
+    let el = document.getElementById('pandora-buy-name');
+    let box = document.getElementById('pandora-buy-suggestions');
+    try { if (typeof pandoraClearRelicSearchChoice === 'function') pandoraClearRelicSearchChoice(); } catch (e) {}
+    if (el) { el.value = String(name || ''); el.focus(); }
+    if (box) { box.innerHTML = ''; box.classList.add('hidden'); }
+}
+
+// 設定單一收購單：物品名稱必須完全吻合，且僅限魔法書、耳環以外的一般穿著裝備與萬能藥。
+function pandoraSetBuyOrder() {
+    let m = player && player.pandoraMarket2;
+    if (!m) return;
+    try {
+        if (typeof pandoraTryRelicSearchFromInputs === 'function' && pandoraTryRelicSearchFromInputs()) return;
+    } catch (e) {}
+    let nameEl = document.getElementById('pandora-buy-name');
+    let priceEl = document.getElementById('pandora-buy-price');
+    let name = nameEl ? nameEl.value.trim() : '';
+    let rawPrice = priceEl ? priceEl.value.replace(/[,\s，]/g, '') : '';
+    let price = Number(rawPrice);
+    let matches = Object.keys(DB.items).filter(id => DB.items[id] && DB.items[id].n === name);
+    if (!name || !matches.length) {
+        _pandoraSetNotice(m, 'error', '無此物品，請輸入完整且正確的物品名稱。');
+    } else {
+        let orderable = matches.filter(id => pandoraBuyOrderAllowed(id));
+        if (!orderable.length) {
+            _pandoraSetNotice(m, 'error', '此物品不可指定收購；耳環、材料、支配符與萬能藥以外的消耗品無法指定。');
+        } else if (!Number.isSafeInteger(price) || price <= 0) {
+            _pandoraSetNotice(m, 'error', '請輸入正確的正整數收購價格。');
+        } else {
+            let id = orderable[0];
+            m.buyOrder = { id: id, price: price, setTick: (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0 };
+            _pandoraSetNotice(m, 'info', `已登記收購：${DB.items[id].n}，最高 ${price.toLocaleString()} 金幣。`);
+            try { saveGame(); } catch (e) {}
+        }
+    }
+    if (_pandoraDiv) pandoraRenderMarket(_pandoraDiv);
+}
+
+function pandoraCancelBuyOrder() {
+    let m = player && player.pandoraMarket2;
+    if (!m) return;
+    if (m.buyOrder) {
+        let d = DB.items[m.buyOrder.id];
+        m.buyOrder = null;
+        _pandoraSetNotice(m, 'info', `已取消收購${d ? '：' + d.n : '單'}。`);
+        try { saveGame(); } catch (e) {}
+    }
+    if (_pandoraDiv) pandoraRenderMarket(_pandoraDiv);
 }
 
 // 物品系統日誌只保留「最新刷新」的上架訊息：先移除舊的上架列，再記一筆（補跑期間 logSys 自靜音）
@@ -1236,7 +1370,12 @@ function _pandoraLogLatest(slot) {
     let d = DB.items[slot.id]; if (!d) return;
     try { document.querySelectorAll('#sys-log .pandora-stock-log').forEach(sp => { let le = sp.closest('.log-entry'); if (le) le.remove(); }); } catch (e) {}
     let rare = slot.weight === 1;
-    logSys(`<span class="pandora-stock-log"><span class="text-purple-300 font-bold">📢【潘朵拉黑市】</span>${rare ? '珍稀商品 ' : '新上架 '}<span class="${getItemColor({ id: slot.id })}">${d.n}</span>（${slot.price.toLocaleString()} 金幣）${rare ? '！' : '。'}</span>`);
+    let lead = slot.buyOrder ? '玩家收購物品上架了：' : (rare ? '珍稀商品 ' : '新上架 ');
+    logSys(`<span class="pandora-stock-log"><span class="text-purple-300 font-bold">📢【潘朵拉黑市】</span>${lead}<span class="${getItemColor({ id: slot.id })}">${d.n}</span>（${slot.price.toLocaleString()} 金幣）${rare ? '！' : '。'}</span>`);
+}
+function _pandoraLogBuyOrder(slot) {
+    let d = slot && DB.items[slot.id]; if (!d) return;
+    logSys(`<span class="pandora-buyorder-log"><span class="text-amber-300 font-bold">📢【潘朵拉收購】</span>玩家收購物品上架了：<span class="${getItemColor({ id: slot.id })}">${d.n}</span>（${slot.price.toLocaleString()} 金幣）。</span>`);
 }
 
 // 黑市輪換（js/03 每 10 秒呼叫一次；force＝全面換貨）。回傳本次是否有商品刷新。
@@ -1244,19 +1383,30 @@ function refreshPandoraMarket(force) {
     if (typeof player === 'undefined' || !player) return false;
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
     let m = player.pandoraMarket2;
-    let changed = false, latest = null;
+    let changed = false, latest = null, orderHit = null;
     let bad = !m || !Array.isArray(m.slots) || m.slots.length !== PANDORA_SLOT_COUNT || m.slots.some(s => !s || !DB.items[s.id]);
-    if (force || bad || (nowT - (m ? (m.lastTick || 0) : 0)) >= PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT) {
+    if (force || bad || (nowT - (m ? (m.lastTick || 0) : 0)) >= PANDORA_LIFETIME_TICKS) {
         // 初次進場／資料損壞／離線超過一圈：全面換貨（日誌只公告最新一件，不洗版）
-        let slots = []; for (let i = 0; i < PANDORA_SLOT_COUNT; i++) slots.push(_pandoraStock(nowT));
-        m = player.pandoraMarket2 = { slots: slots, seq: 0, lastTick: nowT, lastIdx: PANDORA_SLOT_COUNT - 1 };
+        let nextMarket = {
+            slots: [], seq: 0, lastTick: nowT, lastIdx: PANDORA_SLOT_COUNT - 1,
+            buyOrder: m && m.buyOrder ? m.buyOrder : null,
+            notice: m && m.notice ? m.notice : null
+        };
+        for (let i = 0; i < PANDORA_SLOT_COUNT; i++) {
+            let s = _pandoraStock(nowT, nextMarket);
+            if (s.buyOrder) orderHit = s;
+            nextMarket.slots.push(s);
+        }
+        let slots = nextMarket.slots;
+        m = player.pandoraMarket2 = nextMarket;
         latest = slots[PANDORA_SLOT_COUNT - 1]; changed = true;
     } else {
         let n = 0;
         while ((nowT - m.lastTick) >= PANDORA_SLOT_TICKS && n < PANDORA_SLOT_COUNT) {
             m.lastTick += PANDORA_SLOT_TICKS;
-            let i = (m.seq || 0) % PANDORA_SLOT_COUNT;   // round-robin：每格恰好 100 分鐘輪到一次
-            m.slots[i] = _pandoraStock(nowT);
+            let i = (m.seq || 0) % PANDORA_SLOT_COUNT;   // round-robin：每格恰好 240 分鐘輪到一次
+            m.slots[i] = _pandoraStock(nowT, m);
+            if (m.slots[i].buyOrder) orderHit = m.slots[i];
             latest = m.slots[i]; m.lastIdx = i;
             m.seq = (m.seq || 0) + 1; n++; changed = true;
         }
@@ -1264,8 +1414,9 @@ function refreshPandoraMarket(force) {
     if (!changed) return false;
     if (latest) {
         _pandoraLogLatest(latest);   // 🔧 物品系統日誌只顯示最新刷新的物品
+        if (orderHit && orderHit !== latest) _pandoraLogBuyOrder(orderHit);   // 離線補跑／全面換貨中若較早的格命中收購，仍要獨立提示玩家
         // 珍稀(權重1)橫幅：最新上架為珍稀→公告之；否則若原公告品仍在架上未售出則保留、已下架/售出則清除
-        player.pandoraAnnounce = (latest.weight === 1) ? latest.id
+        player.pandoraAnnounce = (orderHit && orderHit.weight === 1) ? orderHit.id : (latest.weight === 1) ? latest.id
             : (player.pandoraAnnounce && m.slots.some(s => s && s.id === player.pandoraAnnounce && !s.sold) ? player.pandoraAnnounce : null);
     }
     try { renderPandoraBanner(); } catch (e) {}
@@ -1323,7 +1474,7 @@ function pandoraTipShow(ev, i) {
     let inst = { id: s.id };
     let desc = ''; try { desc = buildItemDescHTML(inst); } catch (e) {}
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
-    let mins = Math.max(1, Math.ceil((PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT - (nowT - (s.setTick || 0))) / 600));
+    let mins = Math.max(1, Math.ceil((PANDORA_LIFETIME_TICKS - (nowT - (s.setTick || 0))) / 600));
     let el = _pandoraTipEl();
     el.innerHTML = `<div class="font-bold ${getItemColor(inst)}">${getItemFullName(inst)}</div>
         <div class="text-yellow-300 font-bold">售價 ${s.price.toLocaleString()} 金幣${s.weight === 1 ? '<span style="color:#c084fc;">（珍稀）</span>' : ''}${s.sold ? '<span style="color:#64748b;">（已售出）</span>' : ''}</div>
@@ -1342,7 +1493,7 @@ function pandoraTipMove(ev) {
 }
 function pandoraTipHide() { let el = document.getElementById('pandora-tooltip'); if (el) el.style.display = 'none'; }
 
-// 繪製黑市面板：20 件商品緊湊格（4×5）·只顯示 icon／名稱／價格／購買·能力用 tooltip
+// 繪製黑市面板：24 件商品（桌面 3×8）·只顯示 icon／名稱／價格／購買·能力用 tooltip
 function pandoraRenderMarket(div) {
     if (!div) return;
     _pandoraDiv = div;
@@ -1351,32 +1502,69 @@ function pandoraRenderMarket(div) {
     if (!m) { div.innerHTML = '<div class="p-6 text-center text-slate-300">黑市目前沒有商品，請稍候。</div>'; return; }
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
     let nextMin = Math.max(1, Math.ceil((PANDORA_SLOT_TICKS - (nowT - (m.lastTick || 0))) / 600));
+    let order = m.buyOrder;
+    let orderItem = order && DB.items[order.id];
+    let buyerName = String(player.name || '').trim() || ({
+        royal: '王族', knight: '騎士', mage: '法師', elf: '妖精',
+        dark: '黑暗妖精', illusion: '幻術士', dragon: '龍騎士', warrior: '戰士'
+    }[player.cls] || '玩家');
+    let orderName = orderItem ? orderItem.n : '';
+    let orderPrice = order && Number.isSafeInteger(order.price) ? String(order.price) : '';
+    let relicBalance = '';
+    let relicBoard = '';
+    try {
+        if (typeof pandoraRelicBalanceHTML === 'function') relicBalance = pandoraRelicBalanceHTML();
+        if (typeof pandoraRelicBoardHTML === 'function') relicBoard = pandoraRelicBoardHTML();
+    } catch (e) {}
     let cards = m.slots.map((s, i) => {
         let d = s && DB.items[s.id]; if (!d) return '';
         let inst = { id: s.id };
         let rare = s.weight === 1;
         let afford = (player.gold || 0) >= s.price;
         let border = s.sold ? 'border-slate-700' : rare ? 'border-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.45)]' : 'border-slate-600';
-        // 🔧 v3.0.87 緊湊「單行橫條」：圖示｜名稱/價格｜購買鈕（右側·窄）→ 每列高度約砍半，5 橫排可完整顯示、少捲動
+        // 三欄橫條：圖示｜名稱/價格｜購買鈕；卡片加寬後保留完整名稱與清楚點擊區。
         let btn = s.sold
-            ? `<button disabled class="btn shrink-0 bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed font-bold rounded" style="font-size:10px;padding:2px 6px;">售出</button>`
-            : `<button onclick="buyPandoraItem(${i})" ${afford ? '' : 'disabled'} class="btn shrink-0 ${afford ? 'bg-purple-700 hover:bg-purple-600 border-purple-500' : 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed'} font-bold rounded" style="font-size:10px;padding:2px 7px;">購買</button>`;
-        return `<div class="rounded-md border ${border} bg-slate-900/80 flex items-center gap-1 ${s.sold ? 'opacity-70' : ''}" style="padding:2px 4px;"
+            ? `<button disabled class="btn shrink-0 bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed font-bold rounded pandora-card-buy">售出</button>`
+            : `<button onclick="buyPandoraItem(${i})" ${afford ? '' : 'disabled'} class="btn shrink-0 ${afford ? 'bg-purple-700 hover:bg-purple-600 border-purple-500' : 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed'} font-bold rounded pandora-card-buy">購買</button>`;
+        return `<div class="pandora-market-card rounded-md border ${border} bg-slate-900/80 flex items-center ${s.sold ? 'opacity-70' : ''}"
             onmouseenter="pandoraTipShow(event,${i})" onmousemove="pandoraTipMove(event)" onmouseleave="pandoraTipHide()">
-            <img src="${getIconUrl(d)}" onerror="this.src='https://placehold.co/40x40/1e293b/ffffff?text=?';" class="shrink-0 object-contain ${s.sold ? 'grayscale opacity-40' : getGlowClass(inst, d)}" style="width:22px;height:22px;">
+            <img src="${getIconUrl(d)}" onerror="this.src='https://placehold.co/40x40/1e293b/ffffff?text=?';" class="pandora-card-icon shrink-0 object-contain ${s.sold ? 'grayscale opacity-40' : getGlowClass(inst, d)}">
             <div class="min-w-0 flex-1">
-                <div class="font-bold leading-none truncate ${getItemColor(inst)}" style="font-size:11px;">${d.n}</div>
-                <div class="text-yellow-300 font-bold leading-none truncate" style="font-size:10px;margin-top:2px;">${s.price.toLocaleString()}<span class="text-slate-500" style="font-size:8px;"> 金</span></div>
+                <div class="pandora-card-name font-bold leading-none truncate ${getItemColor(inst)}">${d.n}${s.buyOrder ? '<span class="pandora-order-tag">收購</span>' : ''}</div>
+                <div class="pandora-card-price text-yellow-300 font-bold leading-none truncate">${s.price.toLocaleString()}<span class="text-slate-500"> 金</span></div>
             </div>
             ${btn}
         </div>`;
     }).join('');
     div.innerHTML = `
-    <div class="flex flex-col h-full w-full overflow-y-auto" style="padding:4px 6px;">
-        <h3 class="text-center font-bold text-purple-400 drop-shadow-md leading-none shrink-0" style="font-size:15px;margin-bottom:4px;">潘朵拉黑市 <span class="text-slate-400 font-normal" style="font-size:10px;">每 5 分輪換 1 件·滑鼠移上檢視能力·約 ${nextMin} 分後輪換｜金幣 <span class="text-yellow-300 font-bold">${(player.gold || 0).toLocaleString()}</span></span></h3>
-        <div class="grid gap-1.5" style="grid-template-columns:repeat(4,minmax(0,1fr));">${cards}</div><!-- 🔧 v3.0.87 用 inline grid-template-columns 指定 4 欄：預編譯 tailwind-built.css 只含 .md:grid-cols-4（響應式變體）而無無前綴 .grid-cols-4→原 class 失效退回單欄(20 直排·太長)；改 inline 不依賴 build -->
-        <p id="pandora-msg" class="text-yellow-300 font-bold text-center shrink-0 empty:hidden" style="font-size:12px;margin-top:4px;"></p>
+    <div class="pandora-market-panel flex flex-col h-full w-full overflow-y-auto">
+        <h3 class="pandora-market-title text-center font-bold text-purple-400 drop-shadow-md leading-none shrink-0">潘朵拉黑市
+            <span class="text-slate-400 font-normal">每 10 分鐘輪換 1 件·單件持續 240 分鐘·約 ${nextMin} 分鐘後輪換｜金幣 <span class="text-yellow-300 font-bold">${(player.gold || 0).toLocaleString()}</span>${relicBalance}</span>
+        </h3>
+        <div class="pandora-buy-box shrink-0">
+            <div class="pandora-buybar">
+                <span class="pandora-buy-word">收</span>
+                <div class="pandora-buy-name-wrap">
+                    <input id="pandora-buy-name" type="text" value="${_pandoraEsc(orderName)}" placeholder="完整物品名稱" autocomplete="off"
+                        oninput="pandoraSuggestBuyItems(this.value)" onkeydown="if(event.key==='Enter'){pandoraSetBuyOrder()}">
+                    <div id="pandora-buy-suggestions" class="pandora-buy-suggestions hidden"></div>
+                </div>
+                <span class="pandora-buy-comma">，</span>
+                <input id="pandora-buy-price" type="text" inputmode="numeric" value="${_pandoraEsc(orderPrice)}" placeholder="收購價錢" autocomplete="off"
+                    onkeydown="if(event.key==='Enter'){pandoraSetBuyOrder()}">
+                <span class="pandora-buy-word">收</span>
+                <button class="btn pandora-buy-submit font-bold" onclick="pandoraSetBuyOrder()">確認收購</button>
+            </div>
+            <div class="pandora-buy-status">
+                <span>${orderItem ? `<b class="text-amber-200">${_pandoraEsc(buyerName)}</b>：<b class="text-yellow-300">${order.price.toLocaleString()}</b> 金幣收 <b class="${getItemColor({ id: order.id })}">${_pandoraEsc(orderItem.n)}</b>，意者自行上架` : '目前沒有收購單；可指定魔法書與耳環以外的穿著裝備，未指定仍依原黑市池上架。'}</span>
+                ${orderItem ? '<button class="pandora-buy-cancel" onclick="pandoraCancelBuyOrder()">取消收購</button>' : ''}
+            </div>
+        </div>
+        <div class="pandora-market-grid">${cards}</div>
+        ${relicBoard}
+        <p id="pandora-msg" class="font-bold text-center shrink-0 empty:hidden">${_pandoraNoticeHTML(m)}</p>
     </div>`;
+    try { if (typeof pandoraRelicBindBoardCountdowns === 'function') pandoraRelicBindBoardCountdowns(); } catch (e) {}
 }
 
 // 購買指定格商品（即所見、不附帶詞綴；售出格保持「已售出」直到該格輪換）
@@ -1401,252 +1589,6 @@ function buyPandoraItem(i) {
     let e2 = msgEl(); if (e2) e2.innerHTML = '<span class="text-green-400">購買成功！</span>';
 }
 
-// ==========================================
-// 修改後的潘朵拉黑市抽獎主程式 (支援抽獎卷與大獎特效版)
-// ==========================================
-function doPandoraGacha() {
-    if (gachaRolling) return;
-    
-    let cost = shopPrice(30000); // 金幣消耗（攻城獲勝期間 8 折）
-    let ticketId = "new_item_239"; // 潘朵拉抽獎卷的 ID
-    let usedTicket = false;
-    
-    // 1. 判斷是否有抽獎卷 (假設玩家背包為 player.inv 陣列，請依實際情況調整)
-    let ticketIndex = player.inv.findIndex(i => i.id === ticketId);
-    let hasTicket = (ticketIndex !== -1 && player.inv[ticketIndex].cnt > 0);
-
-    if (hasTicket) {
-        // 優先消耗抽獎卷
-        player.inv[ticketIndex].cnt -= 1;
-        if (player.inv[ticketIndex].cnt <= 0) {
-            player.inv.splice(ticketIndex, 1); // 數量歸零時從背包移除
-        }
-        usedTicket = true;
-    } else {
-        // 沒有抽獎卷才消耗金幣
-        if (player.gold < cost) {
-            document.getElementById('gacha-msg').innerHTML = `<span class="text-red-400">潘朵拉抽獎卷與金幣皆不足！(需 ${cost} 金幣)</span>`;
-            return;
-        }
-        player.gold -= cost;
-    }
-
-    // 紀錄這次花費了什麼，用於最後的廣播訊息
-    let costText = usedTicket ? "1 張潘朵拉抽獎卷" : `${cost} 金幣`;
-
-    // 扣款後【立刻存檔】
-    updateUI(); 
-    saveGame(); 
-    
-    refreshGachaTicketCount();
-
-    // 🔧 修復：結果在扣款後「立即」結算入包並存檔，動畫純為展示。
-    // 原本結算寫在動畫回呼內：動畫期間切換面板會令 getElementById 取得 null 而拋錯，
-    // gachaRolling 永遠無法復位 → 單抽/十連按鈕全部失效；且扣款後關頁會付費未取貨。
-    let finalId = getWeightedGachaResult();
-    _tradLootCtx = true;                                         // 🏛️ 傳統模式：潘朵拉抽獎裝備隨機自帶強化值
-    let gainedItem; try { gainedItem = gainItem(finalId, 1, false, false, true); } finally { _tradLootCtx = false; }   // 潘朵拉：詞綴維持舊制（各1%）（try/finally 防殘留洩漏）
-    if (!gainedItem) gainedItem = { id: finalId, en: 0, bless: false, anc: false, attr: false, cnt: 1 };
-    saveGame();
-
-    gachaRolling = true;
-    let btn = document.getElementById('btn-gacha');
-    btn.disabled = true;
-    btn.classList.remove('hover:scale-105');
-    document.getElementById('gacha-msg').innerHTML = '<span class="text-slate-300">命運的齒輪開始轉動...</span>';
-    document.getElementById('gacha-name').classList.add('hidden');
-    
-    // 👇 特效重置：確保每次拉霸前，把框線恢復成原本的「紫色」
-    let gachaBox = document.getElementById('gacha-display');
-    gachaBox.classList.remove('border-yellow-400', 'shadow-[0_0_60px_rgba(250,204,21,0.8)]', 'animate-pulse');
-    gachaBox.classList.add('border-purple-700', 'shadow-[0_0_30px_rgba(126,34,206,0.6)]');
-    
-    let displayIcon = document.getElementById('gacha-icon');
-    let itemIds = Object.keys(DB.items);
-    
-    let rollCount = 0;
-    let rollInterval = setInterval(() => {
-        if (!displayIcon.isConnected) {   // 🔧 面板已被切換/覆寫：中止動畫並復位（獎品已入包、已存檔）
-            clearInterval(rollInterval);
-            gachaRolling = false;
-            return;
-        }
-        // 動畫期間：繼續保持完全隨機展示，營造期待感
-        let randomTempId = itemIds[Math.floor(Math.random() * itemIds.length)];
-        let tempImg = getIconUrl(DB.items[randomTempId]);
-        displayIcon.innerHTML = `<img src="${tempImg}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-24 h-24 object-contain opacity-60">`;
-        rollCount++;
-        
-        if (rollCount > 15) { 
-            clearInterval(rollInterval);
-            
-            // 🔧 獎品已於動畫前結算（finalId/gainedItem 由外層閉包帶入），此處僅做展示
-            let d = DB.items[gainedItem.id] || DB.items[finalId];
-            let finalImg = getIconUrl(d);
-            let glowClass = getGlowClass(gainedItem, d);
-            
-            let fullName = getItemFullName(gainedItem);
-            let colorClass = getItemColor(gainedItem);
-            let nameBox = document.getElementById('gacha-name');
-            nameBox.innerHTML = `<span class="${colorClass}">${fullName}</span>`;
-            nameBox.classList.remove('hidden');
-
-            // 🌟🌟🌟 判斷是否為「傳說大獎」 (權重等於 1) 🌟🌟🌟
-            let isJackpot = (d.gachaWeight === 1);
-
-            if (isJackpot) {
-                // 1. 外框變色：移除紫色，換上閃爍的「金色強光」
-                gachaBox.classList.remove('border-purple-700', 'shadow-[0_0_30px_rgba(126,34,206,0.6)]');
-                gachaBox.classList.add('border-yellow-400', 'shadow-[0_0_60px_rgba(250,204,21,0.8)]', 'animate-pulse');
-
-                // 2. 圖片特效：稍微放大一點，加上 bounce (彈跳) 動畫與極亮的光暈
-                displayIcon.innerHTML = `<img src="${finalImg}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-32 h-32 object-contain ${glowClass} drop-shadow-[0_0_25px_rgba(255,255,255,1)] animate-bounce">`;
-                
-                // 3. 專屬誇張文字
-                document.getElementById('gacha-msg').innerHTML = `🌟 <span class="text-yellow-300 font-extrabold text-2xl drop-shadow-[0_0_10px_rgba(253,224,71,0.8)]">傳說降臨！</span> 獲得 <span class="${colorClass} text-2xl font-bold">${fullName}</span>！🌟`;
-                
-                // 4. ✨ 全螢幕白光閃爍特效 ✨ (經典抽卡特效)
-                let flash = document.createElement('div');
-                flash.className = 'fixed inset-0 bg-white z-50 pointer-events-none transition-opacity duration-1000 ease-out';
-                document.body.appendChild(flash);
-                // 觸發重繪後立刻開始淡出
-                void flash.offsetWidth; 
-                flash.style.opacity = '0';
-                setTimeout(() => flash.remove(), 1000); // 1秒後刪除該白光元素
-
-                // 5. 系統廣播更具儀式感
-                logSys(`【系統廣播】一道金光劃破天際！玩家在黑市幸運抽中了傳說級的 <span class="${colorClass} font-bold">${fullName}</span>！`);
-
-            } else {
-                // 一般獎品的原本顯示方式
-                displayIcon.innerHTML = `<img src="${finalImg}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-28 h-28 object-contain ${glowClass} drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">`;
-                document.getElementById('gacha-msg').innerHTML = `恭喜獲得 <span class="${colorClass} text-xl">${fullName}</span>！`;
-                // 動態顯示花費了什麼
-                logSys(`在潘朵拉黑市花費 ${costText}，抽中了 <span class="${colorClass} font-bold">${fullName}</span>！`);
-            }
-            
-            gachaRolling = false;
-            btn.disabled = false;
-            btn.classList.add('hover:scale-105');
-            
-            refreshGachaTicketCount();   // 依現有卷數重新判斷按鈕該顯示金幣抽或抽獎卷抽（獎品已於動畫前存檔）
-        }
-    }, 80); 
-}
-
-// 10 連抽：10 格同時旋轉，一次抽 10 樣（每樣各自 1% 機率帶屬性/遠古/祝福詞綴）
-function doPandoraGacha10() {
-    if (gachaRolling) return;
-    let ticketId = "new_item_239";
-    let cost = shopPrice(300000);
-    let usedTicket = false;
-    let ticketIndex = player.inv.findIndex(i => i.id === ticketId);
-    let ticketCnt = (ticketIndex !== -1) ? player.inv[ticketIndex].cnt : 0;
-
-    if (ticketCnt >= 10) {
-        player.inv[ticketIndex].cnt -= 10;
-        if (player.inv[ticketIndex].cnt <= 0) player.inv.splice(ticketIndex, 1);
-        usedTicket = true;
-    } else if (player.gold >= cost) {
-        player.gold -= cost;
-    } else {
-        document.getElementById('gacha-msg').innerHTML = `<span class="text-red-400">10 連抽需要 10 張潘朵拉抽獎卷，或 ${cost} 金幣！</span>`;
-        return;
-    }
-    let costText = usedTicket ? "10 張潘朵拉抽獎卷" : `${cost} 金幣`;
-
-    updateUI();
-    saveGame();
-    refreshGachaTicketCount();
-
-    // 🔧 修復：10 件獎品於動畫前一次結算入包並存檔，動畫純為展示（理由同單抽）
-    let results = [];
-    _tradLootCtx = true;                                  // 🏛️ 傳統模式：潘朵拉十連裝備隨機自帶強化值
-    try {
-        for (let k = 0; k < 10; k++) {
-            let fid = getWeightedGachaResult();
-            let gi = gainItem(fid, 1, false, false, true);   // 潘朵拉10連：詞綴維持舊制（各1%）
-            if (!gi) gi = { id: fid, en: 0, bless: false, anc: false, attr: false, cnt: 1 };
-            results.push(gi);
-        }
-    } finally { _tradLootCtx = false; }   // try/finally 防殘留洩漏
-    saveGame();
-
-    gachaRolling = true;
-    let btn = document.getElementById('btn-gacha10');
-    btn.disabled = true;
-    btn.classList.remove('hover:scale-105');
-    document.getElementById('gacha-msg').innerHTML = '<span class="text-slate-300">命運的齒輪開始轉動...</span>';
-    document.getElementById('gacha10-results').innerHTML = '';
-
-    let iconEls = Array.from(document.querySelectorAll('.gacha10-icon'));
-    iconEls.forEach(el => {
-        let cell = el.parentElement;
-        cell.classList.remove('border-yellow-400', 'animate-pulse');
-        cell.classList.add('border-purple-700');
-    });
-
-    let itemIds = Object.keys(DB.items);
-    let rollCount = 0;
-    let rollInterval = setInterval(() => {
-        if (!iconEls.length || !iconEls[0].isConnected) {   // 🔧 面板已被切換/覆寫：中止動畫並復位（獎品已入包、已存檔）
-            clearInterval(rollInterval);
-            gachaRolling = false;
-            return;
-        }
-        // 10 格同時隨機展示（與單抽相同的旋轉呈現）
-        iconEls.forEach(el => {
-            let rid = itemIds[Math.floor(Math.random() * itemIds.length)];
-            let img = getIconUrl(DB.items[rid]);
-            el.innerHTML = `<img src="${img}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-full h-full object-contain opacity-60">`;
-        });
-        rollCount++;
-
-        if (rollCount > 15) {
-            clearInterval(rollInterval);
-
-            // 🔧 獎品已於動畫前結算（results 由外層閉包帶入），此處僅做展示
-            let jackpotNames = [];
-            results.forEach((gi, k) => {
-                let d = DB.items[gi.id];
-                let img = getIconUrl(d);
-                let glow = getGlowClass(gi, d);
-                let el = iconEls[k];
-                if (!el) return;
-                el.innerHTML = `<img src="${img}" onerror="this.src='https://placehold.co/100x100/1e293b/ffffff?text=?';" class="w-full h-full object-contain ${glow}">`;
-                if (d.gachaWeight === 1) {   // 傳說大獎：該格金框高亮
-                    let cell = el.parentElement;
-                    cell.classList.remove('border-purple-700');
-                    cell.classList.add('border-yellow-400', 'animate-pulse');
-                    jackpotNames.push(getItemFullName(gi));
-                }
-            });
-
-            // 結果清單（10 個彩色名稱）
-            document.getElementById('gacha10-results').innerHTML =
-                results.map(gi => `<span class="${getItemColor(gi)}">${getItemFullName(gi)}</span>`).join('、');
-
-            if (jackpotNames.length > 0) {
-                document.getElementById('gacha-msg').innerHTML = `🌟 <span class="text-yellow-300 font-extrabold text-xl drop-shadow-[0_0_10px_rgba(253,224,71,0.8)]">傳說降臨！</span> 本次 10 連抽出 ${jackpotNames.length} 件傳說！`;
-                let flash = document.createElement('div');
-                flash.className = 'fixed inset-0 bg-white z-50 pointer-events-none transition-opacity duration-1000 ease-out';
-                document.body.appendChild(flash);
-                void flash.offsetWidth;
-                flash.style.opacity = '0';
-                setTimeout(() => flash.remove(), 1000);
-                jackpotNames.forEach(nm => logSys(`【系統廣播】一道金光劃破天際！玩家在黑市 10 連抽中抽中了傳說級的 <span class="text-yellow-300 font-bold">${nm}</span>！`));
-            } else {
-                document.getElementById('gacha-msg').innerHTML = `恭喜完成 10 連抽，獲得 10 件物品！`;
-            }
-            logSys(`在潘朵拉黑市花費 ${costText} 進行 10 連抽，獲得 10 件物品。`);
-
-            gachaRolling = false;
-            btn.disabled = false;
-            btn.classList.add('hover:scale-105');
-            refreshGachaTicketCount();   // 依現有卷數重新判斷按鈕該顯示金幣抽或抽獎卷抽（獎品已於動畫前存檔）
-        }
-    }, 80);
-}
 
 /* ===== 玩家自訂名稱：點擊左上狀態欄名稱 → 輸入框 → 確認 ===== */
 function startEditName() {
@@ -1708,14 +1650,19 @@ window.onload = () => {
         let meta = [];
         let needLv = (typeof skillReqLv==='function') ? skillReqLv(sk, sid) : undefined;
         if(needLv !== undefined) meta.push('需求 Lv.'+needLv);
-        { let _costs = []; if(sk.hpCost) _costs.push('HP '+sk.hpCost); if(sk.mp) _costs.push('MP '+sk.mp); if(_costs.length) meta.push('消耗 '+_costs.join('、')); }   // 🐉 同時消耗 HP＋MP 的技能(覺醒/冥想/隱身/堅固防護/幻術士混亂等)：兩者並列顯示
+        { let _costs = []; if(sk.hpCost) _costs.push('HP '+sk.hpCost); if(sk.mp) _costs.push('MP '+sk.mp); if(sk.costItem){ let _ci = DB.items[sk.costItem.id]; _costs.push((_ci ? _ci.n : '材料')+'×'+(sk.costItem.qty||1)); } if(_costs.length) meta.push('消耗 '+_costs.join('、')); }   // 🐉 同時消耗 HP＋MP 的技能(覺醒/冥想/隱身/堅固防護/幻術士混亂等)：兩者並列顯示；🌀 costItem 為可選施法材料
         if(sk.dur) meta.push('持續 '+sk.dur+' 秒');
         if(sk.cd) meta.push('冷卻 '+(sk.cd/10)+' 秒');
         if(meta.length) parts.push(`<div class="text-slate-300">${meta.join(' ・ ')}</div>`);
         let eff = [];
         if(sk.dmgDice) eff.push((sk.target==='all'?'範圍':'')+'傷害 '+sk.dmgDice[0]+'d'+sk.dmgDice[1]+(sk.ele&&sk.ele!=='none'?'（'+SK_ELE[sk.ele]+'屬）':''));
         if(sk.multiDmg) eff.push('多段傷害 '+sk.multiDmg.map(function(x){return x[0]+'d'+x[1];}).join('＋')+(sk.ele&&sk.ele!=='none'?'（'+SK_ELE[sk.ele]+'屬）':''));
-        if(sk.healBase || sk.healDice) eff.push('治療 '+(sk.healBase||0)+(sk.healDice?('＋'+sk.healDice[0]+'d'+sk.healDice[1]):''));
+        if(sk.fullRestore) eff.push('單體治療：立即恢復全部已損失HP');
+        else if(sk.classicHeal) { let ch=sk.classicHeal; eff.push((sk.groupHeal?'全隊':'單體')+'治療 ('+ch.baseDice+'＋INT治癒加成)d'+ch.sides+' ×2'+(ch.mult&&ch.mult!==1?(' ×'+ch.mult):'')); }
+        else if(sk.healBase || sk.healDice) eff.push('治療 '+(sk.healBase||0)+(sk.healDice?('＋'+sk.healDice[0]+'d'+sk.healDice[1]):''));
+        if(sk.healCooldownTicks) eff.push('冷卻 '+(sk.healCooldownTicks/10)+' 秒');
+        if(sk.justiceHeal) eff.push('受施法者性向影響：正義值越高恢復量越高（滿正義 +20%・中立/邪惡無提升）');   // 💙 v3.5.75 正義治癒加成
+        if(sk.reqJustice) eff.push('限正義性向施放（性向值 ≥ 1000）');   // 💙 v3.5.75 究極光裂術門檻
         if(sk.lifesteal) eff.push('吸取生命');
         if(sk.instakill) eff.push('即死（不死系）');
         // 🛡️ v2.6.69 審計#15：補渲染 reqWpn/skillAddDmg/stun(Chance)——衝擊之暈等技能的機制原本在唯一說明面完全隱形
@@ -1727,6 +1674,13 @@ window.onload = () => {
         if(sk.summon) eff.push('召喚協力單位');
         if(sk.mEff) eff.push(SK_MEFF[sk.mEff]||'特殊效果');
         if(sk.darkPoison) eff.push('一般攻擊命中 50% 機率使目標中毒：每秒該次攻擊 60% 傷害、持續 5 秒、最多 1 層（取較高傷害並刷新；劇毒精通→100%、每秒 200%）');
+        if(sk.moveSpeedMult){
+            let moveSpeedText = '移動速度+'+Math.round((sk.moveSpeedMult - 1) * 100)+'%（速度×'+sk.moveSpeedMult;
+            if(sid === 'sk_holy_dash') moveSpeedText += '，與風之疾走互斥';
+            else if(sid === 'sk_elf_winddash') moveSpeedText += '，與神聖疾走互斥，取代精靈餅乾移速';
+            moveSpeedText += '）';
+            eff.push(moveSpeedText);
+        } else if(sk.moveSpeedReplacesCookie) eff.push('取代精靈餅乾的移動速度提升');
         if(sk.d && typeof sk.d==='object'){
             let dd = sk.d, s = [], _resK = ['resFire','resWater','resEarth','resWind'];
             if(dd.resFire && dd.resFire===dd.resWater && dd.resFire===dd.resEarth && dd.resFire===dd.resWind){
@@ -1770,43 +1724,96 @@ window.onload = () => {
         }
         if(d.type === 'wpn' || d.type === 'arm' || d.type === 'acc'){
             let _eff = [];
-            if(d.unBonus || d.unDice || d.sp === 'elf') _eff.push('不死 / 狼人加成');
-            if(d.eff === 'pierce')     _eff.push('穿透' + (d.pierceChance !== undefined ? ' ' + d.pierceChance + '%' : ''));
-            if(d.eff === 'moonburst')  _eff.push('月光爆裂');
-            if(d.eff === 'dice_death') _eff.push('即死');
-            if(d.eff === 'haste')      _eff.push('自我加速');
-            if(d.eff === 'crush')      _eff.push('重擊');
-            if(d.eff === 'cleave')     _eff.push('切割');
-            if(d.eff === 'combo')      _eff.push('雙擊 ' + (d.comboRate||0) + '%');   // 🔧 鋼爪/雙刀：雙擊特效（comboRate%機率發動，額外攻擊＝完整一般攻擊）
-            if(d.weakExpose)           _eff.push('弱點曝光');   // 🐉 鎖鏈劍
-            if(d.vampPct)              _eff.push('吸取HP ' + Math.round(d.vampPct * 100) + '%');   // 🐉 嗜血者鎖鏈劍
-            if(d.ignHardSkin)          _eff.push('貫穿');   // 🗡️ 暗黑十字弓：攻擊無視硬皮額外減傷
-            if(d.redSpecter)           _eff.push('紅惡靈逆襲');   // 👹 隱藏的魔族武器
-            if(d.blueSpecter)          _eff.push('藍惡靈奪魔');   // 👹 隱藏的魔族武器
-            if(d.block)                _eff.push('格檔：' + d.block + '%');
-            if(d.eff === 'magicburst') _eff.push('魔爆');
+            if(d.unBonus || d.unDice || d.sp === 'elf') _eff.push('不死／狼人加成（額外造成1D20傷害）');
+            if(d.eff === 'pierce')     _eff.push('穿透 ' + (d.pierceChance !== undefined ? d.pierceChance : 100) + '%（命中後追加攻擊另一名敵人）');
+            if(d.alsoPierce)           _eff.push('穿透 ' + (d.pierceChance !== undefined ? d.pierceChance : 100) + '%（命中後追加攻擊另一名敵人）');   // 🌑 v3.3.33 附帶穿透
+            if(d.eff === 'moonburst')  _eff.push('月光爆裂（命中時8%造成1D30＋強化×2風傷）');
+            if(d.eff === 'dice_death') _eff.push('即死（命中時1%使非首領目標死亡）');
+            if(d.eff === 'haste')      _eff.push('自我加速（裝備時常駐加速）');
+            if(d.eff === 'crush')      _eff.push('重擊（提高重擊機率，重擊取武器最大傷害）');
+            if(d.eff === 'cleave')     _eff.push('切割（重擊時攻速+20%，持續2秒）');
+            if(d.eff === 'combo')      _eff.push('雙擊 ' + (d.comboRate||0) + '%（追加一次完整一般攻擊）');   // 🔧 鋼爪/雙刀：雙擊特效
+            if(d.weakExpose)           _eff.push('弱點曝光（命中12%疊加，供屠宰者增傷）');   // 🐉 鎖鏈劍
+            if(d.vampPct)              _eff.push('吸取HP ' + Math.round(d.vampPct * 100) + '%（依本次傷害恢復）');   // 🐉 嗜血者鎖鏈劍
+            if(d.ignHardSkin)          _eff.push('貫穿（無視硬皮額外減傷）');   // 🗡️ 暗黑十字弓
+            if(d.redSpecter)           _eff.push('紅惡靈逆襲（4%＋每強化1%，造成水魔傷並吸取10%HP）');   // 👹 隱藏的魔族武器
+            if(d.blueSpecter)          _eff.push('藍惡靈奪魔（4%＋每強化1%，恢復3D6 MP）');   // 👹 隱藏的魔族武器
+            if(d.block)                _eff.push('格檔 ' + d.block + '%（重擊時依此機率減半傷害；一般攻擊為上述機率的30%）');
+            if(d.eff === 'magicburst') _eff.push('魔爆（傷害魔法時依智力觸發，追加該次總傷害30%的無屬性傷害）');
             if(d.eff === 'mp_drain' || d.mpOnHit)   _eff.push('命中恢復MP');
             if(d.immStone)             _eff.push('免疫石化');
             if(d.immPoison)            _eff.push('免疫中毒');
             if(d.unique)               _eff.push('唯一（最多裝備1個）');
             // 🏹 與背包資訊欄一致補齊：弓連射 / 魔杖共鳴・魔擊 / 蕾雅冰裂術 / 附魔施放（經典模式由 filterClassicEffLabels 過濾停用者）
-            if(d.rapidfire)            _eff.push('連射 ' + d.rapidfire + '%');
-            if(d.eff === 'magicstrike') _eff.push('魔擊');
-            if(d.meleeHitSpell)        _eff.push(d.meleeHitSpell.skn || '命中觸發');
-            if(d.spellProc)            _eff.push('施放' + (d.spellProc.skn || ''));
-            if(d.procSkill)            _eff.push('施放' + ((DB.skills[d.procSkill] && DB.skills[d.procSkill].n) || ''));
-            if(typeof WAND_LIGHTARROW_IDS !== 'undefined' && WAND_LIGHTARROW_IDS.includes(id)) _eff.push('共鳴');
+            if(d.rapidfire)            _eff.push('連射 ' + d.rapidfire + '%（追加1～3箭，每箭30%傷害）');
+            if(d.eff === 'magicstrike') _eff.push('魔擊（攻擊時依力量觸發必中重擊）');
+            if(d.meleeHitSpell)        _eff.push('命中施法（攻擊命中時施放' + (d.meleeHitSpell.skn || '附加法術') + '）');
+            if(d.spellProc) {
+                let _rateText = `${d.procRateBase || 1}%${d.procRatePerEn ? `＋每強化${d.procRatePerEn}%` : ''}`;
+                _eff.push(`攻擊施法 ${_rateText}（觸發${d.spellProc.skn || '附加法術'}）`);
+            }
+            if(d.procSkill) {
+                let _procName = (DB.skills[d.procSkill] && DB.skills[d.procSkill].n) || '技能';
+                let _rateText = `${d.procRateBase || 1}%${d.procRatePerEn ? `＋每強化${d.procRatePerEn}%` : ''}`;
+                _eff.push(`${d.procOnHit ? '命中施法' : '攻擊施法'} ${_rateText}（觸發${_procName}）`);
+            }
+            if(d.procSkill2 && d.procSkill2.skId) _eff.push(`攻擊施法 ${d.procSkill2.rate || 5}%（觸發${(DB.skills[d.procSkill2.skId] && DB.skills[d.procSkill2.skId].n) || '技能'}）`);   // 🌅 九尾妖狐的怒火：第二觸發槽
+            if(d.procPoisonPct) _eff.push(`附毒（命中附加每秒該次傷害${d.procPoisonPct.pct || 50}%的中毒，最多1層，持續${d.procPoisonPct.dur || 6}秒）`);   // 🌅 毒鵺的黑尾
+            if(d.iaiCrit) _eff.push('居合必定爆擊');   // 🌅 鐮鼬的尾刃
+            if(d.heavyBonusDmg) _eff.push(`重擊時額外傷害+${d.heavyBonusDmg}`);   // 🌅 牛鬼的斷角
+            if(d.procStatusSkill) {
+                let _statusName = (DB.skills[d.procStatusSkill.skId] && DB.skills[d.procStatusSkill.skId].n) || '異常狀態';
+                _eff.push(`異常攻擊 ${d.procStatusSkill.rate || 0}%（命中時造成${_statusName}）`);
+            }
+            if(d.procPoison)          _eff.push(`中毒 ${d.procPoison.rate || 0}%（命中時使目標中毒${d.procPoison.dur ? `，持續${d.procPoison.dur}秒` : ''}）`);
+            else if(d.procPoisonRate) _eff.push(`中毒 ${d.procPoisonRate}%（命中時使目標中毒）`);
+            if(d.procInstakill) {
+                let _ik = d.procInstakill, _ikCond = _ik.tag === 'undead' ? '不死系' : (_ik.hpBelow ? `HP低於${Math.round(_ik.hpBelow * 100)}%` : '非首領');
+                _eff.push(`即死 ${Math.round((_ik.p || 0) * 100)}%（命中${_ikCond}目標時發動）`);
+            }
+            if(d.procBonusDmg)  _eff.push(`額外傷害 ${d.procBonusDmg.rate}%（攻擊時追加${d.procBonusDmg.dmg}點傷害）`);
+            if(d.procDmgReduce) _eff.push(`傷害減免 ${d.procDmgReduce.rate}%（受傷時減少${d.procDmgReduce.amount}點傷害）`);
+            if(d.allLures) _eff.push('誘捕萬用（視為持有全部誘捕狀態）');
+            if(d.eleBonusDmg) {
+                let _bn = {fire:'火',water:'水',wind:'風',earth:'地'}[d.eleBonusDmg.ele] || '指定';
+                _eff.push(`屬性專攻（攻擊${_bn}屬性敵人時額外傷害+${d.eleBonusDmg.dmg || d.eleBonusDmg.add || 0}）`);
+            }
+            if(d.counterAllEle) _eff.push('萬象剋制（一般攻擊剋制所有屬性敵人）');
+            if(d.counterEles) _eff.push(`一般攻擊剋制${d.counterEles.map(e => ({ earth: '地', wind: '風', fire: '火', water: '水' }[e] || e)).join('、')}屬性敵人（×1.4）`);
+            if(d.procBurn) _eff.push(`灼燒${d.procBurn.rate ? ` ${d.procBurn.rate}%` : ''}（命中後每秒${d.procBurn.dmg || 10}點火傷，持續${d.procBurn.dur || 6}秒）`);
+            if(d.onHitEleDmg) {
+                let _en = {fire:'火焰',water:'寒冰',wind:'風雷',earth:'大地',none:'無屬性'}[d.onHitEleDmg.ele] || '屬性';
+                _eff.push(`${_en}附傷${d.onHitEleDmg.rate ? ` ${d.onHitEleDmg.rate}%` : ''}（命中時追加${d.onHitEleDmg.dmg}點傷害）`);
+            }
+            if(d.freeChill) _eff.push('寒冰氣息不消耗魔力');
+            if(d.noConsume && d.isArrow) _eff.push('箭矢不會消耗');
+            if(d.oneHand && d.isBow) _eff.push('可單手持握');
+            if(d.ele && d.ele !== 'none') _eff.push(`一般攻擊化為${({fire:'火',water:'水',wind:'風',earth:'地'}[d.ele] || d.ele)}屬性`);
+            if(d.skillDmgMult) {
+                let _skills = Object.keys(d.skillDmgMult).map(skId => `${(DB.skills[skId] && DB.skills[skId].n) || skId}×${d.skillDmgMult[skId]}`);
+                if(_skills.length) _eff.push('技能增幅（' + _skills.join('、') + '）');
+            }
+            if(d.autoCastMpMult && d.autoCastMpMult > 1) _eff.push(`自動施法代價（MP消耗×${d.autoCastMpMult}）`);
+            if(d.autoCastDmgMult && d.autoCastDmgMult > 1) _eff.push(`自動施法增幅（傷害×${d.autoCastDmgMult}）`);
+            if(d.silencedBonusDmg) _eff.push(`沉默專攻（攻擊沉默目標額外傷害+${d.silencedBonusDmg}）`);
+            if(d.poisonedBonusDmg) _eff.push(`中毒專攻（攻擊中毒目標額外傷害+${d.poisonedBonusDmg}）`);
+            if(d.slowedBonusDmg) _eff.push(`緩速專攻（攻擊緩速目標額外傷害+${d.slowedBonusDmg}）`);
+            if(d.immParalyzeBonusDmg) _eff.push(`強韌專攻（攻擊免疫麻痺目標額外傷害+${d.immParalyzeBonusDmg}）`);
+            if(typeof WAND_LIGHTARROW_IDS !== 'undefined' && WAND_LIGHTARROW_IDS.includes(id)) _eff.push('共鳴（攻擊時依智力免費施放光箭）');
             // 🔧 武器標籤特效（反擊/居合/鈍擊/出血）：來自 WEAPON_TAGS（非 eff 欄位），與背包資訊欄一致顯示
             if(d.type === 'wpn' && typeof getWeaponTags === 'function'){
-                if(typeof weaponHasBleed === 'function' && weaponHasBleed(id)) _eff.push('出血');
+                if(typeof weaponHasBleed === 'function' && weaponHasBleed(id)) _eff.push('出血（命中疊加8秒流血，每秒造成該次傷害20%）');
                 let _tg = getWeaponTags(id);
-                if(_tg.includes('單手劍'))   _eff.push('反擊');
-                if(_tg.includes('武士刀'))   _eff.push('居合');
-                if(_tg.includes('單手鈍器')) _eff.push('鈍擊');
+                if(_tg.includes('單手劍'))   _eff.push('反擊（受一般攻擊命中時50%反擊；格檔時必定）');
+                if(_tg.includes('武士刀'))   _eff.push('居合（無盾且迴避／敵人未命中時50%反擊）');
+                if(_tg.includes('單手鈍器')) _eff.push('鈍擊（命中時延遲目標攻擊1秒）');
                 if(_tg.includes('雙刀'))     _eff.push('雙刃 5%（傷害×2）');   // ⚔️ 雙刀內建特性
-                if(_tg.includes('鋼爪'))     _eff.push('重擊 +5%');   // ⚔️ 鋼爪內建特性：一般攻擊額外 5% 重擊
+                if(_tg.includes('鋼爪'))     _eff.push('重擊 +5%（重擊取武器最大傷害）');   // ⚔️ 鋼爪內建特性：一般攻擊額外 5% 重擊
             }
-            _eff = filterClassicEffLabels(_eff);   // 🎮 經典模式：移除已停用特效字樣
+            if(d.type === 'wpn' && typeof weaponPurposeLabels === 'function') _eff.push(...weaponPurposeLabels(d));
+            if(d.relic && typeof relicPurposeLabels === 'function') _eff.push(...relicPurposeLabels(d));
+            _eff = [...new Set(_eff)];
+            _eff = filterClassicEffLabels(_eff, d);   // 🎮 經典模式：移除已停用特效字樣（classicOk 物品不過濾）
             if(_eff.length) parts.push(`<div class="text-rose-300 font-bold" style="font-size:12px;">特效：${_eff.join(' / ')}</div>`);
         }
         if(!hidePrice && typeof d.p === 'number' && d.p > 0) parts.push(`<div class="text-yellow-400" style="font-size:12px;">售價 ${d.p.toLocaleString()} 金幣</div>`);   // 🗡️ 裝備收集冊 hidePrice=true：隱藏售價
@@ -1832,6 +1839,7 @@ window.onload = () => {
         let tSkill = host.getAttribute('data-tip-skill');
         let tUid = host.getAttribute('data-tip-uid');
         let tId = host.getAttribute('data-tip-id');
+        let tCraft = host.getAttribute('data-tip-craft');
         if(tSkill){
             // 技能頁：依技能 ID 顯示能力
             if(el._id !== 'SK:'+tSkill){ let h = buildSkillTipHTML(tSkill); if(!h){ hideTip(); return; } el.innerHTML = h; el._id = 'SK:'+tSkill; }
@@ -1847,8 +1855,20 @@ window.onload = () => {
                 el._id = key;
             }
         } else if(tId){
-            // 🗡️ 收集冊：依基底物品 ID 顯示資訊（已收集裝備）
-            if(el._id !== ('BID:'+tId)){ let h = buildItemTipHTML(tId, true); if(!h){ hideTip(); return; } el.innerHTML = h; el._id = 'BID:'+tId; }   // 🗡️ 收集冊隱藏售價
+            if(tCraft){
+                // ⚒️ 製作成品：直接綁定 result ID，不再以 icon 反查（共用圖片不會抓錯物品）；沿用背包／裝備欄完整 tooltip，含寵物裝備能力。
+                let key = 'CRAFT:' + tId;
+                if(el._id !== key){
+                    let d = DB.items[tId]; if(!d){ hideTip(); return; }
+                    let it = { id:tId, uid:'craft-tip', cnt:1, en:0, bless:false, anc:false, attr:false, seteff:false };
+                    el.innerHTML = `<div class="font-bold text-base ${getItemColor(it)}" style="margin-bottom:4px;">${getItemFullName(it)}</div>`
+                        + `<div class="text-slate-300" style="font-size:12px;line-height:1.5;">${buildItemDescHTML(it)}</div>`;
+                    el._id = key;
+                }
+            } else {
+                // 🗡️ 收集冊：依基底物品 ID 顯示資訊（已收集裝備）
+                if(el._id !== ('BID:'+tId)){ let h = buildItemTipHTML(tId, true); if(!h){ hideTip(); return; } el.innerHTML = h; el._id = 'BID:'+tId; }   // 🗡️ 收集冊隱藏售價
+            }
         } else {
             // 商店/製作圖示：依 icon → 基底物品 ID 顯示
             if(!ICON2ID) buildMap();

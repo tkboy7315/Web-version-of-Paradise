@@ -8,6 +8,69 @@ function saveAuditWatch() { try { localStorage.setItem(AUDIT_WATCH_KEY, JSON.str
         if (Array.isArray(arr)) { _audit.watch = arr.filter(x => typeof x === 'string'); _audit.watch.forEach(t => { _audit.watchCnt[t] = 0; }); }
     } catch(e) {}
 })();
+const TROLL_DEFEAT_ENDINGS = [
+    '對方悻悻然地下線了。',
+    '對方抱頭鼠竄地躲回村。',
+    '對方怒拔線，畫面直接斷線了。',
+    '對方開始對你客氣，連買藥水都先問好。',
+    '對方默默把剛剛的狠話全刪了。',
+    '對方裝作沒事，轉身就按了回卷。',
+    '對方在頻道打到一半突然安靜了。',
+    '對方說剛剛只是測試你的傷害。',
+    '對方改口說大家都是朋友。',
+    '對方的氣勢當場掉到負重超過 100%。',
+    '對方把 PK 宣言收回倉庫了。',
+    '對方嘴上說還好，腳步已經往村莊跑。',
+    '對方開始研究和平相處的可能性。',
+    '對方承認今天鍵盤比較滑。',
+    '對方一邊退後一邊說有話好說。',
+    '對方突然想起自己還有村莊任務要解。',
+    '對方把你加入了「先不要惹」名單。',
+    '對方的狠話被你的最後一擊打散了。',
+    '對方假裝剛剛不是本人操作。',
+    '對方說網路延遲，但大家都看見了。',
+    '對方立刻改名想重新做人。',
+    '對方開始檢討為什麼要嘴那麼快。',
+    '對方回村後默默補滿紅水。',
+    '對方從此學會先看裝備再說話。',
+    '對方輸到開始稱讚你的操作。',
+    '對方表示剛剛只是友情切磋。',
+    '對方嘴硬三秒後選擇沉默。',
+    '對方的戰意被打成未鑑定狀態。',
+    '對方把剛剛的挑釁當成誤會。',
+    '對方開始用敬語跟你講話。',
+    '對方說下次一定，但先回村整理背包。',
+    '對方的勇氣藥水效果像是提前結束了。',
+    '對方在地上留下了一句「我只是路過」。',
+    '對方很快學會什麼叫頻道禮貌。',
+    '對方的自信被你打到需要修理。',
+    '對方表示今天手感不好，明天再兇。',
+    '對方開始懷疑剛剛是不是不該那麼嗆。',
+    '對方回村後把廣播音量調小了。',
+    '對方說要叫人，結果先叫了傳送師。',
+    '對方的嘴砲冷卻時間被延長了。',
+    '對方把「來 PK」改成「先不要」。',
+    '對方裝忙，說剛好要下線吃飯。',
+    '對方從戰鬥頻道消失得非常自然。',
+    '對方的囂張被打成稀有掉落。',
+    '對方開始覺得安靜也是一種美德。',
+    '對方說剛剛那句不是對你講的。',
+    '對方回村後站在倉庫前思考人生。',
+    '對方把你尊稱為大哥，語氣非常真誠。',
+    '對方的下一句垃圾話卡在輸入框裡。',
+    '對方決定暫時當個有禮貌的玩家。',
+    '對方留下敗者的背影，消失在傳送光裡。'
+];
+function _killLogEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+function _trollDefeatNameHtml(mob) {
+    if (typeof pvpNameHtml === 'function') return pvpNameHtml(mob.n, mob._pvpAlignment || 0, 'font-bold');
+    return `<span class="font-bold">${_killLogEsc(mob && mob.n)}</span>`;
+}
+function _trollDefeatEnding() {
+    return TROLL_DEFEAT_ENDINGS[Math.floor(Math.random() * TROLL_DEFEAT_ENDINGS.length)] || '對方悻悻然地下線了。';
+}
 function auditReset() {
     _audit.start = Date.now();
     _audit.gold0 = (typeof player !== 'undefined' && player) ? (player.gold || 0) : 0;
@@ -18,7 +81,7 @@ function auditReset() {
 }
 function auditTrackKill(mob) {
     if (!mob || typeof getExpGainMult !== 'function') return;
-    let g = Math.floor((mob.exp || 0) * (1 + partyExpBonusPct() / 100) / partyExpShareCount() * getExpGainMult(player.lv));   // 🤝 v3.0.87 效率統計記主玩家「實得」經驗（怪物經驗 ×組隊加成 ÷分經驗人數），與經驗條一致
+    let g = Math.floor((mob.exp || 0) * (1 + partyExpBonusPct() / 100) / partyExpShareCount() * getExpGainMult(player.lv) * getExpBonusMult());   // 🤝 v3.0.87 效率統計記主玩家「實得」經驗（怪物經驗 ×組隊加成 ÷分經驗人數），與經驗條一致
     if (g > 0) _audit.exp += g;
     _audit.kills++;
 }
@@ -143,6 +206,9 @@ function renderAuditDrops(el) {
         body = sorted.map(mid => {
             let mob = DB.mobs[mid]; if (!mob) return '';
             let drops = _auditMobDrops(mob.n);
+            // 🦊 v3.5.4 變身鏈頭目（玉藻→九尾→殺生石）：後續階不在出怪池無自己的列→掉落物併入鏈根（玉藻）顯示（實際掉落也確實由打倒最終階獲得）
+            let _seen = { [mid]: 1 }, _t = mob.transformTo;
+            while (_t && DB.mobs[_t] && !_seen[_t]) { _seen[_t] = 1; _auditMobDrops(DB.mobs[_t].n).forEach(id => { if (drops.indexOf(id) === -1) drops.push(id); }); _t = DB.mobs[_t].transformTo; }
             let dropHtml = drops.length
                 ? drops.map(id => `<span class="${getItemColor({ id })}">${DB.items[id].n}</span>`).join('、')
                 : '<span class="text-slate-500">（無掉落物）</span>';
@@ -170,19 +236,7 @@ setInterval(() => { try { renderAuditTab(); } catch(e) {} }, 2000);   // 開著�
 // ⚠️v3.0.85 用戶指示：經典模式「掉落率 ×1/10」懲罰移除（歷次：v3.0.82 經驗×0.5／金幣÷2 移除 → v3.0.85 掉落×1/10 移除）。
 //   classicDropMult 恆 1 保留為單一真相掛點（十餘個掉落判定點仍乘它·未來要恢復懲罰只改這裡）；trialItemDropMult（試煉道具豁免）同步恆 1。
 //   經典模式現存差異：死亡損失 5% 經驗、隱藏祝福/精通/席琳、停用武器/盾/騎士特效。
-const RATE_TABLE = {
-    1: { normal: { exp: 1, gold: 1, drop: 1 }, classic: { exp: 0.25, gold: 0.5, drop: 0.1 } },
-    2: { normal: { exp: 100, gold: 20, drop: 10 }, classic: { exp: 5, gold: 2, drop: 1 } },
-    3: { normal: { exp: 500, gold: 50, drop: 30 }, classic: { exp: 10, gold: 5, drop: 2 } },
-};
-function getRateMult() {
-    let r = player && player.dropRate;
-    if (!r || !RATE_TABLE[r]) r = 1;
-    let mode = (player && (player.classicMode || player.legendaryMode)) ? 'classic' : 'normal';
-    return RATE_TABLE[r][mode];
-}
-function setDropRate(v) { player.dropRate = Number(v) || 1; saveGame(); logSys(`掉寶倍率已設為 ×${player.dropRate}。`); }
-function classicDropMult() { let m = getRateMult(); return m.drop; }
+function classicDropMult() { return 1; }
 function trialItemDropMult(id) { return 1; }
 // 🤝 v3.0.86 組隊經驗改「4 人均分」：分經驗人數＝主玩家 ＋ 未倒地傭兵（例：滿隊 3 傭兵→4 人；怪物經驗÷人數＝每人一份·1000exp→各 250）。倒地傭兵不參與、不稀釋其他人。
 function partyExpShareCount() { return 1 + ((player.allies || []).filter(a => a && !a._downed).length); }
@@ -192,9 +246,51 @@ function partyExpBonusPct() {
     if (_mates <= 0) return 0;
     return _mates * ((player && player.cls === 'royal') ? 8 : 4);   // 👑 王族隊長每隊友 +8%；其餘職業每隊友 +4%（減半）
 }
+// ===== 🌅 三段變身頭目（依《日出之國.md》·玉藻→九尾→殺生石）=====
+//  怪物欄位 transformTo（下一階 mob id）＋transformHpPct（HP 門檻·預設 0.5）。兩個觸發點：
+//  ① js/03 tick：HP 低於門檻即變身；② killMob 頂端攔截：被一擊打到 0 也「不會死亡而是強制變身」（在 vfxKill/經驗/金幣/掉落/擊殺特效之前 return → 中間階段完全不發獎勵）。
+//  原槽位換成下一階滿血新物件：uid 新發（動畫引擎視為新怪 → 無 _animSpawned 自動播 spawn 登場動畫）、_born/_bornMs 沿用（保留最早出生鎖敵優先序）、
+//  targetIdx 是槽位索引 → 鎖敵自然轉移到新階段；respawn 讀 DB.maps 池（只放第一階）→ 擊殺最終階後重生必回第一階。
+function doMobTransform(idx) {
+    let mob = mapState.mobs[idx];
+    if (!mob || mob._dead || !mob.transformTo) return;
+    let base = DB.mobs[mob.transformTo];
+    if (!base) return;
+    // 🎴 v3.5.2 變身中間階不掉卡：整鏈三張卡（玉藻/九尾/殺生石）全由最終階 殺生石 擲中時隨機選一張（js/15 rollCardDrops 的 transformTo 閘＋CARD_CHAIN_BY_FINAL 隨機池）。
+    let next = { ...base, curHp: base.hp, uid: uid(), _born: mob._born, _magCd: {}, justHit: false, st: newMobStatus(), _bornMs: mob._bornMs || Date.now(), _justTransformedTick: state.ticks };
+    mapState.mobs[idx] = next;
+    if (typeof applySherineBuff === 'function') { try { applySherineBuff(idx); } catch (e) {} }   // 🔮 審查修：席琳的世界強化跨變身沿用（與 spawnMob/spawnRiftMob 同序·須在 initHardSkin 之前）
+    if (base.hard) initHardSkin(next);
+    logCombat(`<span class="${getMobColor(mob.lv)}">${mob.n}</span> 的身軀迸發妖力——變身為 <span class="${getMobColor(next.lv)} font-bold">${next.n}</span>！`, 'enemy');
+    if (typeof vfxBossEntrance === 'function') { try { vfxBossEntrance(next, mob.transformFxText ? { sub: '◈　頭 目 變 身　◈', name: mob.transformFxText } : null); } catch (e) {} }   // 🌅 v3.4.95 變身名條自訂文字（前一階 transformFxText：玉藻「妖狐展現真面目」／九尾「妖狐露出真身」）
+    renderMobs(); updateUI();
+}
+// 💰 一般怪金幣統一曲線：M=20+3L+0.06L²，區間=M×[0.65,1.35]；hard 非頭目×1.25。
+// 頭目保留各自已設定的金額；未設定者才回退同級曲線。席琳／恩賜倍率由旗標補回，避免 0/0 資料漏吃倍率。
+function monsterGoldRange(mob) {
+    let lv = Math.max(1, Number(mob && mob.lv) || 1);
+    let mean = 20 + 3 * lv + 0.06 * lv * lv;
+    let diffMult = (mob && mob.hard && !mob.boss) ? 1.25 : 1;
+    let gMin, gMax;
+    let cfgMin = Number(mob && mob.goldMin), cfgMax = Number(mob && mob.goldMax);
+    let bossHasConfiguredGold = !!(mob && mob.boss && Number.isFinite(cfgMin) && Number.isFinite(cfgMax) && cfgMin > 0 && cfgMax >= cfgMin);
+    if (bossHasConfiguredGold) {
+        // spawn 時席琳／恩賜已直接乘入頭目的 goldMin/goldMax，不再重複計算。
+        gMin = Math.floor(cfgMin); gMax = Math.floor(cfgMax);
+    } else {
+        let worldMult = 1;
+        if (mob && mob._sherine) worldMult *= mob._sherineMad ? 10 : 5;
+        if (mob && mob._grace) worldMult *= 10;
+        gMin = Math.round(mean * 0.65 * diffMult * worldMult);
+        gMax = Math.round(mean * 1.35 * diffMult * worldMult);
+    }
+    return { min: Math.max(1, gMin), max: Math.max(Math.max(1, gMin), gMax) };
+}
 function killMob(idx) {
     let mob = mapState.mobs[idx];
     if (!mob || mob._dead) return;        // 冪等保護：同一隻怪只結算一次獎勵
+    if (mob._justTransformedTick != null && state.ticks - mob._justTransformedTick <= 5 && mob.curHp > 0) return;   // 🌅 審查修：同一擊內的過時二次 killMob（on-hit 特效先殺→主判定又用舊 target.curHp 呼叫同槽位）→剛變身的滿血新階段不吃這種幽靈擊殺（真死亡 curHp<=0 不受影響）
+    if (mob.transformTo && DB.mobs[mob.transformTo]) { doMobTransform(idx); return; }   // 🌅 三段變身：即使 HP=0 也不會死亡而是強制變身（先於 _dead/特效/獎勵）
     mob._dead = true;
     try { vfxKill(mob); } catch(e){}   // ✨ VFX：擊殺粒子爆裂（趁格子 DOM 仍在、重繪前）
     try { playMobKill(mob); } catch(e){}   // 🔊 音效：怪物死亡（依怪名對應專屬死亡音，查無→通用擊殺音）
@@ -204,21 +300,32 @@ function killMob(idx) {
     _sherineLootCtx = mob._sherine ? { boss: !!mob.boss, grace: !!mob._grace, mad: !!mob._sherineMad } : null;   // 🔮 席琳的世界：本次擊殺掉落套用 詞綴×3(瘋狂×5)／套裝效果判定（恩賜怪套裝機率×5、瘋狂再×3）
     _tradLootCtx = traditionalActive();   // 🏛️ 傳統模式：本次擊殺掉落的裝備隨機自帶強化值＋抑制施法卷軸（於 _sherineLootCtx 清除處一併關閉）
     _vfxLootCtx = true;   // ✨ VFX：本次擊殺掉落期間→gainItem 對潘朵拉權重=1 物品閃光
+    _lootMobInfo = { n: mob.n, lv: mob.lv };   // 🐾 本次擊殺掉落來源怪物→gainItem 顯示「怪名 給你 物品名 。」
+    // 🩹 v3.3.25 擊殺／掉落訊息一律歸「玩家」來源：寵物/召喚/傭兵補刀時 _combatSrc 為 'pet'/'summon'/'mercenary'，
+    //   killMob 的「擊敗了…」與 gainItem 掉落訊息若繼承該來源，會被戰鬥日誌「來源過濾」隱藏 → 玩家把該來源關掉時，
+    //   頭目被寵物/召喚補刀致死看起來就像「無訊息直接消失、又沒掉落」。擊殺是全隊事件，強制以 'player' 記錄（不影響 DPS，
+    //   傷害於呼叫端已結算）。finally 還原原來源，避免污染呼叫端後續（如寵物/召喚 tick 的 _dps 歸屬）。
+    let _svKillSrc = _combatSrc; _combatSrc = 'player';
     try {
+    if (typeof pvpOnKillMob === 'function') pvpOnKillMob(mob);
     if(typeof auditTrackKill === 'function') auditTrackKill(mob);   // 統計：累計經驗/擊殺
     // 🔧 轉場建築（往上層的樓梯 / 遺忘之島傳送門）：擊敗即進入下一層/島，不顯示「擊敗了…」戰鬥訊息（race 建築且 noAutoTeleport，排除攻城塔/城門）
     let _hideKillMsg = (mob.race === '建築' && mob.noAutoTeleport);
     if(!_hideKillMsg) logCombat(`擊敗了 <span class="${getMobColor(mob.lv)}">${mob.n}</span>！`, 'player-heavy');  // 👈 新增
     // 🤝 v3.0.87 組隊經驗＝先加成再均分：怪物經驗 ×(1+partyExpBonusPct%) ÷ partyExpShareCount()（主玩家＋未倒地傭兵）＝每人一份。
     //   例（王族隊長+1 隊友）：1000 ×1.08 ÷2 ＝ 540／人；主玩家僅得一份（單人時＝全額·無加成）。🪆 魔法娃娃 expBonus% 仍加乘於主玩家該份。
-    let _expShare = mob.exp * (1 + partyExpBonusPct() / 100) / partyExpShareCount();
-    player.exp += Math.floor(_expShare * getExpGainMult(player.lv) * (1 + dollFieldVal('expBonus') / 100) * getRateMult().exp);   // ⚠️v3.0.82 經典×0.5 已移除
+    let _expShare = mob.exp * (1 + partyExpBonusPct() / 100) / partyExpShareCount() * getExpBonusMult();
+    let _petExpGain = Math.floor(_expShare * (1 + dollFieldVal('expBonus') / 100));   // 🐾 寵物複製玩家應得份額；玩家滿等不再使寵物經驗歸零
+    let _playerExpGain = Math.floor(_petExpGain * getExpGainMult(player.lv));   // ⚠️v3.0.82 經典×0.5 已移除；Lv100 玩家自身仍不獲得經驗
+    player.exp += _playerExpGain;
     checkLvUp();
+    // 🐾 寵物經驗：複製玩家本次應得份額後均分給出戰寵物；不受玩家 Lv100 經驗封頂影響（升級需求＝玩家表 1/10）
+    if (typeof petsGainExp === 'function') petsGainExp(_petExpGain);
     // 🤝 v3.0.86 協力傭兵各得「均分後的一份」（以自身等級計 getExpGainMult·滿等歸0·不減其他人）；經驗滿即「自動升級＋重算戰力（即時變強）」。_expGained 記受雇期間賺到的總量供解雇 delta-merge 回寫。（原 MERC_EXP_SHARE=0.5 制已廢）
     if (player.allies && player.allies.length && mob.exp) {
         player.allies.forEach(a => {
             if (!a || a._downed) return;
-            let _gain = Math.floor(_expShare * getExpGainMult(a.lv || 1) * getRateMult().exp);   // 🤝 每名未倒地傭兵各得一份（與主玩家同額·例 1000exp 滿隊→各 250）
+            let _gain = Math.floor(_expShare * getExpGainMult(a.lv || 1));   // 🤝 每名未倒地傭兵各得一份（與主玩家同額·例 1000exp 滿隊→各 250）
             if (_gain <= 0) return;
             a.exp = (a.exp || 0) + _gain;
             a._expGained = (a._expGained || 0) + _gain;
@@ -235,42 +342,35 @@ function killMob(idx) {
     //    改為每名非倒地傭兵依「自身精神」各自回魔（等同該角色親自遊玩時的回魔），不受 mob.exp 閘限制。
     if (player.allies && player.allies.length) player.allies.forEach(a => { if (!a || a._downed || !a.d) return; let _mk = getWisMpOnKill(a.d.wis || 0); if (_mk > 0 && (a.mp || 0) < (a.mmp || 0)) a.mp = Math.min(a.mmp, (a.mp || 0) + _mk); });
     
-    if (!_kbNoReward && Math.random() < 0.8) {
-        let gMin = mob.goldMin || (mob.lv * 5);
-        let gMax = mob.goldMax || (mob.lv * 10);
-        let g = gMin + Math.floor(Math.random() * (gMax - gMin + 1));
+    let _goldDropRate = mob.boss ? 1 : 0.7;   // 💰 一般怪 70%；頭目 100%
+    if (!_kbNoReward && !mob.noGold && Math.random() < _goldDropRate) {
+        let _goldRange = monsterGoldRange(mob);
+        let g = _goldRange.min + Math.floor(Math.random() * (_goldRange.max - _goldRange.min + 1));
+        g = Math.max(1, Math.floor(g * (0.9 + Math.random() * 0.2)));   // 💰 最終金額額外浮動 −10%～+10%
         // ⚠️v3.0.82 經典模式金幣÷2 已移除（一般＝經典；歷次：×1/10 → ×1/3 → ×1/2 → ×1）
-        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100) * getRateMult().gold);   // 🪆 魔法娃娃 goldBonus%（莫提斯）
+        g = Math.floor(g * (1 + dollFieldVal('goldBonus') / 100));   // 🪆 魔法娃娃 goldBonus%（莫提斯）
+        g = Math.floor(g * getGoldBonusMult());   // 💰 金幣倍率下拉選單（×1/×2/×3）
         player.gold += g;
         // 🔧 金幣不再逐殺輸出於系統日誌；改由 gameLoop 累積、flushAwaySummary 以「掛機期間獲得總金幣」統一顯示。
 
     }
     // 🦴 v3.1.71 用戶要求：取消「怪物直接掉落席琳遺骸」——遺骸唯一取得管道＝席琳結晶（NPC 伊奧兌換）／菈克希絲拆分舊詞綴裝備。
     //    原掉落機率公式已移轉到下方「席琳結晶」掉落（見該區塊）。
-	// 誘捕判定（誘捕上限改於「使用肉」時以 floor(魅力/7) 判定）
-    if (player.buffs.taming > 0) {
-        let collarDrop = null;
-        if (mob.n.includes("杜賓狗")) collarDrop = 'new_item_184';
-        else if (mob.n.includes("狼")) collarDrop = 'new_item_185';
-        else if (mob.n.includes("哈士奇")) collarDrop = 'new_item_collar_husky';
-        else if (mob.n.includes("牧羊犬")) collarDrop = 'new_item_238'; // 已改為編號
-
-        if (collarDrop) {   // 誘捕擊殺必定捕獲（100%）
-            gainItem(collarDrop, 1);
-            logSys(`<span class="text-green-300 font-bold">誘捕成功！獲得 ${DB.items[collarDrop].n}。</span>`);
-            player.buffs.taming = 0;
-        }
-    }
-    
-    // === 🐾 進化果實：擊敗屬性怪物 0.0001%×怪物等級 機率掉落對應屬性果實 ===
-    if (!_kbNoReward) {
-        let _fruitByEle = { water: 'new_fruit_rabbit', fire: 'new_fruit_fox', earth: 'new_fruit_beagle', wind: 'new_fruit_stbernard' };
-        let _fruitId = _fruitByEle[mob.e];
-        if (_fruitId && Math.random() < (0.000001 * (mob.lv || 1) * classicDropMult())) {   // 0.0001% × 怪物等級（🎮 經典×1/10）
-            gainItem(_fruitId, 1);
-            logSys(`<span class="text-green-300 font-bold">✦ 你從敵人殘骸中發現了 ${DB.items[_fruitId].n}！</span>`);
-        }
-    }
+    // 🐾 v3.2.17 誘捕捕捉：身上有對應誘捕狀態且擊殺對應動物 → 寵物保管獲得基本等級寵物並失去該狀態
+    //   （舊「肉→taming→項圈」與「屬性怪掉舊進化果實」已隨項圈系統移除；新進化果實改由亞丁諾斯製作）
+    if (typeof petCaptureOnKill === 'function') petCaptureOnKill(mob);
+    // 🗡️ 吉爾塔斯之劍：任意擊殺後 10 秒內依主玩家邪惡值取得額外傷害（滿邪惡 +10；傷害端＝js/03 getPhysicalDmg／js/06 傭兵普攻）
+    if (player.eq && player.eq.wpn && player.eq.wpn.id === 'wpn_giltas_sword') player._giltasFuryUntil = state.ticks + 100;
+    if (player.allies && player.allies.length) player.allies.forEach(a => { if (a && !a._downed && a.eq && a.eq.wpn && a.eq.wpn.id === 'wpn_giltas_sword') a._giltasFuryUntil = state.ticks + 100; });
+    // 🏺 v3.5.27 食屍鬼的啃食面容：擊殺敵人時恢復 30 HP（玩家與傭兵各自看自己的頭盔·比照吉爾塔斯之劍擊殺掛點）
+    if (player.eq && player.eq.helm && (DB.items[player.eq.helm.id] || {}).killHealHp && !player.dead && player.hp > 0) player.hp = Math.min(player.mhp, player.hp + DB.items[player.eq.helm.id].killHealHp);
+    if (player.allies && player.allies.length) player.allies.forEach(a => { if (a && !a._downed && a.eq && a.eq.helm && (DB.items[a.eq.helm.id] || {}).killHealHp) a.curHp = Math.min(a.mhp || 1, (a.curHp || 0) + DB.items[a.eq.helm.id].killHealHp); });
+    // 🪄 吉爾塔斯魔杖：任意擊殺後 10 秒內依主玩家邪惡值取得額外魔法點數（滿邪惡 +20）；再次擊殺刷新時間。
+    let _giltasWandTriggered = [];
+    if (player.eq && player.eq.wpn && player.eq.wpn.id === 'wpn_giltas_wand') { player._giltasWandFuryUntil = state.ticks + 100; _giltasWandTriggered.push(player); }
+    if (player.allies && player.allies.length) player.allies.forEach(a => { if (a && !a._downed && a.eq && a.eq.wpn && a.eq.wpn.id === 'wpn_giltas_wand') { a._giltasWandFuryUntil = state.ticks + 100; _giltasWandTriggered.push(a); } });
+    if (_giltasWandTriggered.includes(player)) calcStats();
+    _giltasWandTriggered.forEach(a => { if (a !== player && typeof _allyLevelRecompute === 'function') _allyLevelRecompute(a); });
 
     // === 🔧 卡瑞：擊殺後扣除四樣任務道具各一個 ===
     if (mob.n === '卡瑞') {
@@ -312,17 +412,22 @@ function killMob(idx) {
 
     // === 野外＋血盟敵人：1% 機率額外掉落一件「攜帶物」（抽法同潘朵拉，裝備可能已強化）===
     if ((mob.wild && mob.race === '血盟') || mob.siegeEnemy) pledgeBonusDrop(mob);   // 野外血盟 或 攻城敵人：擊殺特殊掉寶
+    if (mob.trollPlayer) {   // 😤 v3.5.59 白目玩家：擊殺→仇恨解除；10% 裝備掉落（同血盟掉寶池·王族搜索狀 gachaWeight 0 不會出·經驗/金幣 0）
+        if (player.trollPlayers) player.trollPlayers = player.trollPlayers.filter(t => t && t.n !== mob.n);
+        logSys(`<span class="text-amber-300 font-bold">你擊敗了 ${_trollDefeatNameHtml(mob)}，${_trollDefeatEnding()}</span>`);
+        pledgeBonusDrop(mob, 0.10);
+    }
 
-    // === 🐉 三大龍：擊敗必得「幼龍蛋」（身上已有一枚則不再掉落，100%・不受經典掉率影響）===
+    // === 🐉 三大龍：擊敗必得「頑皮幼龍蛋」（身上已有一枚則不再掉落，100%・不受經典掉率影響）===
     if (['安塔瑞斯', '法利昂', '巴拉卡斯'].includes(mob.n) && !player.inv.some(i => i.id === 'item_dragon_egg')) {
         gainItem('item_dragon_egg', 1);
-        logSys('<span class="text-amber-300 font-bold">✦ 你從巨龍的殘骸中拾起了一顆「幼龍蛋」——它似乎在呼喚著什麼……</span>');
+        logSys('<span class="text-amber-300 font-bold">✦ 你從巨龍的殘骸中拾起了一顆「頑皮幼龍蛋」——它似乎在呼喚著什麼……</span>');
     }
 
     // === 怪物專屬掉落（依「怪物掉落資料.md」）：每樣物品各自獨立判定一次 ===
     let dropList = _kbNoReward ? [] : (MOB_DROPS[mob.n] || []);   // 🔧 魔獸軍王之室：除頭目外不掉落物品
     let _dropBase = (mob._grace ? 10 : (mob._sherine ? (mob._sherineMad ? 5 : 3) : 1));   // 🔮 席琳的世界 ×3（瘋狂×5）／恩賜怪 ×10（不含經典 ×1/10，供試煉道具用）
-    let _dropMult = _dropBase * classicDropMult();   // 🎮 經典模式：×1/10（涵蓋怪物掉落表／黑暗武器／黑精靈水晶／祝福卷軸／區域額外掉落；試煉道具走 _dropBase×trialItemDropMult 不受 ×1/10）
+    let _dropMult = _dropBase * classicDropMult() * getDropBonusMult();   // 🎮 經典模式：×1/10；🎯 掉落倍率下拉選單（×1/×2/×3）
     dropList.forEach(entry => {
         let itemId = entry[0];
         let ratePct = entry[1];               // 機率(%)
@@ -330,7 +435,9 @@ function killMob(idx) {
         if(trialDropBlocked(itemId)) return;   // 🔒 試煉兌換道具：僅本職擊殺才掉＋🔥 v3.0.78 須已接取對應試煉且未達需求數量
         if (typeof trialForced100 === 'function' && trialForced100(itemId)) { gainItem(itemId, 1); return; }   // 🔥 接取制試煉道具：通過閘門後 100% 掉落
         let _clMult = (mob.n === '卡瑞' && itemId === 'wpn_dragonslayer') ? 1 : trialItemDropMult(itemId);   // 🔧 v2.6.75 卡瑞·屠龍劍：經典模式仍維持 100%（獎勵已綁「擊殺消耗四任務道具」的成本·不受 ×1/10）
-        if(Math.random() < (ratePct * _dropBase * _clMult) / 100) gainItem(itemId, 1);   // 🎮 試煉道具不受經典 ×1/10（trialItemDropMult 回 1）
+        let _relicX2 = 1;   // 🏺 v3.2.17 幸運暴走兔腳（遺物·需裝備）：遺物掉落機率 ×2
+        if (DB.items[itemId].relic) { try { for (let _k in player.eq) { let _e = player.eq[_k]; if (_e && DB.items[_e.id] && DB.items[_e.id].relicDropX2) { _relicX2 = 2; break; } } } catch (e) {} }
+        if(Math.random() < (ratePct * _dropBase * _clMult * _relicX2) / 100) gainItem(itemId, 1);   // 🎮 試煉道具不受經典 ×1/10（trialItemDropMult 回 1）
     });
 
     // === 🔧 萬能藥稀有掉落：等級 40 以上、非血盟。一般敵人 0.01%；頭目 1%（排除夢幻之島頭目），擊殺後隨機掉落 6 種萬能藥之一 ===
@@ -390,10 +497,12 @@ function killMob(idx) {
     if (typeof rollCardDrops === 'function') rollCardDrops(mob);
 
     // === 區域額外掉落：眠龍洞穴1~3樓(zone_15/16/17) / 妖精森林周邊(zone_01) 所有怪物 ===
-    // 粗糙的米索莉塊 / 精靈玉 / 元素石，各 20%；學會「世界樹的呼喚」則各 30%
+    // 粗糙的米索莉塊 / 元素石各 2%，學會「世界樹的呼喚」則各 3%；精靈玉維持 20% / 30%
     if (AREA_BONUS_MAPS.includes(mapState.current)) {
-        let bonusRate = (player.skills.includes('sk_elf_worldtree') ? 0.30 : 0.20) * _dropMult;   // 🔮 席琳的世界×3
+        let hasWorldTree = player.skills.includes('sk_elf_worldtree');
         AREA_BONUS_ITEMS.forEach(itemId => {
+            let baseRate = (itemId === 'new_item_195') ? (hasWorldTree ? 0.30 : 0.20) : (hasWorldTree ? 0.03 : 0.02);
+            let bonusRate = baseRate * _dropMult;   // 🔮 席琳的世界×3
             if(DB.items[itemId] && Math.random() < Math.min(1, bonusRate)) gainItem(itemId, 1);
         });
     }
@@ -411,9 +520,11 @@ function killMob(idx) {
     }
     
     } finally {
+        _combatSrc = _svKillSrc;   // 🩹 v3.3.25 還原擊殺前的來源情境（寵物/召喚/傭兵 tick 的 _dps 歸屬不受污染）
         _sherineLootCtx = null;   // 🔮 掉落判定結束，清除上下文（try/finally：縱使中途拋例外也必清，杜絕 _tradLootCtx 殘留洩漏到兌換/任務/其他 forceNormal=false 獎勵）
         _tradLootCtx = false;     // 🏛️ 傳統模式掠奪上下文一併關閉
         _vfxLootCtx = false;      // ✨ VFX：擊殺掉落上下文一併關閉
+        _lootMobInfo = null;      // 🐾 掉落來源怪物上下文一併關閉（杜絕殘留洩漏到兌換/任務其他 gainItem）
     }
     // 🔧 架構#2：不在此處位移輸送帶（呼叫點可能正在迭代怪物陣列）。
     // tick 內的擊殺延後到 gameLoop 的 settleDeadMobs()；手動操作則立即清算。
@@ -705,6 +816,7 @@ function enterRiftMap() {   // 仿 enterPrideFloor 的戰鬥進場（不走 chan
         document.getElementById('town-view').classList.add('hidden');
         document.getElementById('town-view').classList.remove('flex');
         mapPanel.classList.remove('flex-1', 'overflow-hidden');
+        try { applyAreaBackground(); } catch (e) {}
         logSys('<span class="font-bold" style="color:#c4b5fd;">--- 🌀 你撕開時空，踏入了裂痕…… ---</span>');
         renderMobs();
         syncMapSelectors();
@@ -783,7 +895,10 @@ function applySherineBuff(idx) {
         let _mad = sherineMadActive();   // 🔮 瘋狂的席琳世界：更高倍率（值＝[一般/瘋狂]）
         _m.hp = Math.floor(_m.hp * (_mad ? 5 : 3)); _m.curHp = _m.hp;   // HP×[3/5]
         _m.ac = (_m.ac || 0) - (_m.boss ? 20 : 10);                    // 🔮 席琳 AC：頭目 −20、一般怪 −10（2026-07 用戶改：原 ×1.5/1.75 把近戰命中壓到 ~10%·改固定值·瘋狂與一般同值）
-        _m.mr = Math.floor((_m.mr || 0) * (_mad ? 3 : 1.5));            // MR×[1.5/3]
+        let _baseMr = Math.max(0, Number(_m.mr) || 0);
+        _m.mr = Math.floor(_mad
+            ? _baseMr + Math.min(_baseMr, 200)                           // 瘋狂：原始 MR＋min(原始 MR, 200)，避免高 MR 頭目被 ×3 壓到近乎魔法免疫
+            : _baseMr * 1.5);                                           // 一般：MR×1.5
         _m.exp = Math.floor((_m.exp || 0) * (_mad ? 10 : 5));           // 經驗×[5/10]
         _m.goldMin = Math.floor((_m.goldMin || 0) * (_mad ? 10 : 5));   // 金錢×[5/10]
         _m.goldMax = Math.floor((_m.goldMax || 0) * (_mad ? 10 : 5));
@@ -834,8 +949,11 @@ function spawnRiftMob(idx) {
     applySherineBuff(idx);   // 🔮 時空裂痕也吃席琳世界：怪物強化＋_sherine（詞綴／×3掉／×2傷由 _sherine 帶動）；須在 initHardSkin 前
     if (mapState.mobs[idx].hard) initHardSkin(mapState.mobs[idx]);
     applySherineGrace(idx);   // 🔮 席琳的恩賜（1% 機率）
+    if (base.boss && typeof vfxBossEntrance === 'function') { try { vfxBossEntrance(mapState.mobs[idx]); } catch (e) {} }   // 🐉 v3.4.95 時空裂痕頭目也播出場特效（函式內部吃 _vfxMute → 補跑不播）
     if (!state.ff) renderMobs();
 }
+// 🌅 變身鏈「非第一階」id 集合（transformTo 的目標·載入時建一次）：裂痕動態抽怪排除用
+const _TRANSFORM_STAGE_IDS = (() => { const s = new Set(); for (const k in DB.mobs) { const t = DB.mobs[k] && DB.mobs[k].transformTo; if (t) s.add(t); } return s; })();
 function pickRiftMob(boss, minLv, maxLv, elapsedSec) {
     let dragonOnField = mapState.mobs.some(m => m && RIFT_DRAGON_NAMES.includes(m.n));
     let pool = [];
@@ -845,6 +963,7 @@ function pickRiftMob(boss, minLv, maxLv, elapsedSec) {
         if (!!m.boss !== !!boss) continue;
         if (m.lv < minLv || m.lv > maxLv) continue;
         if (m.siegeEnemy || m.pledgeEnemy || m.race === '建築' || id === 'kari') continue;   // 排除攻城/血盟/建築/卡瑞
+        if (_TRANSFORM_STAGE_IDS.has(id)) continue;   // 🌅 審查修：變身鏈中間/最終階（九尾/殺生石）不獨立入裂痕池——要打就從第一階（玉藻）開打，防最終階掉落表被跳關白拿
         if (RIFT_DRAGONS.includes(id)) {
             if (elapsedSec < 1800) continue;     // 四大龍：30 分後才入池
             if (dragonOnField) continue;          // 場上至多 1 隻四大龍
@@ -899,6 +1018,24 @@ function checkLvUp() {
     }
 }
 
+// 🌑 v3.4.16 吉爾塔斯 HP 保留（統一收口·用戶：戰鬥中「離開」也適用）：離開 受詛咒的黑暗妖精聖地 的所有路徑
+//    （回村/戰敗復活/切換地圖→changeMap js/11、瞬移→doTeleport js/02）皆呼叫本函式（內自帶地圖 gate·各路徑一次觸發不重複）。
+//    吉爾塔斯存活「且已受傷」＋身上有 完整的召喚球 → 消耗 1 顆、記錄 player.giltasKeep={hp}（js/03 spawnMob 還原·一次性）＋系統提示；
+//    沒有球 → 清除殘留紀錄（重進＝全新吉爾塔斯）；滿血未傷 → 不消耗（保留滿血＝重生等效·省球）。
+function giltasKeepOnLeave() {
+    if (!mapState || mapState.current !== 'cursed_dark_elf_sanctuary') return;
+    let _gb = mapState.mobs && mapState.mobs.find(m => m && m.n === '吉爾塔斯' && m.curHp > 0);
+    let _oi = player.inv.findIndex(i => i.id === 'item_summonorb_full' && (i.cnt || 1) >= 1);
+    if (_gb && _gb.curHp < _gb.hp && _oi >= 0) {
+        let _ob = player.inv[_oi];
+        if ((_ob.cnt || 1) > 1) _ob.cnt -= 1; else player.inv.splice(_oi, 1);
+        player.giltasKeep = { hp: Math.max(1, Math.floor(_gb.curHp)) };
+        logSys(`<span class="text-cyan-300">完整的召喚球碎裂，將吉爾塔斯的傷勢（剩餘 HP ${player.giltasKeep.hp.toLocaleString()}）封印在原地——直到你再次進入前，牠不會恢復。</span>`);
+        try { renderTabs(true); } catch (e) {}
+    } else if (player.giltasKeep) {
+        player.giltasKeep = null;   // 沒有完整的召喚球（或吉爾塔斯滿血）：清除殘留紀錄（重新進入＝全新吉爾塔斯）
+    }
+}
 function revive() {
     player.dead = false;
     player.statuses = { stun: 0, freeze: 0, stone: 0, poison: 0, poisonDmg: 0, poisonTick: 0, burn: 0, burnDmg: 0, burnTick: 0, scald: 0, scaldDmg: 0, scaldTick: 0, bleed: 0, bleedDmg: 0, bleedTick: 0, sleep: 0, silence: 0, paralyze: 0, magicseal: 0 };  // 復活清除所有異常(含中毒/灼燒/燙傷)，避免復活後立即被持續傷害再次擊殺
@@ -915,6 +1052,7 @@ function revive() {
     }
     if (state.riftRun) riftEndRun();   // 🌀 裂痕內死亡：結算停留時間並產生待領獎勵
     if (state.oblivion) { state.oblivion = null; state._oblivionAdvance = false; }   // 🏝️ 旅程中死亡：回村並結束遺忘之島旅程
+    // 🌑 v3.4.16 吉爾塔斯 HP 保留：改統一收口 giltasKeepOnLeave()——本函式尾端 changeMap(true) 會在切換地圖前觸發（回村/瞬移/切圖亦同一路徑），此處不再 inline 處理（避免雙重消耗）。
     // 👇 正確的新版起點邏輯
     let startMap = 'town_silver_knight';
     if (player.cls === 'mage') startMap = 'town_talking';

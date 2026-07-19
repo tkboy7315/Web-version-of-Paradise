@@ -2,29 +2,35 @@
 (function () {
     const PAGE_SLOTS = [
         [
-            { k: 'helm',    x: 76.2, y: 17.6, w: 11.6, h: 9.1 },
-            { k: 'amulet',  x: 63.6, y: 23.5, w: 11.4, h: 9.2 },
-            { k: 'tshirt',  x: 51.8, y: 35.8, w: 11.5, h: 9.4 },
-            { k: 'armor',   x: 64.1, y: 35.4, w: 11.5, h: 9.4 },
-            { k: 'cloak',   x: 76.4, y: 35.4, w: 11.5, h: 9.4 },
-            { k: 'ring1',   x: 39.7, y: 46.4, w: 10.6, h: 8.7 },
-            { k: 'wpn',     x: 39.9, y: 56.8, w: 11.4, h: 9.7 },
-            { k: 'gloves',  x: 52.9, y: 53.4, w: 11.1, h: 9.1 },
-            { k: 'belt',    x: 69.4, y: 45.6, w: 11.6, h: 9.1 },
-            { k: 'shield',  x: 83.9, y: 49.0, w: 11.7, h: 9.7 },
-            { k: 'ring2',   x: 83.0, y: 59.4, w: 11.5, h: 9.5 },
-            { k: 'boots',   x: 82.3, y: 84.9, w: 11.8, h: 10.0 }
+            { k: 'helm',    x: 50.0, y: 15.81, w: 19.67, h: 8.82 },
+            { k: 'ear1',    x: 19.4, y: 18.01, w: 19.67, h: 8.82 },
+            { k: 'ear2',    x: 80.1, y: 18.01, w: 19.67, h: 8.82 },
+            { k: 'amulet',  x: 50.0, y: 33.46, w: 19.67, h: 8.82 },
+            { k: 'gloves',  x: 19.4, y: 31.50, w: 19.67, h: 8.82 },
+            { k: 'cloak',   x: 80.1, y: 31.50, w: 19.67, h: 8.82 },
+            { k: 'tshirt',  x: 50.0, y: 42.77, w: 19.67, h: 8.82 },
+            { k: 'wpn',     x: 19.4, y: 44.98, w: 19.67, h: 8.82 },
+            { k: 'shield', alt: 'offwpn', x: 80.1, y: 44.98, w: 19.67, h: 8.82 },
+            { k: 'armor',   x: 50.0, y: 52.08, w: 19.67, h: 8.82 },
+            { k: 'ring1',   x: 19.4, y: 58.46, w: 19.67, h: 8.82 },
+            { k: 'ring2',   x: 80.1, y: 58.46, w: 19.67, h: 8.82 },
+            { k: 'belt',    x: 50.0, y: 63.36, w: 19.67, h: 8.82 },
+            { k: 'ring3',   x: 19.4, y: 67.77, w: 19.67, h: 8.82 },
+            { k: 'ring4',   x: 80.1, y: 67.77, w: 19.67, h: 8.82 },
+            { k: 'shin',    x: 50.0, y: 72.67, w: 19.67, h: 8.82 },
+            { k: 'boots',   x: 50.0, y: 81.99, w: 19.67, h: 8.82 },
+            { k: 'doll',    x: 19.4, y: 80.76, w: 19.67, h: 8.82 },
+            { k: 'arrow',   x: 80.1, y: 80.76, w: 19.67, h: 8.82 }
         ],
         [
-            { k: 'ear1',    x: 63.6, y: 23.5, w: 11.4, h: 9.2 },
-            { k: 'ear2',    x: 76.2, y: 17.6, w: 11.6, h: 9.1 },
-            { k: 'ring3',   x: 39.7, y: 46.4, w: 10.6, h: 8.7 },
-            { k: 'offwpn',  x: 51.8, y: 35.8, w: 11.5, h: 9.4 },
-            { k: 'pet',     x: 52.9, y: 53.4, w: 11.1, h: 9.1 },
-            { k: 'arrow',   x: 83.9, y: 49.0, w: 11.7, h: 9.7 },
-            { k: 'ring4',   x: 83.0, y: 59.4, w: 11.5, h: 9.5 },
-            { k: 'shin',    x: 69.4, y: 45.6, w: 11.6, h: 9.1 },
-            { k: 'doll',    x: 82.3, y: 84.9, w: 11.8, h: 10.0 }
+            { k: 'rem_eye',   x: 50.0, y: 15.81, w: 19.67, h: 8.82 },
+            { k: 'rem_blood', x: 80.1, y: 31.50, w: 19.67, h: 8.82 },
+            { k: 'rem_scale', x: 50.0, y: 52.08, w: 19.67, h: 8.82 },
+            { k: 'rem_bone',  x: 19.4, y: 31.50, w: 19.67, h: 8.82 },
+            { k: 'rem_fang',  x: 80.1, y: 44.98, w: 19.67, h: 8.82 },
+            { k: 'rem_heart', x: 50.0, y: 63.36, w: 19.67, h: 8.82 },
+            { k: 'rem_flesh', x: 50.0, y: 81.99, w: 19.67, h: 8.82 },
+            { k: 'rem_claw',  x: 19.4, y: 44.98, w: 19.67, h: 8.82 }
         ]
     ];
 
@@ -39,7 +45,8 @@
     const MORPH_ANIM_PORTRAIT = new Set(['克特', '卡司特王', '思克巴女皇', '死亡騎士', '炎魔', '白金法師', '白金騎士', '艾莉絲', '銀光法師', '銀光騎士', '騎士范德', '黃金法師', '黃金騎士', '黑暗法師', '黑暗騎士',
         '亞力安', '人形殭屍', '侏儒', '哥布林', '地靈', '多羅', '妖魔', '妖魔弓箭手', '小惡魔', '巴列斯', '巴風特', '思克巴', '惡魔', '歐吉', '死亡', '狼人', '萊肯', '食人妖精王', '食屍鬼', '骷髏弓箭手', '骷髏斧手', '骷髏槍兵', '黑暗妖精刺客',   // 🧝 v3.0.50 +23 變身動態立繪
         '反王肯恩', '吸血鬼', '巨人', '白金巡守', '賽尼斯', '銀光巡守', '阿魯巴', '黃金巡守', '黑暗巡守', '黑暗精靈',   // 🧝 v3.0.52 +10 變身動態立繪
-        '卡士柏', '史巴托', '妖魔巡守', '妖魔鬥士', '巨大牛人', '巴土瑟', '暴走兔', '果凍怪', '格利芬', '歐姆民兵', '獨眼巨人', '甘地妖魔', '石頭高崙', '紙人', '羅孚妖魔', '西瑪', '那魯加妖魔', '都達瑪拉妖魔', '重裝歐姆', '長老', '阿吐巴妖魔', '雪怪', '食人妖精', '馬庫爾', '骷髏', '黑暗妖精運送員', '黑長者', '黑騎士']);   // 🧝 v3.0.57 +28 變身動態立繪（合計 76＝POLY_TIERS 全形態·變身動畫全數到位）
+        '卡士柏', '史巴托', '妖魔巡守', '妖魔鬥士', '巨大牛人', '巴土瑟', '暴走兔', '果凍怪', '格利芬', '歐姆民兵', '獨眼巨人', '甘地妖魔', '石頭高崙', '紙人', '羅孚妖魔', '西瑪', '那魯加妖魔', '都達瑪拉妖魔', '重裝歐姆', '長老', '阿吐巴妖魔', '雪怪', '食人妖精', '馬庫爾', '骷髏', '黑暗妖精運送員', '黑長者', '黑騎士',   // 🧝 v3.0.57 +28 變身動態立繪（合計 76＝POLY_TIERS 全形態·變身動畫全數到位）
+        '真死亡騎士 冥皇丹特斯', '烈焰的死亡騎士', '莉絲安']);   // 🌑 v3.4.67 冥皇執行劍變身＋烈焰死騎立繪；🏹 v3.5.7 莉絲安立繪
     const MORPH_PORTRAIT_REF_H = 191;   // 炎魔 morph 畫布高＝基準（用戶：炎魔目前大小剛好）
     let _morphPortrait = { name: null, body: [], shadow: [], weapon: [], i: 0, timer: null, bandH: 0 };
     function _portraitLayers(image) {   // 影子/武器覆疊層（動態建立→index.html/test.html 免改）
@@ -65,11 +72,11 @@
         const sh = document.getElementById('equipment-morph-shadow'); if (sh) sh.style.visibility = 'hidden';
         const wp = document.getElementById('equipment-morph-weapon'); if (wp) wp.style.visibility = 'hidden';
     }
-    function _startMorphPortrait(dir, image) {   // 逐號探測 morph_0..N（含 _s/_w）→ 8fps 三層同步循環
+    function _startMorphPortrait(dir, image, tree) {   // 逐號探測 morph_0..N（含 _s/_w）→ 8fps 三層同步循環·tree 預設 morphanim（🧝 真夏納職業式變身→classanim）
         _stopMorphPortrait();
         _morphPortrait.name = dir;
         image.classList.add('morph-anim-portrait');
-        const base = 'assets/morphanim/' + encodeURIComponent(dir) + '/';
+        const base = 'assets/' + (tree || 'morphanim') + '/' + encodeURIComponent(dir) + '/';
         let natH = 0, pending = 3;
         const seqs = { body: [], shadow: [], weapon: [] };
         const done = () => {
@@ -117,6 +124,24 @@
     function el(id) { return document.getElementById(id); }
     function signed(n) { n = Number(n) || 0; return n > 0 ? '+' + n : String(n); }
 
+    const EQUIPMENT_TEMPLATE_CLASS = {
+        royal: '王族', knight: '騎士', mage: '法師', elf: '妖精',
+        dark: '黑妖', illusion: '幻術', dragon: '龍騎', warrior: '戰士'
+    };
+    function equipmentTemplateUrl() {
+        const cls = typeof player !== 'undefined' && player ? EQUIPMENT_TEMPLATE_CLASS[player.cls] : '';
+        if (!cls) return 'public/assets/login/EQ%20UI/' + encodeURIComponent('原圖.png') + '?v=20260713';
+        const avatar = String(player.avatar || '');
+        const female = avatar.startsWith('女') || (player.cls === 'royal' && player.bloodPledge === 'esti');
+        return 'public/assets/login/EQ%20UI/' + encodeURIComponent((female ? '女' : '男') + cls + '.png') + '?v=20260713';
+    }
+    function syncEquipmentBackground() {
+        const background = el('equipment-window-frame')?.querySelector('.equipment-window-bg');
+        if (!background) return;
+        const src = equipmentTemplateUrl();
+        if (background.getAttribute('src') !== src) background.src = src;
+    }
+
     function renderStats() {
         if (typeof player === 'undefined' || !player || !player.d) return;
         const d = player.d;
@@ -135,13 +160,21 @@
         el('equipment-window-stats').innerHTML = values.map(([key, value]) =>
             `<span class="equipment-stat equipment-stat-${key}">${value}</span>`
         ).join('');
+        const weight = el('equipment-window-weight');
+        if (weight) {
+            const weightPct = Math.max(0, Math.round(Number(d.weightPct) || 0));
+            const loadTier = Math.max(0, Math.min(3, Number(d.loadTier) || 0));
+            weight.textContent = `負重 ${weightPct} %`;
+            weight.dataset.loadTier = String(loadTier);
+            weight.setAttribute('aria-label', `目前負重 ${weightPct}%`);
+        }
     }
 
     function renderMorphSnapshot() {
         const box = el('equipment-morph-snapshot');
         if (!box || typeof player === 'undefined' || !player) return;
         const form = player._setPoly || ((player.buffs && player.buffs.poly > 0 && player.poly) ? player.poly : null);
-        if (!form) { _stopMorphPortrait(); const _im = el('equipment-morph-image'); if (_im) _im.setAttribute('data-morph', ''); box.classList.add('hidden'); return; }
+        if (!form || form.keepClassAppearance) { _stopMorphPortrait(); const _im = el('equipment-morph-image'); if (_im) _im.setAttribute('data-morph', ''); box.classList.add('hidden'); return; }
         box.classList.remove('hidden');
         el('equipment-morph-name').textContent = form.n || '變身';
         const aliases = {
@@ -157,11 +190,15 @@
         const image = el('equipment-morph-image');
         // 🖼️ v3.0.33 圖片退回鏈＋只在「變身名稱改變」時重載：專屬立繪(assets/morph/*.jpg) → 該怪戰鬥動畫首幀(assets/anim/<原名>/idle_0.png) → 隱藏。
         //   守衛避免 500ms 定時刷新每次都把 src 重設回可能 404 的立繪 → 退回鏈重跑造成閃爍。
-        if (image.getAttribute('data-morph') !== (form.n || '')) {
-            image.setAttribute('data-morph', form.n || '');
+        const _pKey = form.classMorph ? ((form.n || '') + (player.avatar || '')) : (form.n || '');   // 🧝 v3.5.21 真夏納：立繪逐職業性別（換職業存檔也要換立繪）
+        if (image.getAttribute('data-morph') !== _pKey) {
+            image.setAttribute('data-morph', _pKey);
             image.classList.remove('no-image');
             image.alt = form.n || '變身快照';
-            if (MORPH_ANIM_PORTRAIT.has(imageName)) {   // 🎬 v3.0.44 動態立繪（morph.spr 幀循環）
+            if (form.classMorph) {   // 🧝 真夏納：職業式變身立繪＝assets/classanim/<形態名><avatar>/morph_*
+                image.onerror = null;
+                _startMorphPortrait(_pKey, image, 'classanim');
+            } else if (MORPH_ANIM_PORTRAIT.has(imageName)) {   // 🎬 v3.0.44 動態立繪（morph.spr 幀循環）
                 image.onerror = null;
                 _startMorphPortrait(imageName, image);
             } else {   // 其餘：舊 .jpg → 動畫首幀 → 隱藏 退回鏈
@@ -189,7 +226,8 @@
         const host = el('equipment-window-slots');
         host.innerHTML = '';
         PAGE_SLOTS[page].forEach(pos => {
-            const item = player.eq[pos.k];
+            const actualKey = pos.alt && player.eq[pos.alt] ? pos.alt : pos.k;
+            const item = player.eq[actualKey];
             const data = item && typeof DB !== 'undefined' && DB.items[item.id];
             const slot = document.createElement('button');
             slot.type = 'button';
@@ -201,17 +239,38 @@
                 img.alt = data.n || pos.k;
                 img.draggable = false;
                 img.onerror = function () { this.style.display = 'none'; };
-                if (typeof isRelic === 'function' && isRelic(data)) img.classList.add('relic-glow');   // 🏺 已裝備遺物：藍光呼吸＋星芒（與背包一致）
+                // 裝備框沿用背包／舊裝備欄的統一圖示光效：祝福金光、遠古紫光、屬性光、遺物與傳說皆由單一判定處理。
+                if (typeof getGlowClass === 'function') {
+                    const glowClass = getGlowClass(item, data);
+                    if (glowClass) img.classList.add(...glowClass.split(/\s+/).filter(Boolean));
+                }
                 slot.appendChild(img);
-                if (item.en) {
+                if ((data.type === 'wpn' || data.type === 'arm' || data.type === 'acc') && !data.isArrow) {
+                    const equipped = document.createElement('span');
+                    equipped.className = 'equipment-slot-equipped';
+                    equipped.textContent = 'E';
+                    equipped.setAttribute('aria-hidden', 'true');
+                    slot.appendChild(equipped);
+                }
+                if ((Number(item.en) || 0) > 0) {
                     const badge = document.createElement('span');
                     badge.className = 'equipment-slot-enhance';
-                    badge.textContent = '+' + item.en;
+                    badge.textContent = '+' + capEn(item.en, data);
                     slot.appendChild(badge);
+                } else if ((item.cnt || 1) > 1) {
+                    const count = document.createElement('span');
+                    count.className = 'equipment-slot-count';
+                    count.textContent = (item.cnt || 1).toLocaleString();
+                    slot.appendChild(count);
                 }
                 slot.classList.add('tip-host');
                 slot.setAttribute('data-tip-uid', item.uid); slot.setAttribute('data-tip-src', 'eq');   // 🖱️ hover 即時顯示已裝備物品完整資訊 tooltip
                 slot.onclick = function () {
+                    const win = el('equipment-window');
+                    if (win && win.classList.contains('equipment-window-embedded')) {
+                        if (typeof openModal === 'function') openModal(item, true, actualKey);
+                        return;
+                    }
                     clearTimeout(clickTimer);
                     clickTimer = setTimeout(function () {
                         openEquipmentSidePanel((data.type === 'wpn' || data.isArrow) ? 'weapons' : 'armors');
@@ -221,18 +280,26 @@
                     clearTimeout(clickTimer);
                     event.preventDefault();
                     event.stopPropagation();
-                    unequipItem(pos.k);
+                    unequipItem(actualKey);
                 };
             } else {
                 slot.title = '尚未裝備';
                 slot.onclick = function () {
+                    const win = el('equipment-window');
+                    if (win && win.classList.contains('equipment-window-embedded')) return;
                     openEquipmentSidePanel((pos.k === 'wpn' || pos.k === 'offwpn' || pos.k === 'arrow') ? 'weapons' : 'armors');
                 };
             }
             host.appendChild(slot);
         });
-        el('equipment-window-prev').disabled = page === 0;
-        el('equipment-window-next').disabled = page === PAGE_SLOTS.length - 1;
+        const pageOne = el('equipment-window-prev');
+        const pageTwo = el('equipment-window-next');
+        pageOne.disabled = false;
+        pageTwo.disabled = false;
+        pageOne.classList.toggle('active', page === 0);
+        pageTwo.classList.toggle('active', page === 1);
+        pageOne.setAttribute('aria-pressed', page === 0 ? 'true' : 'false');
+        pageTwo.setAttribute('aria-pressed', page === 1 ? 'true' : 'false');
     }
 
     function plainItemName(item) {
@@ -289,6 +356,8 @@
     }
 
     window.openEquipmentSidePanel = function (mode) {
+        const win = el('equipment-window');
+        if (win && win.classList.contains('equipment-window-embedded')) return;
         sideMode = mode === 'armors' ? 'armors' : 'weapons';
         const panel = el('equipment-side-panel');
         if (!panel) return;
@@ -312,6 +381,35 @@
         const frame = el('equipment-window-frame');
         const win = el('equipment-window');
         if (!frame || !win || win.classList.contains('hidden')) return;
+        if (win.classList.contains('equipment-window-embedded')) {
+            const host = el('tab-content-panel');
+            if (!host) return;
+            let hostRect = host.getBoundingClientRect();
+            const maxFrameWidth = 366;
+            if (innerWidth <= 768) {
+                const mobileFrameWidth = Math.min(hostRect.width, maxFrameWidth);
+                const mobileHeight = Math.ceil(mobileFrameWidth * 408 / 183);
+                host.style.setProperty('--equipment-panel-height', mobileHeight + 'px');
+                hostRect = host.getBoundingClientRect();
+            }
+            const frameWidth = Math.max(0, Math.min(
+                hostRect.width,
+                maxFrameWidth,
+                hostRect.height * 183 / 408
+            ));
+            win.style.left = hostRect.left + 'px';
+            win.style.top = hostRect.top + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+            win.style.width = hostRect.width + 'px';
+            win.style.height = hostRect.height + 'px';
+            frame.style.left = '50%';
+            frame.style.top = '0';
+            frame.style.setProperty('width', frameWidth + 'px', 'important');
+            frame.style.transform = 'translateX(-50%)';
+            frame.classList.remove('side-open');
+            return;
+        }
         const rect = frame.getBoundingClientRect();
         const side = frame.classList.contains('side-open') ? el('equipment-side-panel') : null;
         const sideWidth = side && !side.classList.contains('hidden') ? side.getBoundingClientRect().width + 8 : 0;
@@ -327,26 +425,48 @@
     window.refreshEquipmentWindow = function () {
         const win = el('equipment-window');
         if (!win || win.classList.contains('hidden')) return;
+        syncEquipmentBackground();
         renderStats();
         renderMorphSnapshot();
         renderSlots();
         renderSidePanel();
     };
 
-    window.openEquipmentWindow = function () {
+    window.setEquipmentPanelEmbedded = function (visible) {
         const win = el('equipment-window');
         if (!win) return;
-        win.classList.remove('hidden');
-        win.setAttribute('aria-hidden', 'false');
+        const host = el('tab-content-panel');
+        if (host) {
+            host.classList.toggle('equipment-panel-host', visible);
+            if (!visible || innerWidth > 768) host.style.removeProperty('--equipment-panel-height');
+            else host.style.setProperty('--equipment-panel-height', Math.ceil(Math.min(host.getBoundingClientRect().width, 366) * 408 / 183) + 'px');
+        }
+        win.classList.add('equipment-window-embedded');
+        win.classList.toggle('hidden', !visible);
+        win.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        if (!visible) return;
+        if (innerWidth <= 768) {
+            const scroller = el('game-screen');
+            if (scroller && host) {
+                const scrollerRect = scroller.getBoundingClientRect();
+                const hostRect = host.getBoundingClientRect();
+                if (hostRect.bottom > scrollerRect.bottom) scroller.scrollTop += hostRect.bottom - scrollerRect.bottom + 8;
+                if (hostRect.top < scrollerRect.top) scroller.scrollTop -= scrollerRect.top - hostRect.top + 8;
+            }
+        }
+        closeEquipmentSidePanel();
         refreshEquipmentWindow();
         requestAnimationFrame(fitEquipmentWindowToViewport);
+    };
+
+    window.openEquipmentWindow = function () {
+        window.setEquipmentPanelEmbedded(true);
     };
 
     window.toggleEquipmentWindow = function () {
         const win = el('equipment-window');
         if (!win) return;
-        if (win.classList.contains('hidden')) openEquipmentWindow();
-        else closeEquipmentWindow();
+        window.setEquipmentPanelEmbedded(win.classList.contains('hidden'));
     };
 
     window.closeEquipmentWindow = function () {
@@ -360,10 +480,22 @@
         const frame = el('equipment-window-frame');
         const handle = el('equipment-window-drag');
         if (!frame || !handle) return;
+        const win = el('equipment-window');
+        if (win) win.classList.add('equipment-window-embedded');
+        const background = frame.querySelector('.equipment-window-bg');
+        if (background) {
+            background.onerror = function () {
+                this.onerror = null;
+                this.src = 'public/assets/login/EQ%20UI/' + encodeURIComponent('原圖.png') + '?v=20260713';
+            };
+            syncEquipmentBackground();
+        }
         el('equipment-window-close').onclick = closeEquipmentWindow;
         el('equipment-side-close').onclick = closeEquipmentSidePanel;
-        el('equipment-window-next').onclick = function () { if (page < 1) { page++; refreshEquipmentWindow(); } };
-        el('equipment-window-prev').onclick = function () { if (page > 0) { page--; refreshEquipmentWindow(); } };
+        el('equipment-window-prev').setAttribute('aria-label', '裝備第 1 頁');
+        el('equipment-window-next').setAttribute('aria-label', '裝備第 2 頁');
+        el('equipment-window-prev').onclick = function () { page = 0; refreshEquipmentWindow(); };
+        el('equipment-window-next').onclick = function () { page = 1; refreshEquipmentWindow(); };
 
         handle.addEventListener('pointerdown', function (event) {
             const rect = frame.getBoundingClientRect();
@@ -390,6 +522,8 @@
         handle.addEventListener('pointerup', stopDrag);
         handle.addEventListener('pointercancel', stopDrag);
         window.addEventListener('resize', fitEquipmentWindowToViewport);
+        const gameScroller = el('game-screen');
+        if (gameScroller) gameScroller.addEventListener('scroll', fitEquipmentWindowToViewport, { passive: true });
         // 純顯示更新：讓卷軸到期、重新變身或套裝切換能即時反映，不改動任何變身判定。
         window.setInterval(function () {
             const win = el('equipment-window');
@@ -401,132 +535,77 @@
     else init();
 })();
 
-// ===== 📖 裝備系統說明面板（內嵌於右側按鈕下方） =====
-var _guideLoaded = false;
-window.toggleEquipGuide = function () {
-    var body = document.getElementById('equip-guide-body');
-    var cont = document.getElementById('equip-guide-content');
-    if (!body || !cont) return;
-    if (cont.classList.contains('hidden')) {
-        cont.classList.remove('hidden');
-        cont.classList.add('flex');
-        if (!_guideLoaded) {
-            _guideLoaded = true;
-            body.innerHTML = [
-'<div class="space-y-4">',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">一、強化系統</h3>',
-'  <div class="text-xs space-y-1">',
-'    <div><span class="text-amber-300 font-bold">強化上限</span>：武器 +30 / 防具 +20 / 飾品 +15</div>',
-'    <div><span class="text-green-400 font-bold">安定值</span>：武器 ≤6 / 防具 ≤4 / 飾品 ≤0（100% 成功）</div>',
-'    <div><span class="text-yellow-400 font-bold">武器</span>：+7~+8 1/3 成功 2/3 爆；+9 起 1/6 成功 1/6 無事 4/6 爆</div>',
-'    <div><span class="text-yellow-400 font-bold">防具(安>0)</span>：成功率 = 1/en；<span class="text-yellow-400 font-bold">防具(安=0)/飾品</span>：+0 1/2，+1 起 1/(en×2)</div>',
-'    <div><span class="text-cyan-300 font-bold">祝福卷</span>：+2 以下 +1~+3，+3~+5 +1~+2，+6 起 +1</div>',
-'    <div><span class="text-purple-400 font-bold">詛咒卷</span>：強化 -1（100%），可降至 -1（紅變）</div>',
-'    <div><span class="text-orange-300 font-bold">武器成長</span>：+0~+10 每階 dmg+1 hit+1；+11~+30 命中累積最高+75；最終倍率 +30×4.0</div>',
-'    <div>強化方式：單次／一鍵到目標值／批次快速強化／詛咒降級</div>',
-'  </div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">二、屬性附加</h3>',
-'  <div class="text-xs space-y-1">',
-'    <div>武器可附加火/水/風/地，T1(之)60% / T3(中階)30% / T5(靈)10%。</div>',
-'    <table class="w-full text-xs border-collapse"><thead><tr class="text-amber-300"><th class="border border-slate-600 px-1 py-0.5">階</th><th class="border border-slate-600 px-1 py-0.5 text-red-400">火</th><th class="border border-slate-600 px-1 py-0.5 text-blue-400">水</th><th class="border border-slate-600 px-1 py-0.5 text-green-400">風</th><th class="border border-slate-600 px-1 py-0.5 text-amber-300">地</th></tr></thead><tbody>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">T1</td><td class="border border-slate-600 px-1 py-0.5">+1 剋地+6</td><td class="border border-slate-600 px-1 py-0.5">+1 剋火+6</td><td class="border border-slate-600 px-1 py-0.5">+1 剋水+6</td><td class="border border-slate-600 px-1 py-0.5">+1 剋風+6</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">T3</td><td class="border border-slate-600 px-1 py-0.5">+3 剋地+9</td><td class="border border-slate-600 px-1 py-0.5">+3 剋火+9</td><td class="border border-slate-600 px-1 py-0.5">+3 剋水+9</td><td class="border border-slate-600 px-1 py-0.5">+3 剋風+9</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">T5</td><td class="border border-slate-600 px-1 py-0.5">+5 剋地+12</td><td class="border border-slate-600 px-1 py-0.5">+5 剋火+12</td><td class="border border-slate-600 px-1 py-0.5">+5 剋水+12</td><td class="border border-slate-600 px-1 py-0.5">+5 剋風+12</td></tr>',
-'    </tbody></table>',
-'    <div>相剋：火→地→風→水→火。剋制 ×1.4，被剋 ×0.6。防具/飾品加對應抗性+1~3、MR+1~3。</div>',
-'  </div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">三、祝福／詛咒</h3>',
-'  <div class="text-xs space-y-1">',
-'    <div><span class="text-yellow-400">祝福</span>：武器 dmg+1 hit+1 sp+2；防具 AC-1 DR+1；飾品 AC-1 MR+1</div>',
-'    <div><span class="text-red-400">詛咒</span>：祝福的反向效果。碧恩 NPC 賦予／解除。</div>',
-'  </div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">四、遠古系列（遠古→永恆→不朽→太初）</h3>',
-'  <table class="w-full text-xs border-collapse"><thead><tr class="text-amber-300"><th class="border border-slate-600 px-1 py-0.5">階</th><th class="border border-slate-600 px-1 py-0.5">武器</th><th class="border border-slate-600 px-1 py-0.5">防具</th><th class="border border-slate-600 px-1 py-0.5">飾品</th></tr></thead><tbody>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">遠古</td><td class="border border-slate-600 px-1 py-0.5">dmg+2 魔傷+1</td><td class="border border-slate-600 px-1 py-0.5">DR+2</td><td class="border border-slate-600 px-1 py-0.5">DR+1 MR+1</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">永恆</td><td class="border border-slate-600 px-1 py-0.5">dmg+4</td><td class="border border-slate-600 px-1 py-0.5">AC-2</td><td class="border border-slate-600 px-1 py-0.5">dmg+1 AC-1</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">不朽</td><td class="border border-slate-600 px-1 py-0.5">hit+4</td><td class="border border-slate-600 px-1 py-0.5">ER+2</td><td class="border border-slate-600 px-1 py-0.5">dmg+1 hit+1</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold">太初</td><td class="border border-slate-600 px-1 py-0.5">魔傷+2</td><td class="border border-slate-600 px-1 py-0.5">MR+4</td><td class="border border-slate-600 px-1 py-0.5">MR+2 sp+2</td></tr>',
-'  </tbody></table>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">五、武器特效與標籤</h3>',
-'  <div class="grid grid-cols-2 gap-1 text-xs">',
-'    <div><span class="text-rose-300">穿透</span>：無視防禦<br><span class="text-rose-300">月光爆裂</span>：範圍傷害<br><span class="text-rose-300">即死</span>：直接擊殺<br><span class="text-rose-300">重擊/切割</span>：降防+額外傷<br><span class="text-rose-300">雙擊(combo)</span>：額外攻擊(鋼爪33%/雙刀25%)<br><span class="text-rose-300">魔擊/魔爆</span>：魔法附加傷害</div>',
-'    <div><span class="text-rose-300">出血</span>：持續傷害(匕首/矛)<br><span class="text-rose-300">紅惡靈逆襲</span>：4%水魔傷+吸血<br><span class="text-rose-300">藍惡靈奪魔</span>：4%回MP<br><span class="text-rose-300">連射</span>：遠距機率連射<br><span class="text-rose-300">格檔</span>：機率格檔<br><span class="text-rose-300">施放魔法</span>：命中觸發(克特/蕾雅等)</div>',
-'    <div class="col-span-2 mt-1"><span class="text-amber-300">武器標籤內建</span>：反擊(單手劍)／居合(武士刀)／鈍擊(單手鈍器)／雙刃5%(雙刀)／重擊+5%(鋼爪)／弱點曝光(鎖鏈劍)／貫穿(暗黑十字弓)／吸取HP(嗜血者)</div>',
-'  </div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">六、裝備品質</h3>',
-'  <div class="text-xs">普通→高級→稀有→古代→傳說→遠古→神話</div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">七、席琳套裝（12 組 · 2/3/5 件）</h3>',
-'  <div class="text-xs space-y-1">',
-'    <div>掉落：一般 0.1%／恩賜 0.5%／頭目 5%。部位：武器/頭盔/盔甲/手套/靴/斗篷/盾+臂甲/腰帶。</div>',
-'    <table class="w-full text-xs border-collapse"><thead><tr class="text-amber-300"><th class="border border-slate-600 px-1 py-0.5">套裝</th><th class="border border-slate-600 px-1 py-0.5">2件</th><th class="border border-slate-600 px-1 py-0.5">3件</th><th class="border border-slate-600 px-1 py-0.5">5件</th></tr></thead><tbody>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-red-400 font-bold">紅獅</td><td class="border border-slate-600 px-1 py-0.5">dmg+5 sp+3</td><td class="border border-slate-600 px-1 py-0.5">DR+10</td><td class="border border-slate-600 px-1 py-0.5">最終傷+20%</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-sky-300 font-bold">白鳥</td><td class="border border-slate-600 px-1 py-0.5">hit+5</td><td class="border border-slate-600 px-1 py-0.5">魅力+10</td><td class="border border-slate-600 px-1 py-0.5">攻擊脆弱+20%受傷</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-slate-400 font-bold">鐵衛</td><td class="border border-slate-600 px-1 py-0.5">AC-3 DR+5</td><td class="border border-slate-600 px-1 py-0.5">受傷-20%</td><td class="border border-slate-600 px-1 py-0.5">受傷反擊全體</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-pink-300 font-bold">麗人</td><td class="border border-slate-600 px-1 py-0.5">近dmg+3 hit+3</td><td class="border border-slate-600 px-1 py-0.5">近爆+3%</td><td class="border border-slate-600 px-1 py-0.5">未命中堆疊命中</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-green-400 font-bold">疾風</td><td class="border border-slate-600 px-1 py-0.5">遠dmg+3 hit+3</td><td class="border border-slate-600 px-1 py-0.5">遠爆+3%</td><td class="border border-slate-600 px-1 py-0.5">連射30%→80%</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-cyan-300 font-bold">月光</td><td class="border border-slate-600 px-1 py-0.5">dmg+2 hit+3</td><td class="border border-slate-600 px-1 py-0.5">ER+5 MR+10</td><td class="border border-slate-600 px-1 py-0.5">ER迴避魔法</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-orange-300 font-bold">學徒</td><td class="border border-slate-600 px-1 py-0.5">MPR+5 sp+6</td><td class="border border-slate-600 px-1 py-0.5">魔爆+3%</td><td class="border border-slate-600 px-1 py-0.5">MP&lt;30%耗魔減半</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-purple-400 font-bold">魔女</td><td class="border border-slate-600 px-1 py-0.5">魔傷+3</td><td class="border border-slate-600 px-1 py-0.5">水抗+10 sp+5</td><td class="border border-slate-600 px-1 py-0.5">5次共鳴→冰雪暴</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-indigo-300 font-bold">暗影</td><td class="border border-slate-600 px-1 py-0.5">dmg+7</td><td class="border border-slate-600 px-1 py-0.5">迴避回2%HP</td><td class="border border-slate-600 px-1 py-0.5">雙擊傷×2</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-rose-300 font-bold">幻覺</td><td class="border border-slate-600 px-1 py-0.5">魔傷回MP</td><td class="border border-slate-600 px-1 py-0.5">輔助耗MP-50%</td><td class="border border-slate-600 px-1 py-0.5">魔傷追加一次</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-red-300 font-bold">龍血</td><td class="border border-slate-600 px-1 py-0.5">吸血1%(<50%→5%)</td><td class="border border-slate-600 px-1 py-0.5">龍裔受傷-15%</td><td class="border border-slate-600 px-1 py-0.5">HP技傷+20%</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 text-orange-400 font-bold">狂怒</td><td class="border border-slate-600 px-1 py-0.5">負重+500</td><td class="border border-slate-600 px-1 py-0.5">MHP+20%</td><td class="border border-slate-600 px-1 py-0.5">HP少10%造傷+4%/受傷-4%</td></tr>',
-'  </tbody></table>',
-'  </div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">八、傳統套裝</h3>',
-'  <table class="w-full text-xs border-collapse"><thead><tr class="text-amber-300"><th class="border border-slate-600 px-1 py-0.5">套裝</th><th class="border border-slate-600 px-1 py-0.5">件</th><th class="border border-slate-600 px-1 py-0.5">效果</th></tr></thead><tbody>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">皮/歐西斯/銀釘</td><td class="border border-slate-600 px-1 py-0.5">4</td><td class="border border-slate-600 px-1 py-0.5">AC-3</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">侏儒</td><td class="border border-slate-600 px-1 py-0.5">3</td><td class="border border-slate-600 px-1 py-0.5">AC-1 HP+5</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">骷髏</td><td class="border border-slate-600 px-1 py-0.5">3</td><td class="border border-slate-600 px-1 py-0.5">AC-2 HP+10</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">鋼鐵</td><td class="border border-slate-600 px-1 py-0.5">5</td><td class="border border-slate-600 px-1 py-0.5">AC-2 DR+2</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">法師/抗魔</td><td class="border border-slate-600 px-1 py-0.5">2</td><td class="border border-slate-600 px-1 py-0.5">MP+50 / MR+5</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">守護</td><td class="border border-slate-600 px-1 py-0.5">3</td><td class="border border-slate-600 px-1 py-0.5">AC-1</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">死亡騎士/克特</td><td class="border border-slate-600 px-1 py-0.5">4</td><td class="border border-slate-600 px-1 py-0.5">AC-4 變身真死騎/真克特</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">四大軍王</td><td class="border border-slate-600 px-1 py-0.5">4</td><td class="border border-slate-600 px-1 py-0.5">HP/MP+30 恢復+10 魅+3</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">惡魔</td><td class="border border-slate-600 px-1 py-0.5">4</td><td class="border border-slate-600 px-1 py-0.5">AC-2 HPR+5 變身惡魔</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">黑暗妖精</td><td class="border border-slate-600 px-1 py-0.5">3</td><td class="border border-slate-600 px-1 py-0.5">AC-3 力-2敏+2 變身高精</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5 font-bold text-amber-300" colspan="3">特殊套裝</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">歐林西瑪</td><td class="border border-slate-600 px-1 py-0.5">2</td><td class="border border-slate-600 px-1 py-0.5">全屬+1 AC-5 HP+50</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">冰之女王魅力</td><td class="border border-slate-600 px-1 py-0.5">3</td><td class="border border-slate-600 px-1 py-0.5">力+2魅+2 AC-5 HP+100 MPR+4 水抗+20</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">寒冰</td><td class="border border-slate-600 px-1 py-0.5">3</td><td class="border border-slate-600 px-1 py-0.5">體+3 AC-5 HP+100 HPR+4 MPR+8 MR+15 水抗+20</td></tr>',
-'    <tr><td class="border border-slate-600 px-1 py-0.5">藍海賊</td><td class="border border-slate-600 px-1 py-0.5">4</td><td class="border border-slate-600 px-1 py-0.5">智+1 AC-1 HP+10</td></tr>',
-'  </tbody></table>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">九、裝備收藏（29 類別）</h3>',
-'  <div class="text-xs">收集完整類別內所有裝備獲得永久加成</div>',
-'  <div class="grid grid-cols-2 gap-1 text-xs mt-1">',
-'    <div><span class="text-amber-300">武器</span>：匕首MP+5／單手劍DR+1／雙手劍HP+10／武士刀HP+5／單手鈍器負重+10／雙手鈍器負重+10／矛MR+1／鋼爪HPR+1／雙刀DR+1／鎖鏈劍HP+5／弓ER+1／十字弓MR+1／魔杖MPR+1／奇古獸MP+5</div>',
-'    <div><span class="text-amber-300">防具</span>：頭盔DR+1／盔甲AC-1／斗篷MR+1／長靴ER+1／手套DR+1／盾牌HP+10／臂甲負重+10<br><span class="text-amber-300">飾品</span>：項鍊HPR+1／戒指MPR+1／腰帶負重+20／耳環MPR+1／寵裝夥伴命中+1／娃娃全屬+1</div>',
-'  </div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">十、遺物臂甲</h3>',
-'  <div class="text-xs">門檻加成 +5/+7/+9，每強化+1 HP+10。遺物臂甲(relic)無法強化。</div>',
-'',
-'  <h3 class="text-sm font-bold text-sky-300 border-b border-slate-700 pb-1">十一、鎖定／廢品</h3>',
-'  <div class="text-xs space-y-1">',
-'    <div><span class="text-yellow-400">鎖定</span>：🔒 防止販賣/拆除/消耗</div>',
-'    <div><span class="text-slate-400">廢品</span>：標記後10分鐘自動販賣，簽章記憶自動標記同類</div>',
-'    <div><span class="text-slate-400">販賣價</span>：base p×30%，屬性/祝福/遠古各×10，最高×1000</div>',
-'  </div>',
-'</div>'
-            ].join('\n');
-        }
-    } else {
-        cont.classList.add('hidden');
-        cont.classList.remove('flex');
+// ===== 裝備系統說明面板 (#5 + #6) =====
+let _equipGuideBuilt = false;
+function toggleEquipGuide(){
+    let el = document.getElementById('equip-guide-content');
+    if(!el) return;
+    if(!_equipGuideBuilt){
+        el.innerHTML = _equipGuideHTML();
+        _equipGuideBuilt = true;
     }
-};
-window.closeEquipGuide = function () {
-    const panel = document.getElementById('equip-guide-panel');
-    if (panel) panel.classList.add('hidden');
-};
-window.equipGuideBackdrop = function (event) {
-    if (event.target === event.currentTarget) closeEquipGuide();
-};
+    el.classList.toggle('hidden');
+}
+function _equipGuideHTML(){
+    return `
+<h3 class="text-purple-300 font-bold text-base mb-2">一、強化系統</h3>
+<p>武器 +30 / 防具 +20 / 飾品 +15</p>
+<p>安定值：武器 ≤+6 / 防具 ≤+4 / 飾品 ≤+0</p>
+<p>武器 +0~+10 每階 dmg+1 hit+1；+11~+30 命中累積最高 +75</p>
+<p>最終倍率：+10 ×1.37、+20 ×2.50、+30 ×4.00</p>
+<p>祝福卷 +1~+3（依強化值）；詛咒卷 -1（100%）</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">二、屬性附加</h3>
+<p>火/水/風/地 四元素，T1(之)60% / T3(中階)30% / T5(靈)10%</p>
+<p>相剋：火→地→風→水→火（剋×1.4 / 被剋×0.6）</p>
+<p>防具/飾品附加：對應抗性+1~3、MR+1~3</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">三、祝福/詛咒</h3>
+<p>祝福：武器 dmg+1 hit+1 mp+2 / 防具 AC-1 DR+1 / 飾品 AC-1 MR+1</p>
+<p>詛咒：效果反向</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">四、遠古系列</h3>
+<p>遠古→永恆→不朽→太初 四階遞進</p>
+<p>象牙塔 NPC 碧恩用「賦予祝福卷軸」隨機獲得</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">五、裝備品質</h3>
+<p>普通→高級→稀有→古代→傳說→遠古→神話（7階）</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">六、武器特效與標籤</h3>
+<p>特效：穿透/月光爆裂/即死/重擊/切割/雙擊/魔擊/魔爆/出血</p>
+<p>標籤：單手劍反擊/武士刀居合/單手鈍器鈍擊/雙刀雙刃5%/鋼爪重擊+5%</p>
+<p>特殊：紅惡靈逆襲(4%水魔傷+吸血)、藍惡靈奪魔(4%回MP)</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">七、套裝系統</h3>
+<p>席琳套裝 12 組：武器/頭盔/盔甲/手套/靴/斗篷/盾+臂甲/腰帶</p>
+<p>2/3/5 件觸發；掉落：一般怪0.1%/恩賜0.5%/頭目5%</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">八、裝備收藏（29類別）</h3>
+<p>武器14類/防具7類/飾品6類，全收集獲得永久屬性</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">九、遺物臂甲系統</h3>
+<p>+5/+7/+9 門檻加成，每強化+1 HP+10</p>
+<p>遺物臂甲(relic:true)無法強化/祝福</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">十、物品鎖定與廢品</h3>
+<p>鎖定物品無法販賣；廢品10分鐘自動販賣</p>
+<p>販賣價格：p×30% × 屬性×10 × 祝福×10 × 遠古×10（最高×1000）</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">十一、召喚獸與遺物加成</h3>
+<p>summonDmg/summonGearBonus 提升召喚物；partnerHit 加成夥伴命中</p>
+<hr class="border-slate-700 my-3">
+
+<h3 class="text-purple-300 font-bold text-base mb-2">十二、其他</h3>
+<p>武器倍率依稀有度分五級（權重1→×2.5 最低→×1.5）</p>
+<p>唯一裝備(unique:true) 最多裝備 1 個</p>`;
+}

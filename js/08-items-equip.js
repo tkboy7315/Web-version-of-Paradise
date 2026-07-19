@@ -1,6 +1,4 @@
-function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
-    // 🏛️ 傳統模式：經典+傳統 抑制施法卷軸（所有來源）
-    if (TRAD_NO_SCROLLS[id] && tradNoScrolls()) return null;
+function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, deferUi=false) {
     // 卷軸變祝福／詛咒機率：各 1%（互斥）
     if (!forceNormal && (id === 'scroll_weapon' || id === 'scroll_armor')) {
         let _r = lootRng('scrollvar');   // 🎲 committed RNG（防 SL 重抽卷軸祝福/詛咒變體）
@@ -46,12 +44,7 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     //   既有裝備上的舊詞綴保留顯示（名稱前綴/資訊欄）但不再計入套裝件數（recomputeStats 只掃遺骸欄）。
     let seteff = false;
 
-    let _tEn = (_tradLootCtx && !forceNormal && d && !d.noEnhance && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && traditionalActive()) ? rollTraditionalEnhance(d) : 0;   // 🏛️ 傳統模式：掉落／黑市／製作的「裝備」隨機自帶強化值（_tradLootCtx 期間；商店 forceNormal=true 不設→恆 +0；箭矢/材料/消耗品不套；無法強化的裝備 noEnhance 恆 +0）
-    // 🏛️ 傳統模式：遠古系詞綴 0.5% 隨機附加（四階均分）
-    if (_tradLootCtx && !forceNormal && d && traditionalActive() && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc') && lootRng('tradanc') < 0.005) {
-        let _r2 = lootRng('tradanctier');
-        anc = _r2 < 0.25 ? true : _r2 < 0.5 ? 'eternal' : _r2 < 0.75 ? 'immortal' : 'primordial';
-    }
+    let _tEn = 0;   // 🏛️ v3.0.83 傳統模式已取消：掉落自帶強化值停用（任何來源恆 +0·手動強化照常）
     let _probe = { id: id, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
     let ex = player.inv.find(i => sameItemSig(i, _probe));   // 🔧 架構#3：統一簽章比對（itemSig 已含 en→+0 只併 +0、+3 只併 +3，永不誤併不同強化值）；🏛️ 傳統自帶強化：同名同強化值同詞綴自動疊加（移除原 en>0 不疊加限制）
     if(ex) ex.cnt += cnt;   // 不論是否鎖定都疊加；僅加數量、不更動既有堆疊的鎖定/廢品狀態
@@ -61,14 +54,20 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false) {
     let itemInfo = { id: id, cnt: cnt, en: _tEn, bless: bless, anc: anc, attr: attr, seteff: seteff };
     
     if (!silent && d) {
-        logSys(`獲得物品: <span class="font-bold">${getItemFullName(itemInfo)}</span>`);
+        // 🐾 擊殺掉落來源怪物存在時→「怪名 給你 物品名 。」；其餘來源(商店/製作/NPC 兌換)維持「獲得物品:」
+        if (_lootMobInfo) {
+            let _mc = (typeof getMobColor === 'function') ? getMobColor(_lootMobInfo.lv) : '';
+            logSys(`<span class="sys-item-gain"><span class="${_mc}">${_lootMobInfo.n}</span> 給你 <span class="font-bold">${getItemFullName(itemInfo)}</span> 。</span>`);
+        } else {
+            logSys(`<span class="sys-item-gain">獲得物品: <span class="font-bold">${getItemFullName(itemInfo)}</span></span>`);
+        }
     }
-    renderTabs();
+    if (!deferUi) renderTabs();
     if(DB.items[id] && DB.items[id].grantSkills) { calcStats(); renderSkillSelects(); }   // 取得授予技能的頭盔：立即生效
     
     if(typeof auditTrackGain === 'function') auditTrackGain(itemInfo);   // 統計：掉落計數
     try { if (_vfxLootCtx && d && d.gachaWeight === 1 && typeof vfxRareDrop === 'function') vfxRareDrop(d.n); } catch(e){}   // ✨ VFX：潘朵拉權重=1 的稀有掉落金色閃光
-    try { if (typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {}   // 🔧 v2.6.73 獲得物品時自動排列背包（每 10 秒最多 1 次·節流在函式內）
+    try { if (!deferUi && typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {}   // 🔧 v2.6.73 獲得物品時自動排列背包（每 10 秒最多 1 次·節流在函式內）；批次發放可延後至交易完成再統一重繪
     return itemInfo; // 👈 讓拉霸機可以讀取最終產生的物品
 }
 
@@ -272,6 +271,59 @@ function getItemFullName(item) {
     return `${segs}<span class="${getItemColor(item)}">${en}${setPrefix}${d.n}${cnt}</span>`;
 }
 
+// 🌅 遺物 鐮鼬的藥壺 potionBonus：掃玩家全裝備欄加總「治癒藥水恢復量 +%」（魔法娃娃的 potionBonus 另走 dollFieldVal·此處掃一般裝備/遺物）
+function playerEquipPotionBonusPct() {
+    let sum = 0;
+    try { for (let _k in player.eq) { let _e = player.eq[_k]; if (!_e || !_e.id || _k === 'doll') continue; let _d = DB.items[_e.id]; if (_d && _d.potionBonus) sum += _d.potionBonus; } } catch (e) {}
+    return sum;
+}
+// 🌅 批量使用（batchUse:true 的可使用道具·現用於 巨大骷髏的妖魂 eff:'expsoul'）：prompt 數量（預設全部）→一次結算經驗＋扣數量
+function batchUseItem(u) {
+    let item = player.inv.find(i => i.uid === u);
+    if (!item) return;
+    let d = DB.items[item.id];
+    if (!d || !d.batchUse) return;
+    if (player.dead) { logSys(`死亡狀態無法使用道具，請先復活。`); return; }
+    // 💊 v3.5.50 萬能藥批量使用：一次輸入數量，自動夾限「持有數／60 瓶總額度／該屬性距上限 60」三者取小
+    if (d.eff === 'panacea') {
+        const STAT_CN = { str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'精神', cha:'魅力' };
+        let st = d.pstat, cap = 60;
+        let remainQuota = 60 - (player.panaceaUsed || 0);
+        let remainStat = cap - naturalStat(st);
+        if (remainQuota <= 0) { logSys(`萬能藥最多只能使用 60 瓶，使用回憶蠟燭後可重新使用。`); return; }
+        if (remainStat <= 0) { logSys(`${STAT_CN[st]}已達上限（${cap}），無法再使用 ${d.n}。`); return; }
+        let maxN = Math.min(item.cnt, remainQuota, remainStat);
+        let rawP = prompt(`要使用幾瓶 ${d.n}？（持有 ${item.cnt} 瓶·${STAT_CN[st]}距上限 ${remainStat}·萬能藥剩餘額度 ${remainQuota} 瓶·本次最多 ${maxN} 瓶）`, maxN);
+        if (rawP === null) return;
+        let nP = Math.floor(Number(rawP));
+        if (!nP || nP <= 0) { logSys('已取消批量使用。'); return; }
+        nP = Math.min(nP, maxN);
+        if (!player.panacea) player.panacea = { str:0, dex:0, con:0, int:0, wis:0, cha:0 };
+        player.panacea[st] = (player.panacea[st] || 0) + nP;
+        player.panaceaUsed = (player.panaceaUsed || 0) + nP;
+        item.cnt -= nP;
+        if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);
+        calcStats();
+        logSys(`使用了 <span class="${d.c || 'text-pink-300'} font-bold">${d.n}</span> ×${nP}，${STAT_CN[st]} 永久 +${nP}！（萬能藥已使用 ${player.panaceaUsed}/60）`);
+        renderTabs(); updateUI(); saveGame();
+        if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
+        return;
+    }
+    if (d.eff !== 'expsoul') return;
+    let raw = prompt(`要使用幾個 ${d.n}？（持有 ${item.cnt} 個·每個 +${(d.expGain || 1000000).toLocaleString()} 經驗）`, item.cnt);
+    if (raw === null) return;
+    let n = Math.floor(Number(raw));
+    if (!n || n <= 0) { logSys('已取消批量使用。'); return; }
+    n = Math.min(n, item.cnt);
+    let _xp = (d.expGain || 1000000) * n;
+    player.exp += _xp;
+    checkLvUp();
+    item.cnt -= n;
+    if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);
+    logSys(`使用了 <span class="${d.c || 'text-sky-300'} font-bold">${d.n}</span> ×${n}，獲得 <span class="text-yellow-300 font-bold">${_xp.toLocaleString()}</span> 點經驗值！`);
+    renderTabs(); updateUI(); saveGame();
+    if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
+}
 function useItem(u, silent = false) {
     let item = player.inv.find(i => i.uid === u);
     if (!item) return;
@@ -281,6 +333,18 @@ function useItem(u, silent = false) {
     let d = DB.items[item.id];
     if (d.noUse) { if(!silent) logSys(`此物品無法直接使用。`); return; }
 
+    // 🌅 巨大骷髏的妖魂（eff:'expsoul'·expGain）：使用後獲得經驗值（批量走 batchUseItem）
+    if (d.eff === 'expsoul') {
+        if (silent) return;   // 不參與任何自動使用
+        let _xp = d.expGain || 1000000;
+        player.exp += _xp;
+        checkLvUp();
+        consume(item);
+        logSys(`使用了 <span class="${d.c || 'text-sky-300'} font-bold">${d.n}</span>，獲得 <span class="text-yellow-300 font-bold">${_xp.toLocaleString()}</span> 點經驗值！`);
+        updateUI(); saveGame();
+        if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
+        return;
+    }
     // 🎴 卡片收集冊：翻開全螢幕書頁；卡片：登錄圖鑑（已收錄則改賣出）
     if (d.eff === 'cardbook') { if (silent) return; if (typeof openCardBook === 'function') openCardBook(); return; }
     if (d.eff === 'equipbook') { if (silent) return; if (typeof openEquipBook === 'function') openEquipBook(); return; }   // 🗡️ 裝備收集冊
@@ -301,19 +365,11 @@ function useItem(u, silent = false) {
         return;
     }
 
-    // 🐾 進化果實：玩家等級30以上、且道具欄有對應基礎項圈才能使用 → 消耗 1 基礎項圈 + 1 果實，獲得 1 進化項圈
-    if (d.eff === 'evolve') {
+    // 🥚 v3.2.17 頑皮幼龍蛋：原功能不變（攜帶觸發林德拜爾）＋新增可使用——寵物保管未滿時消耗，隨機獲得 淘氣龍/頑皮龍
+    //   （🚫 舊「進化果實 eff:'evolve' 項圈進化」已隨項圈系統移除；新進化改於包武寵物保管介面進行）
+    if (d.eff === 'dragonegg') {
         if (silent) return;
-        if ((player.lv || 1) < 30) { logSys('<span class="text-red-400">等級不足：進化果實需要玩家等級 30 以上才能使用。</span>'); return; }
-        let baseId = d.evolveFrom, toId = d.evolveTo;
-        let baseStack = player.inv.find(i => i.id === baseId && (i.cnt || 0) > 0);
-        if (!baseStack) { logSys(`<span class="text-red-400">你沒有可進化的 ${DB.items[baseId] ? DB.items[baseId].n : '對應項圈'}，無法使用此進化果實。</span>`); return; }
-        baseStack.cnt--; if (baseStack.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== baseStack.uid);   // 消耗 1 基礎項圈
-        item.cnt--; if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);                 // 消耗 1 果實
-        gainItem(toId, 1);                                                                                       // 獲得 1 進化項圈
-        logSys(`<span class="text-amber-300 font-bold">進化成功！</span>你的 ${DB.items[baseId].n} 進化為 <span class="text-amber-300 font-bold">${DB.items[toId].n}</span>！`);
-        renderTabs(); updateUI(); saveGame();
-        if (!document.getElementById('item-modal').classList.contains('hidden')) closeModal();
+        if (typeof petUseDragonEgg === 'function') petUseDragonEgg(item);
         return;
     }
 
@@ -336,7 +392,7 @@ function useItem(u, silent = false) {
             let _seteff = _wand.seteff || false;
             item.cnt--; if (item.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== item.uid);   // 消耗靈魂之球 ×1
             _wand.cnt--; if (_wand.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== _wand.uid);   // 消耗失去魔力魔杖 ×1
-            let _tEn = traditionalActive() ? rollTraditionalEnhance(DB.items[resultId]) : 0;   // 🏛️ 傳統模式：解封印時才為「重獲魔力的魔杖」附加隨機強化值（封印狀態 noEnhance 恆 +0）
+            let _tEn = 0;   // 🏛️ v3.0.83 傳統模式已取消：重獲魔力的魔杖恆 +0（沿用手動強化）
             let _probe = { id:resultId, en:_tEn, bless:false, anc:false, attr:false, seteff:_seteff };
             let _ex = _tEn > 0 ? null : player.inv.find(i => (i.en||0)===0 && sameItemSig(i, _probe));   // 🏛️ 自帶強化(en>0)獨立成堆、不併入 +0（比照 gainItem）
             if (_ex) _ex.cnt += 1;
@@ -368,10 +424,12 @@ function useItem(u, silent = false) {
         }
         if (item.id.includes('potion_heal') || item.id === 'potion_strong' || item.id === 'potion_ult') {
             if (player.cds.pot > 0) return;
-            let h = Math.floor(potionHealBase(d) * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus') + (player._miscPotionBonus || 0)) / 100));   // 🍶 藥水基準改隨機區間 valMin~valMax（紅10~20/橙30~50/白60~80）；🪆 魔法娃娃 potionBonus%（吸血鬼）；🧰 道具收集冊 材料/其他全收集：藥水恢復%
+            let h = Math.floor(potionHealBase(d) * (1 + (getConPotionPct(player.d.con) + dollFieldVal('potionBonus') + playerEquipPotionBonusPct() + (player._miscPotionBonus || 0)) / 100));   // 🍶 藥水基準改隨機區間 valMin~valMax（紅10~20/橙30~50/白60~80）；🪆 魔法娃娃 potionBonus%（吸血鬼）；🧰 道具收集冊 材料/其他全收集：藥水恢復%
             if (hasMastery('k_survive')) h = Math.floor(h * 1.25);   // 🏅 生存精通：治癒藥水恢復 +25%
             if (hasMastery('k_tough') && player.hp < player.mhp * 0.4) h = Math.floor(h * 1.5);   // ⚔️ 堅韌精通：HP<40% 時藥水治癒量 +50%
             if (hasMastery('k_dragonblood')) h = Math.floor(h * 1.15);   // 🐉 龍血精通：治癒藥水恢復 +15%
+            if (player.hp < player.mhp * 0.2) { try { for (let _k in player.eq) { let _e = player.eq[_k]; if (_e && DB.items[_e.id] && DB.items[_e.id].lowHpPotionX2) { h = h * 2; break; } } } catch (e) {} }   // 🏺 v3.2.17 聖伯納的急救酒桶：HP<20% 時治癒藥水恢復量 ×2
+            if (player.statuses && player.statuses.potionFrost > 0) h = Math.max(1, Math.floor(h * 0.5));   // 🌅 藥水霜化（巨大骷髏·枯竭詛咒）：治癒藥水恢復量 −50%
             player.hp = Math.min(player.mhp, player.hp + h);
             player.cds.pot = 1;
             if(!silent) logSys(`飲用 ${d.n}，恢復 ${h} HP。`);
@@ -391,42 +449,22 @@ function useItem(u, silent = false) {
                 openPolySelect(item.uid);
                 return;
             }
-            if (silent && ringOn && player.poly) {
+            if (silent && ringOn && player.poly && polyFormMatchesEquippedWeapon(player.poly)) {
                 // 自動使用 + 持有變形控制戒指：維持上次的變身狀態（不重抽、不跳選單）
                 // 保留 player.poly 不變，僅於下方重置持續時間。
             } else {
-                // 其餘情況（手動且無戒指 / 自動但尚無變身紀錄）：依等級隨機抽取一種
+                // 其餘情況（手動且無戒指／尚無紀錄／換成不同攻擊類型武器）：依等級與武器類型隨機抽取。
                 player.poly = getPolyState();
             }
             player.buffs.poly = d.dur;
             if(!silent) logSys(`使用變形卷軸，變身為 <span class="${player.poly.c}">${player.poly.n}</span>。`);
-		} else if (d.eff === 'meat') {
-            // 肉：食用後獲得「誘捕」狀態；但 8 種項圈(杜賓狗/狼/哈士奇/牧羊犬/聖伯納/暴走兔/狐狸/小獵犬)總數達到 floor(魅力/7) 時無法誘捕
-            let limit = Math.min(8, Math.floor((player.d.cha || 0) / 7));   // 🔧 硬上限 8：不論魅力多高，項圈夥伴攜帶上限封頂 8
-            if (totalCollarCount() >= limit) {
-                if(!silent) logSys(`你持有的項圈數量已達上限，無法再進行誘捕。`);
-                return;   // 不消耗肉
-            }
-            player.buffs.taming = 300;
-            if(!silent) logSys(`你吃下了肉，獲得增益 <span class="text-pink-300 font-bold">誘捕</span>，持續300秒。`);
-            // 落到下方 consume(item)，消耗一塊肉
-        } else if (d.eff === 'whistle') {
-            // 哨子：使用不消耗。身上有任一夥伴 → 解除全部；否則依持有的各種項圈獲得對應夥伴（可多種並存）
-            if (!player.partners) player.partners = [];
-            if (player.partners.length > 0) {
-                player.partners = [];
-                if(!silent) logSys(`你收起了哨子，所有夥伴都離開了。`);
-            } else {
-                let added = [];
-                for (let nm in PET_DEF) {
-                    let cnt = petCollarCount(nm);
-                    if (cnt > 0) { player.partners.push(nm); added.push(`夥伴：${nm}${cnt > 1 ? (' ' + cnt) : ''}`); }
-                }
-                if (added.length) { if(!silent) logSys(`吹響哨子！獲得增益 ${added.join('、')}，持續到關閉遊戲或再次使用哨子。`); }
-                else { if(!silent) logSys(`你沒有任何項圈，哨子沒有作用。`); }
-            }
-            updateUI();
-            return;   // 哨子不消耗
+		} else if (d.eff === 'petlure') {
+            // 🐾 v3.2.17 誘捕道具（漂浮之眼肉/胡蘿蔔/虎男誘食/袋鼠·熊貓·猴子的飼料/高麗犬誘食）：
+            //   使用後獲得對應「誘捕」狀態 600 秒；期間擊殺對應動物 → 寵物保管獲得基本等級寵物並失去該狀態。
+            //   （🚫 舊「肉 eff:'meat' 誘捕項圈」與「哨子 eff:'whistle'」已隨項圈系統移除）
+            if (silent) return;
+            if (typeof petUseLureItem !== 'function' || !petUseLureItem(d, silent)) return;   // 失敗不消耗
+            // 落到下方 consume(item)，消耗 1 個
         } else if (d.eff === 'magicbarrier') {
             // 魔法卷軸：與魔法屏障法術共用 player.buffs.sk_magic_shield，不可疊加
             if ((player.magicShieldCd || 0) > 0) {
@@ -493,7 +531,7 @@ function useItem(u, silent = false) {
         let reqLv = skillReqLv(sd, d.sk);   // 🏅 集中化：含魔導精通特例（妖精可學四項法師法術）
         if(reqLv === undefined) { logSys(`你的職業無法學習「${sd.n}」。`); return; }
         if(player.lv < reqLv) { logSys(`等級不足，需要等級 ${reqLv} 才能學習「${sd.n}」。`); return; }
-        
+
         // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
 
         if(!player.skills.includes(d.sk)) {
@@ -668,7 +706,7 @@ function royalEquipOk(d, id) {
 }
 function checkCanEquip(item) {
     let d = DB.items[item.id];
-    if (d && d.reqAvatar && player && player.avatar && player.avatar !== d.reqAvatar) return false;   // 👸 性別頭像限定（公主/王子…）：單一真實裝備閘，套用於所有職業；缺 avatar(舊檔)不硬擋。職業適用顯示走 *EquipOk（純粹·不讀玩家狀態）
+    if (d && d.reqAvatar && player && ((d.strictAvatar && player.avatar !== d.reqAvatar) || (!d.strictAvatar && player.avatar && player.avatar !== d.reqAvatar))) return false;   // 👸 性別頭像限定；strictAvatar（純潔少女的憐愛）要求必須明確為女妖精，舊檔缺 avatar 亦不放行
     if (isRelic(d)) return reqAllowsClass(d, player.cls);   // 🏺 遺物：職業限制純以 req 白名單為準（略過各職業專屬 *EquipOk 武器/防具清單，否則戰士等會被拒）
     if (player.cls === 'dark') return darkEquipOk(d, item.id);   // 🔧 黑暗妖精專屬裝備規則
     if (player.cls === 'illusion') return illusionEquipOk(d, item.id);   // 🔮 幻術士專屬裝備規則（除匕首外的全職業裝備＋開放清單）
@@ -707,6 +745,8 @@ function playerHasWindHelm() {
 
 function equipItem(item) {
     let d = DB.items[item.id];
+    // 🦴 v3.2.37 寵物裝備改個別裝備制：玩家無寵物裝備欄——請至包武的寵物保管為單一寵物裝上
+    if (d && (d.slot === 'petwpn' || d.slot === 'petarm')) { logSys('<span class="text-amber-300">寵物裝備請到 亞丁「包武的寵物保管」為指定寵物裝上。</span>'); return; }
     let slot = d.type === 'wpn' ? 'wpn' : d.slot;
     if (d.isArrow) slot = 'arrow'; // 如果是箭矢，強制分配到 arrow 欄位
     // ⚔️ 迅猛雙斧雙持：已學迅猛雙斧且主手已是單手鈍器時，再裝單手鈍器 → 放副手 offwpn 欄
@@ -714,7 +754,7 @@ function equipItem(item) {
 
     // 職業/裝備資格統一走 checkCanEquip（含黑暗妖精規則、負重強化、劍術精通例外），與顯示用判定同一來源
     if (!checkCanEquip(item)) {
-        logSys(`無法裝備，職業不符。`);
+        logSys(d.reqAvatar ? `無法裝備，「${d.n}」僅限${d.reqAvatar}。` : `無法裝備，職業不符。`);
         return;
     }
 
@@ -727,15 +767,15 @@ function equipItem(item) {
     if (slot === 'ring') {
         if(!player.eq.ring1) slot = 'ring1';
         else if(!player.eq.ring2) slot = 'ring2';
-        else if(player.lv >= 55 && !player.eq.ring3) slot = 'ring3';   // 第3戒指欄：需 Lv55
-        else if(player.lv >= 65 && !player.eq.ring4) slot = 'ring4';   // 第4戒指欄：需 Lv65
+        else if(player.lv >= 76 && !player.eq.ring3) slot = 'ring3';   // 第3戒指欄：需 Lv76
+        else if(player.lv >= 81 && !player.eq.ring4) slot = 'ring4';   // 第4戒指欄：需 Lv81
         else slot = 'ring1';
     }
 
-    // 🦻 耳環欄位分配：一開始 1 個（ear1），Lv50 開放第 2 個（ear2），最多 2 個
+    // 🦻 耳環欄位分配：一開始 1 個（ear1），Lv59 開放第 2 個（ear2），最多 2 個
     if (slot === 'ear') {
         if(!player.eq.ear1) slot = 'ear1';
-        else if(player.lv >= 50 && !player.eq.ear2) slot = 'ear2';   // 第2耳環欄：需 Lv50
+        else if(player.lv >= 59 && !player.eq.ear2) slot = 'ear2';   // 第2耳環欄：需 Lv59
         else slot = 'ear1';
     }
     // 🦻 不能同時裝備兩個名字相同的耳環
@@ -766,6 +806,19 @@ function equipItem(item) {
         if (isEquipCursed('wpn')) { logSys('<span class="text-red-400 font-bold">被詛咒的雙手武器無法卸下，無法裝備盾牌！</span>'); return; }
         returnEquipToInv('wpn');
         logSys(`裝備盾牌，已卸下雙手武器。`);
+    }
+    // ⚔️ v3.4.21 副手位置互斥：戰士副手武器（迅猛雙斧 offwpn）與 盾牌／臂甲 共用副手位置，只能擇一裝備
+    if (slot === 'offwpn' && player.eq.shield) {   // 裝副手武器 → 卸下盾牌/臂甲
+        if (isEquipCursed('shield')) { logSys('<span class="text-red-400 font-bold">被詛咒的副手裝備無法卸下，無法持用副手武器！</span>'); return; }
+        let _sd = DB.items[player.eq.shield.id];
+        let _snm = (_sd && _sd.armguard) ? '臂甲' : '盾牌';
+        returnEquipToInv('shield');
+        logSys(`副手改持武器，已卸下${_snm}。`);
+    } else if (slot === 'shield' && player.eq.offwpn) {   // 裝盾牌/臂甲 → 卸下副手武器
+        if (isEquipCursed('offwpn')) { logSys('<span class="text-red-400 font-bold">被詛咒的副手武器無法卸下，無法裝備' + (d.armguard ? '臂甲' : '盾牌') + '！</span>'); return; }
+        let _on = DB.items[player.eq.offwpn.id];
+        returnEquipToInv('offwpn');
+        logSys(`副手改裝${d.armguard ? '臂甲' : '盾牌'}，已卸下副手武器${_on ? ' ' + _on.n : ''}。`);
     }
 
     let invItem = player.inv.find(i => i.uid === item.uid);
@@ -838,10 +891,9 @@ function consume(item) {
 function buyItem(id, qty) {
     qty = Math.max(1, Math.floor(Number(qty) || 1));   // 數量正規化，至少 1
 
-    // 箭 / 銀箭 / 肉：一「份」= 1000，單價固定，qty 代表份數
+    // 箭 / 銀箭：一「份」= 1000，單價固定，qty 代表份數（🚫 v3.2.17 肉已隨舊項圈系統移除）
     let bundle = (id === 'wpn_5')        ? { unit: 100, amount: 1000, n: '箭',   suffix: '根' }
                : (id === 'wpn_22')       ? { unit: 200, amount: 1000, n: '銀箭', suffix: '根' }
-               : (id === 'new_item_143') ? { unit: 100, amount: 1000, n: '肉',   suffix: '個' }
                : null;
     if (bundle) {
         let cost = shopPrice(bundle.unit) * qty;
@@ -865,7 +917,6 @@ function buyItem(id, qty) {
 
 let activeScroll = null;
 function openEnhanceModal(scroll) {
-    if (traditionalActive()) { logSys('<span class="text-amber-300">🏛️ 傳統模式無法強化裝備。</span>'); return; }
     activeScroll = scroll;
     let targets = Object.values(player.eq).filter(e => e && DB.items[e.id].type === scroll.target && !isMaxEnhanced(e) && !DB.items[e.id].noEnhance);   // 🔧 已達強化上限者不列入；🏛️ 無法強化的裝備（古老系列）不列入
     
@@ -888,7 +939,6 @@ function openEnhanceModal(scroll) {
 }
 
 function doEnhance(targetUid, isEq = true) {
-    if (traditionalActive()) return;
     if(!activeScroll) return;
     
     let target, slot;
@@ -965,7 +1015,8 @@ function doEnhance(targetUid, isEq = true) {
 const PLAYER_DEBUFF_NAME = {
     stun: '暈眩', freeze: '冰凍', stone: '石化', paralyze: '麻痺',
     silence: '沉默', magicseal: '魔法封印', poison: '中毒',
-    burn: '灼燒', scald: '燙傷', evilAura: '邪靈之氣'
+    burn: '灼燒', scald: '燙傷', evilAura: '邪靈之氣',
+    weaken: '弱化', disease: '疾病', blind: '目盲', potionFrost: '藥水霜化'   // 🌅 日出之國新異常
 };
 
 // 增益顏色設定：
@@ -994,7 +1045,7 @@ function getBuffColor(k, def) {
 const STATUS_ICON_SKILLS = {
     'sk_sunlight':'日光術','sk_shield':'保護罩','sk_holy_wpn':'神聖武器','sk_ench_wpn':'擬似魔法武器','sk_reveal':'無所遁形術','sk_load_up':'負重強化','sk_shield2':'鎧甲護持',
     'sk_dex_up':'通暢氣脈術','sk_magic_shield':'魔法屏障','sk_meditation':'冥想術','sk_haste_spell':'加速術','sk_str_up':'體魄強健術',
-    'sk_bless_wpn':'祝福魔法武器','sk_greater_haste':'加速術','sk_berserk':'狂暴術','sk_holy_dash':'神聖疾走','sk_blizzard_storm':'冰雪颶風','sk_fire_prison':'火牢','sk_invisible':'隱身術',
+    'sk_bless_wpn':'祝福魔法武器','sk_greater_haste':'加速術','sk_berserk':'狂暴術','sk_holy_dash':'神聖疾走','sk_blizzard_storm':'冰雪颶風','sk_fire_prison':'火牢','sk_invisible':'隱身術','sk_heal_energy_storm':'治癒能量風暴',
     'sk_holy_barrier':'聖結界','sk_soul_up':'靈魂昇華','sk_solid_shield':'堅固防護','sk_reduction_armor':'增幅防禦','sk_spike_armor':'尖刺盔甲',
     'sk_counter_barrier':'反擊屏障','sk_elf_mr':'魔法防禦','sk_elf_purify':'淨化精神','sk_elf_eleres':'屬性防禦','sk_elf_singleres':'單屬性防禦',
     'sk_elf_firewpn':'火焰武器','sk_elf_windshot':'風之神射','sk_elf_winddash':'風之疾走','sk_elf_earthguard':'大地防護','sk_elf_watervital':'水之元氣',
@@ -1015,15 +1066,19 @@ function renderStatusIconBar() {
     let bar=document.getElementById('status-icon-bar'); if(!bar||!player||!player.buffs)return;
     let rows=[],seen=new Set();
     // player.buffs 的數值單位就是「秒」，主迴圈每 10 tick（1 秒）扣 1；不可再除以 10。
-    let add=(name,seconds,label)=>{if(!name||seen.has(name))return;seen.add(name);let sec=Math.max(0,Math.ceil(Number(seconds)||0));rows.push({name,ticks:Number(seconds)||0,label:label||name,sec});};
+    let add=(name,seconds,label,icon,ally)=>{if(!name||seen.has(name))return;seen.add(name);let sec=Math.max(0,Math.ceil(Number(seconds)||0));rows.push({name,ticks:Number(seconds)||0,label:label||name,sec,icon:icon||name,ally:!!ally});};   // 🐾 v3.2.17 icon 參數：多狀態共用同一圖示檔（如 7 種誘捕）；🤝 ally 旗標：隊友提供的全隊光環（圖示加藍點區別）
     if((player.buffs.sk_greater_haste||0)>0)add('加速術',player.buffs.sk_greater_haste,'強力加速術');   // 💨 v3.0.94 強力加速術優先：沿用加速術圖示·先登錄→seen 去重蓋掉下行的一般加速
     if(player.buffs.haste>0||player._equipHaste)add('加速術',player.buffs.haste||0,'加速');
     if(player.buffs.brave>0)add('勇敢藥水',player.buffs.brave,'勇敢藥水');
     if(player.buffs.blue>0)add('藍色藥水',player.buffs.blue,'藍色藥水');
     if(player.buffs.cautious>0)add('慎重藥水',player.buffs.cautious,'慎重藥水');
     if(player.buffs.elfcookie>0)add('精靈餅乾',player.buffs.elfcookie,'精靈餅乾');
+    // 🐾 v3.2.17 誘捕狀態（7 種·共用「誘捕」圖示·label 區分）：期間擊殺對應動物即捕獲
+    if(typeof PET_LURES!=='undefined')Object.keys(PET_LURES).forEach(k=>{if((player.buffs[k]||0)>0)add('誘捕|'+k,player.buffs[k],PET_LURES[k].n,'誘捕');});
     if(player._setPoly||(player.buffs.poly>0&&player.poly))add('變形術',player.buffs.poly||0,'變身');
     Object.keys(STATUS_ICON_SKILLS).forEach(id=>{if((player.buffs[id]||0)>0)add(STATUS_ICON_SKILLS[id],player.buffs[id],DB.skills[id]?DB.skills[id].n:STATUS_ICON_SKILLS[id]);});
+    // 🤝 v3.5.36 全隊光環（大地祝福/灼熱武器/閃亮之盾等 TEAM_AURA_SKILLS）：玩家未自持 buff 但隊友維持中→也亮圖示（標「隊友提供」·倒數取隊友最長剩餘）。玩家自持時上方主迴圈已加(seen 去重)→此段只補「純受益」情形。TEAM_SHARE_BUFFS 類會給玩家自己一份 buff·已由主迴圈顯示故不列入。寵物/召喚無此圖示列不涵蓋。
+    if(typeof TEAM_AURA_SKILLS!=='undefined'&&typeof _teamAuraHas==='function'){TEAM_AURA_SKILLS.forEach(sid=>{if((player.buffs[sid]||0)>0||!STATUS_ICON_SKILLS[sid]||!_teamAuraHas(sid))return;let remain=0,al=player.allies||[];for(let i=0;i<al.length;i++){let a=al[i];if(a&&!a._downed&&a.buffs&&(a.buffs[sid]||0)>remain)remain=a.buffs[sid];}add(STATUS_ICON_SKILLS[sid],remain,(DB.skills[sid]?DB.skills[sid].n:STATUS_ICON_SKILLS[sid])+'（隊友提供）',STATUS_ICON_SKILLS[sid],true);});}
     // 持續治療不存於 player.buffs，而是以 0.1 秒 tick 記在 player.hots；換算成真正剩餘秒數後顯示。
     [['sk_regen','體力回復術'],['sk_elf_lifebless','生命的祝福']].forEach(([id,name])=>{let h=player.hots&&player.hots[id];if(h&&h.ticksLeft>0){let remainTicks=Math.max(0,(h.ticksLeft-1)*(h.interval||0)+(h.cd||0));add(name,Math.ceil(remainTicks/10),DB.skills[id]?DB.skills[id].n:name);}});
     // 🔧 v2.7.5 合併 2683「狀態圖示狂閃修正」：renderStatusEffects 每 tick(0.1秒) 呼叫本函式；原本每次都重建整排 innerHTML→所有 <img> 反覆重新解碼/重繪而狂閃。
@@ -1032,7 +1087,7 @@ function renderStatusIconBar() {
     let sig=rows.map(x=>x.name+'|'+x.label).join('||');
     if(bar.dataset.statusSig!==sig){
         bar.dataset.statusSig=sig;
-        bar.innerHTML=rows.map((x,i)=>{let title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');return `<div class="status-icon" data-status-index="${i}" title="${title}"><img src="assets/state-icons/${encodeURIComponent(x.name)}.jpg" alt="${x.label}"></div>`;}).join('');
+        bar.innerHTML=rows.map((x,i)=>{let title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');return `<div class="status-icon${x.ally?' status-icon--ally':''}" data-status-index="${i}" title="${title}"><img src="assets/state-icons/${encodeURIComponent(x.icon||x.name)}.jpg" alt="${x.label}"></div>`;}).join('');
     } else {
         rows.forEach((x,i)=>{let icon=bar.querySelector(`[data-status-index="${i}"]`);if(!icon)return;icon.title=x.label+(x.ticks>0?'｜剩餘 '+x.sec+' 秒':'');});
     }
@@ -1062,14 +1117,8 @@ function renderStatusEffects() {
       if(_polyDisp && !_skipIconized) buffs.push(`<span class="${_polyDisp.c} font-bold">變身:${_polyDisp.n}</span>`); }
 
     // 🤝 協力傭兵已改由「協力傭兵隊伍」面板(#squad-panel)顯示 HP/MP/EXP/狀態，移除此處「狀態」欄的重複「協力：XX」條目
-    // 👇 補上夥伴與誘捕狀態的顯示（可同時多種夥伴，數字=持有項圈數量，為1不顯示）
-    if(player.partners && player.partners.length) {
-        player.partners.forEach(nm => {
-            let cnt = petCollarCount(nm);
-            buffs.push(`<span class="text-orange-400 font-bold">夥伴：${nm}${cnt > 1 ? (' ' + cnt) : ''}</span>`);
-        });
-    }
-    if(player.buffs.taming > 0) buffs.push(`<span class="text-pink-300 font-bold">誘捕</span>`);
+    // 🐾 v3.2.17 誘捕狀態（新夥伴系統·7 種）；舊「夥伴：項圈」與 taming 顯示已隨項圈系統移除
+    if(typeof PET_LURES!=='undefined')Object.keys(PET_LURES).forEach(k=>{if((player.buffs[k]||0)>0)buffs.push(`<span class="text-pink-300 font-bold">${PET_LURES[k].n}</span>`);});
 
     // 🔮 席琳套裝：達 2 件以上（觸發套裝能力）的組別顯示於資訊面板（n/5）
     if (player._sherineSetCnt) {
@@ -1087,6 +1136,10 @@ function renderStatusEffects() {
             // 迷魅術 / 各召喚術：狀態欄改顯示召喚物名稱（多段或多隻時附上數量）；
             //   召喚物不存在（死亡解除 / 被新召喚取代 / 已消失）時就不顯示，避免殘留。
             if(k === 'sk_charm' || DB.skills[k].summon) {
+                // 🧙 v3.2.42 稽核修：v2 召喚（召喚術/造屍術/屬性精靈）狀態列顯示——讀 summonsV2 實體（原讀 player.summon 在 v2 恆 null→四個召喚技倒數永不顯示）
+                if(k !== 'sk_charm' && player._summonV2Sk === k) {
+                    continue;   // 🔮 v3.2.60 召喚物已於戰場顯示（浮動血量框／隊伍列）→狀態欄不再重複顯示「召喚物名＋數量」
+                }
                 let _creature = (k === 'sk_charm') ? player.charmed : player.summon;
                 if(_creature && _creature.skId === k) {
                     let cnt = (k === 'sk_charm') ? 0
@@ -1113,7 +1166,11 @@ function renderStatusEffects() {
         poison: 'text-green-500',    // 中毒 (毒綠)
         burn: 'text-red-500',        // 灼燒 (火紅)
         scald: 'text-orange-500',    // 燙傷 (橘紅)
-        evilAura: 'text-purple-400'  // 邪靈之氣 (邪紫)
+        evilAura: 'text-purple-400', // 邪靈之氣 (邪紫)
+        weaken: 'text-amber-400',    // 🌅 弱化 (琥珀)
+        disease: 'text-lime-400',    // 🌅 疾病 (病綠)
+        blind: 'text-purple-300',    // 🌅 目盲 (霧紫)
+        potionFrost: 'text-sky-300'  // 🌅 藥水霜化 (霜藍)
     };
 
     let debuffs = [];
@@ -1133,6 +1190,7 @@ function _updateUIImpl() {
     if(state.ff) return; // 補跑期間不刷新畫面
     updatePrideFloorIndicator();   // 🗼 攀登中右上角顯示目前樓層（背景補跑後回到前景時同步）
     try { renderPandoraBanner(); } catch (e) {}   // 🔧 潘朵拉黑市稀有商品公告橫幅
+    try { if (typeof updatePvpButtonTone === 'function') updatePvpButtonTone(); } catch (e) {}
     try { renderSyslogPandora(); } catch (e) {}   // 🔧 系統日誌標題列右側：黑市拍賣中商品
     document.getElementById('st-lv').innerText = player.lv;
     { let _inTown = mapState.current.startsWith('town_');   // 🔧 村莊→藍色「出發」一鍵回上一張戰鬥地圖；戰鬥地圖→綠色回村/回城
@@ -1142,14 +1200,11 @@ function _updateUIImpl() {
       if (_riftLock) { _txt = '撤離'; _fn = riftEvacuate; }
       let rb = document.getElementById('btn-return-town');
       if (rb) { rb.style.display = ''; rb.textContent = _txt; rb.onclick = _fn; rb.style.background = _riftLock ? '#7c3aed' : (_inTown ? '#1d4ed8' : ''); rb.style.borderColor = _riftLock ? '#c4b5fd' : (_inTown ? '#93c5fd' : ''); }
-      // 📱 手機常駐快捷鍵：與桌機按鈕同步（藍＝出發、綠＝回村/回城、紫＝撤離）
-      let mb = document.getElementById('mv-action-btn');
-      if (mb) { mb.style.display = ''; mb.textContent = _txt; mb.onclick = _fn; mb.style.background = _riftLock ? '#7c3aed' : (_inTown ? '#1d4ed8' : '#047857'); mb.style.borderColor = _riftLock ? '#c4b5fd' : (_inTown ? '#93c5fd' : '#34d399'); }
       // 🌀 順移按鈕：固定顯示（含村莊/野外/狩獵/隱藏區域），不隨敵人或每幀重繪閃爍；僅在「傳送會破壞玩法」的鎖定模式隱藏（裂痕/傲慢之塔封鎖樓/遺忘之島/軍王之室）。
       // ⚠️ 用「狀態改變才寫 DOM」的守衛：避免每個 tick 重複 toggle class / 設 display 造成按鈕閃爍。
       { let tpb = document.getElementById('btn-teleport'); if (tpb) { let _hideTp = !!(KING_ROOMS[mapState.current] || (typeof prideTeleportBlocked === 'function' && prideTeleportBlocked()) || state.oblivion); if (tpb.classList.contains('hidden') !== _hideTp) { tpb.classList.toggle('hidden', _hideTp); tpb.style.display = _hideTp ? 'none' : ''; } } } }   // ⚠️ _hideTp 必須 !! 強轉布林：否則 (undefined||false||undefined)===undefined → 守衛 (boolean!==undefined) 恆真 → toggle('hidden', undefined) 變成「無參數 bare toggle」每幀翻轉 → 按鈕閃爍
     { let vb = document.getElementById('victory-badge'); if (vb) { let _va = siegeVictoryActive(); vb.style.display = _va ? 'inline-flex' : 'none'; if (_va) vb.title = `攻城獲勝期間：全商店8折、開放${victoryCityCfg().castleName}`; } }   // 攻城獲勝淡金黃標記（inline-flex 讓👑與文字水平置中；🔧 tooltip 依實際獲勝城池動態，不再固定肯特）
-    { let cb = document.getElementById('classic-badge'); if (cb) cb.style.display = player.classicMode ? 'inline' : 'none'; let tb = document.getElementById('traditional-badge'); if (tb) tb.style.display = player.traditionalMode ? 'inline' : 'none'; }   // 🎮 經典模式標記／🏛️ 傳統模式標記
+    { let cb = document.getElementById('classic-badge'); if (cb) cb.style.display = player.classicMode ? 'inline' : 'none'; }
     applyAreaBackground();   // 區域背景：地監/攻城→戰鬥區、城堡→村莊畫面
     
     // 處理顯示文字：只顯示 騎士、法師、妖精、黑暗妖精
@@ -1163,12 +1218,18 @@ function _updateUIImpl() {
     else if (player.cls === 'warrior') clsDisplayName = '戰士';   // ⚔️ 戰士職業名
     else if (player.cls === 'royal') clsDisplayName = '王族';   // 👑 王族職業名
     if(document.getElementById('st-classname')) document.getElementById('st-classname').innerText = clsDisplayName;   // 🏅 精通徽記已移除，僅顯示職業名
-    if(!window._editingName) document.getElementById('st-class').innerText = (player.name || '');   // 未取名則不顯示任何文字（仍可點擊命名）
+    let _nameEl = document.getElementById('st-class');
+    if(_nameEl) {
+        if(!window._editingName) _nameEl.innerText = (player.name || '');   // 未取名則不顯示任何文字（仍可點擊命名）
+        if (typeof pvpAlignmentColor === 'function') {
+            _nameEl.style.color = pvpAlignmentColor(player.alignmentValue);
+            _nameEl.style.textShadow = '0 0 6px rgba(0,0,0,.75)';
+        }
+    }
 
-    // 處理背景圖片：抓取 player.avatar 決定背景圖 (加上 bg-top 防止頭部裁切)
+    // 處理背景圖片：全部職業／性別頭像統一使用 assets/character 對應的 PNG。
     let bgImageName = player.avatar || clsDisplayName;
-    let bgExt = (player.cls === 'dark' || player.cls === 'illusion' || player.cls === 'dragon' || player.cls === 'warrior' || player.cls === 'royal') ? 'png' : 'jpg';   // 🔧 黑暗妖精／幻術士／龍騎士／戰士／王族頭像為 png，其餘職業為 jpg
-    document.getElementById('status-panel').style.backgroundImage = `url('assets/character/${bgImageName}.${bgExt}')`;
+    document.getElementById('status-panel').style.backgroundImage = `url('assets/character/${bgImageName}.png')`;
     document.getElementById('status-panel').classList.add('bg-top'); // 確保圖片從頂部對齊
 
     document.getElementById('st-ac').innerText = player.d.ac;
@@ -1223,10 +1284,12 @@ function _updateUIImpl() {
     document.getElementById('dt-mdmg').innerText = sign(player.d.meleeDmg + _ed);
     document.getElementById('dt-mhit').innerText = sign(player.d.meleeHit + _eh);
     document.getElementById('dt-mcrit-p').innerText = `${player.d.meleeCrit}%`;
+    { let _el = document.getElementById('dt-mcritdmg'); if (_el) _el.innerText = `${player.d.meleeCritDmg || 0}%`; }
     // 遠距離
     document.getElementById('dt-rdmg').innerText = sign(player.d.rangedDmg + _ed);
     document.getElementById('dt-rhit').innerText = sign(player.d.rangedHit + _eh);
     document.getElementById('dt-rcrit').innerText = `${player.d.rangedCrit}%`;
+    { let _el = document.getElementById('dt-rcritdmg'); if (_el) _el.innerText = `${player.d.rangedCritDmg || 0}%`; }
     // 額外（已折入近/遠距離，列固定隱藏）
     document.getElementById('dt-edmg').innerText = sign(_ed);
     document.getElementById('dt-ehit').innerText = sign(_eh);
@@ -1240,17 +1303,28 @@ function _updateUIImpl() {
     document.getElementById('dt-sp').innerText = sign(player.d.extraMp);
     document.getElementById('dt-mhit-mag').innerText = sign(player.d.magicHit);
     document.getElementById('dt-mcrit').innerText = `${player.d.magicCrit}%`;
+    { let _el = document.getElementById('dt-mgcritdmg'); if (_el) _el.innerText = `${player.d.magicCritDmg || 0}%`; }
     document.getElementById('dt-mpreduce').innerText = `${player.d.mpReduce}%`;
 	if(document.getElementById('dt-mpr')) document.getElementById('dt-mpr').innerText = formatBonus(player.d.mpR);
 	if(document.getElementById('dt-hpr')) document.getElementById('dt-hpr').innerText = formatBonus(player.d.hpR || 0);
     document.getElementById('dt-er').innerText = `${effResistPct(player.d.er)}%`;   // 🔧 顯示有效迴避率（>50 每+5才+1%）
     document.getElementById('dt-dr').innerText = player.d.dr;
-    document.getElementById('dt-spd').innerText = `${player.d.aspd.toFixed(2)}s`;
+    { let _attackSec = (typeof playerAttackIntervalTicks === 'function')
+            ? playerAttackIntervalTicks(false) / 10
+            : Math.max(0.1, Number(player.d.aspd) || 0.1);
+      document.getElementById('dt-spd').innerText = `${_attackSec.toFixed(2)}s`; }
+    { let _potionPct = (typeof getConPotionPct === 'function' ? getConPotionPct(player.d.con || 0) : 0);
+      try { _potionPct += (typeof dollFieldVal === 'function' ? dollFieldVal('potionBonus') : 0) + (player._miscPotionBonus || 0); } catch (e) {}
+      let _el = document.getElementById('dt-potion'); if (_el) _el.innerText = `${_potionPct}%`;
+      _el = document.getElementById('dt-movespeed'); if (_el) _el.innerText = `${typeof playerEffectiveMoveSpeedPct === 'function' ? playerEffectiveMoveSpeedPct() : 100 + (player.d.moveSpeedPct || 0)}%`;
+      _el = document.getElementById('dt-mpkill'); if (_el) _el.innerText = (typeof getWisMpOnKill === 'function' ? getWisMpOnKill(player.d.wis || 0) : 0);
+      _el = document.getElementById('dt-mr'); if (_el) _el.innerText = player.d.mr || 0;
+      _el = document.getElementById('dt-resnone'); if (_el) _el.innerText = Math.round(player.d.resNone || 0); }
     if(document.getElementById('dt-resfire')) {
-        document.getElementById('dt-resfire').innerText  = `${effResistPct(player.d.resFire  || 0)}%`;   // 🔧 顯示有效減傷%（>50 每+5才+1%）
-        document.getElementById('dt-reswater').innerText = `${effResistPct(player.d.resWater || 0)}%`;
-        document.getElementById('dt-reswind').innerText  = `${effResistPct(player.d.resWind  || 0)}%`;
-        document.getElementById('dt-researth').innerText = `${effResistPct(player.d.resEarth || 0)}%`;
+        document.getElementById('dt-resfire').innerText  = Math.round(player.d.resFire  || 0);
+        document.getElementById('dt-reswater').innerText = Math.round(player.d.resWater || 0);
+        document.getElementById('dt-reswind').innerText  = Math.round(player.d.resWind  || 0);
+        document.getElementById('dt-researth').innerText = Math.round(player.d.resEarth || 0);
     }
     
     renderStatusEffects();
@@ -1261,10 +1335,11 @@ function _updateUIImpl() {
         let _ptsLeft = _respecOn ? respecPtsLeft() : (player.bonus || 0);
         document.querySelectorAll('.alloc-plus').forEach(el => el.classList.toggle('hidden', !_editing));
         document.querySelectorAll('.alloc-minus').forEach(el => el.classList.toggle('hidden', !_respecOn));   // 只有蠟燭重置可退點
+        let _tabStats = document.getElementById('tab-stats'); if (_tabStats) _tabStats.classList.toggle('is-respec', _respecOn);
         let _bar = document.getElementById('alloc-edit-bar');
         if (_bar) {
-            _bar.classList.toggle('hidden', !_editing);
-            let _lbl = document.getElementById('alloc-bar-label'); if (_lbl) _lbl.textContent = (_respecOn ? '剩餘配點：' : '升級點數：') + _ptsLeft;
+            _bar.classList.toggle('hidden', !_respecOn);   // 配點框只在使用回憶蠟燭時顯示；一般升級點僅顯示屬性旁的＋按鈕
+            let _lbl = document.getElementById('alloc-bar-label'); if (_lbl) { _lbl.textContent = _ptsLeft; _lbl.title = `剩餘配點：${_ptsLeft}`; }
             let _hint = document.getElementById('alloc-bar-hint'); if (_hint) _hint.classList.toggle('hidden', !_respecOn);
             let _cf = document.getElementById('alloc-confirm-btn'); if (_cf) _cf.classList.toggle('hidden', !_respecOn);
             let _cc = document.getElementById('alloc-cancel-btn'); if (_cc) _cc.classList.toggle('hidden', !_respecOn);

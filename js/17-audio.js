@@ -365,6 +365,48 @@ const MOB_SKILL_SFX = {
     MOB_HURT_SFX[r[0]] = r[3];
     MOB_KILL_SFX[r[0]] = r[4];
 });
+// 🌑 v3.4.0 黑暗妖精聖地雙 BOSS 戰鬥音（黑暗妖精聖地.md·[名, 攻擊, 技能, 受傷, 死亡]）：吉爾塔斯＝用戶指定 1992/1993/1995/1994；真‧死亡騎士 冥皇丹特斯＝借「死亡騎士」同套（攻86/技91/受88/死89·hurt/kill/skill 表無子字串借用故須顯式）＋攻擊疊揮刀聲 248（同死亡騎士）。
+[
+  ["吉爾塔斯", 1992, 1993, 1995, 1994],
+  ["真‧死亡騎士 冥皇丹特斯", 86, 91, 88, 89],
+].forEach(function (r) {
+    MOB_ATTACK_SFX[r[0]] = r[1]; MOB_SKILL_SFX[r[0]] = r[2]; MOB_HURT_SFX[r[0]] = r[3]; MOB_KILL_SFX[r[0]] = r[4];
+});
+MOB_ATTACK_SWING["真‧死亡騎士 冥皇丹特斯"] = 248;
+// 🌑 v3.4.83 冥皇兩「玩家變身」攻擊/技能/受擊/死亡音效借「死亡騎士」（用戶指定）。
+//   ⚠️變身名（js/09 _playerMorphName·**無 ‧**：真死亡騎士 冥皇丹特斯／烈焰的死亡騎士）與怪物名（**有 ‧**：真‧死亡騎士 冥皇丹特斯）不同故須各別註冊。
+//   attack：_morphAtkOverride 走 _mobAtkSfxNum 子字串借用本已命中「死亡騎士」→此處顯式化(精確優先·順帶疊揮刀 248)；
+//   hurt/death：_morphHurtOverride/playMorphDeathSfx 走 MOB_HURT_SFX/MOB_KILL_SFX **精確查表無子字串** → 必須顯式（原本查無→退回本職音＝本次要修的點）；
+//   skill：玩家變身施法原本走 per-法術(playSpellCast)→改由 MORPH_SKILL_SFX opt-in 覆蓋成死亡騎士技能音 91（只此二形態·不動其他變身）。
+const MORPH_SKILL_SFX = {};
+[
+  ["真死亡騎士 冥皇丹特斯", 86, 91, 88, 89],
+  ["烈焰的死亡騎士",       86, 91, 88, 89],
+].forEach(function (r) {
+    MOB_ATTACK_SFX[r[0]] = r[1]; MORPH_SKILL_SFX[r[0]] = r[2]; MOB_HURT_SFX[r[0]] = r[3]; MOB_KILL_SFX[r[0]] = r[4];
+    MOB_ATTACK_SWING[r[0]] = 248;
+});
+// 🌅 v3.4.100 日出之國 17 怪三組戰鬥音（用戶對照表·[名, 攻擊, 受傷, 死亡]·全數無技能音→施法維持靜音）。
+//   玉藻/九尾 無死亡音＝設計正確：transformTo 在 killMob 頂端攔截（js/05）先於 playMobKill·永不觸發死亡音。229/230/231(牛鬼之子)＝本次新補 .wav·其餘 36 編號 .ogg 已在庫。
+[
+  ["嗚釜",               7612, 7611, 7613], ["憤怒的嗚釜",         7612, 7611, 7613],
+  ["鎌鼬",               7621, 7622, 7620], ["鎌鼬長兄",           7621, 7622, 7620],
+  ["轆轤首",             7617, 7615, 7616], ["唐傘小僧",           7402, 7404, 7403],
+  ["牛鬼之子",            231,  229,  230], ["河童",               7607, 7608, 7609],
+  ["赤鬼",               7639, 7640, 7643], ["青鬼",               7639, 7640, 7643],
+  ["天狗",               7686, 7684, 7685], ["阿修羅像",           7646, 7641, 7642],
+  ["牛鬼",               6014, 6016, 5996], ["巨大骷髏",           7680, 7681, 7682],
+  ["白面金毛九尾狐・玉藻", 5943, 5946, null], ["白面金毛九尾狐・九尾", 5636, 5655, null],
+  ["白面金毛九尾狐・殺生石", 5651, 7641, 7136],
+].forEach(function (r) {
+    MOB_ATTACK_SFX[r[0]] = r[1];
+    MOB_HURT_SFX[r[0]] = r[2];
+    if (r[3] != null) MOB_KILL_SFX[r[0]] = r[3];
+});
+// 🐯 v3.4.102 鵺＝借黑虎音（用戶指定）：受擊 168／死亡 173。
+// 🐯 v3.5.0 黑虎/鵺 攻擊音＝老虎揮擊 520（用戶指定「黑虎套用老虎攻擊音效」·來源 list.spr #1310 tiger attack 幀 [520/[521 取首記·520.wav 新補入庫）。
+MOB_HURT_SFX["鵺"] = 168; MOB_KILL_SFX["鵺"] = 173;
+MOB_ATTACK_SFX["黑虎"] = 520; MOB_ATTACK_SFX["鵺"] = 520;
 var _sfxDynTried = {}, _mobHurtLast = 0, _spellCastLast = 0, _killLast = 0, _mobAtkLast = 0, _mobSkillLast = 0;
 var _mobAtkKeysByLen = null, _mobAtkResolveCache = {};
 function _mobAtkSfxNum(name) {   // 解析怪名→攻擊音編號（精確→別名→最長子字串借用）·查無回 undefined
@@ -402,6 +444,13 @@ function playMobHurt(mob) {
 }
 function playSpellCast(skn) {
     if (!_sfxCfg.on) return;
+    var _msk = (typeof _morphSkillOverride === 'function') ? _morphSkillOverride() : null;   // 🌑 v3.4.83 冥皇變身施法音覆蓋（死亡騎士技能音 91·取代 per-法術；其他變身→null 維持原音）
+    if (_msk) {
+        var nowM = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        if (nowM - _spellCastLast < 80) return; _spellCastLast = nowM;
+        _sfxPlayPool(_msk, 0.55);   // 首次載入中→pool 空→_sfxPlayPool 回 false 靜音（下次起出聲）
+        return;
+    }
     var n = (skn != null) ? SPELL_SFX[skn] : undefined;
     if (n === undefined) { playSfx('magic'); return; }   // 無專屬→通用魔法音
     var now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -457,7 +506,8 @@ function playMobSkill(mob) {
 //   攻擊音維持「武器類型」變體（怪物表無攻擊音）；施法音維持 per-法術（playSpellCast）。
 const MORPH_CLASS_VOICE = { '黃金騎士': 'knight_m', '白金騎士': 'knight_m', '銀光騎士': 'knight_m', '黑暗騎士': 'knight_m',
                             '黃金法師': 'mage_m', '白金法師': 'mage_m', '銀光法師': 'mage_m', '黑暗法師': 'mage_m',
-                            '黃金巡守': 'royal_m', '白金巡守': 'royal_m', '銀光巡守': 'royal_m', '黑暗巡守': 'royal_m' };   // 🧝 v3.0.57 四巡守→王子(王族男)語音
+                            '黃金巡守': 'royal_m', '白金巡守': 'royal_m', '銀光巡守': 'royal_m', '黑暗巡守': 'royal_m',   // 🧝 v3.0.57 四巡守→王子(王族男)語音
+                            '莉絲安': 'elf_m' };   // 🏹 v3.5.16 莉絲安受傷/死亡音套用男妖精語音（hurt_elf_m·用戶指定）
 function _morphSfxName() { return (typeof _playerMorphName === 'function') ? _playerMorphName() : null; }   // js/09 的 15 形態解析（含套裝別名）
 function _morphHurtOverride() {   // 回傳受傷音 pool key（並確保已排載）；無覆蓋→null
     var mn = _morphSfxName(); if (!mn) return null;
@@ -473,6 +523,12 @@ function _morphAtkOverride() {   // 🐲 v3.0.113 變身怪物時攻擊音 pool 
     if (n === undefined) return null;
     var k = 'atk_' + n; if (_sfxPool[k] === undefined) _sfxDynLoad(k, '' + n); return k;
 }
+function _morphSkillOverride() {   // 🌑 v3.4.83 變身施法音 pool key（opt-in·僅 MORPH_SKILL_SFX 形態·如冥皇兩變身→死亡騎士技能音）；無→null（維持 per-法術）
+    var mn = _morphSfxName(); if (!mn) return null;
+    var n = (typeof MORPH_SKILL_SFX !== 'undefined') ? MORPH_SKILL_SFX[mn] : undefined;
+    if (n === undefined) return null;
+    var k = 'spell_' + n; if (_sfxPool[k] === undefined) _sfxDynLoad(k, '' + n); return k;
+}
 function playMorphDeathSfx() {   // js/09 玩家變身死亡動作首次觸發時呼叫：播該怪物死亡音（無對應→職業語音·再無→靜默）
     if (!_sfxCfg.on) return;
     var mn = _morphSfxName(); if (!mn) return;
@@ -486,99 +542,40 @@ function playMorphDeathSfx() {   // js/09 玩家變身死亡動作首次觸發�
 //   場景 title(登入)/create(創角畫面)/town(共通安全區)/battle(野外戰鬥)/boss(頭目戰)＋專屬創角職業/城鎮 BGM；音檔位於 assets/bgm/。
 //   缺某場景音檔（或尚未解析完成）→保持目前曲目、不切換。BGM 音量/開關與音效獨立（存 'fb5_bgm'）。
 var _bgmCfg = { on: true, vol: 35 };
-// 🎵 地圖 BGM 對照表（地圖 id → 曲目檔名）；其餘未列城鎮用共通 'town'、其餘地圖用 battle/boss。
-var MAP_BGM = {
-    // music12 - 說話之島村莊
-    'town_talking': 'music12',
-    // music13 - 妖精森林村莊
-    'town_elf': 'music13',
-    // music16 - 妖精森林周邊
-    'zone_01': 'music16',
-    // music57 - 銀騎士村莊
-    'town_silver_knight': 'music57',
-    // music82 - 銀騎士村周邊／新兵訓練場
-    'silver_knight': 'music82', 'training': 'music82',
-    // music9 - 風木城／肯特城
-    'town_windwood_castle': 'music9', 'town_kent_castle': 'music9',
-    // music52 - 風木周邊
-    'windwood': 'music52',
-    // music18 - 古魯丁周邊
-    'gludio': 'music18',
-    // music32 - 古魯丁地監 1~7F
-    'zone_06': 'music32', 'zone_07': 'music32', 'zone_08': 'music32',
-    'zone_09': 'music32', 'zone_10': 'music32', 'zone_11': 'music32', 'zone_12': 'music32',
-    // music55 - 燃柳村
-    'town_gludio': 'music55',
-    // music14 - 肯特周邊
-    'kent': 'music14',
-    // music23 - 海音城鎮
-    'town_heine': 'music23',
-    // music27 - 海音周邊
-    'heine': 'music27',
-    // music24 - 地下通道 1~3F
-    'zone_34': 'music24', 'zone_35': 'music24', 'zone_36': 'music24',
-    // music36 - 伊娃王國
-    'eva_kingdom': 'music36',
-    // music41 - 亞丁城鎮
-    'town_aden': 'music41',
-    // music22 - 夢幻之島
-    'dream_island': 'music22',
-    // music19 - 龍之谷
-    'dragon_valley': 'music19',
-    // music28 - 威頓村莊
-    'town_witon': 'music28',
-    // music49 - 海賊島村莊
-    'town_pirate_village': 'music49',
-    // music70 - 海賊島周邊
-    'pirate_wild': 'music70',
-    // music54 - 歐瑞村莊
-    'town_oren': 'music54',
-    // music29 - 歐瑞周邊
-    'zone_02': 'music29',
-    // music11 - 象牙塔／象牙塔 4~8F
-    'town_ivory_tower': 'music11',
-    'zone_37': 'music11', 'zone_38': 'music11', 'zone_39': 'music11', 'zone_40': 'music11', 'zone_41': 'music11',
-    // music60 - 暗影神殿
-    'shadow_temple': 'music60',
-    // music61 - 拉斯塔巴德洞穴／拉斯塔巴德正門
-    'rastabad_cave1': 'music61', 'rastabad_cave2': 'music61', 'rastabad_cave3': 'music61',
-    'rastabad_gate': 'music61',
-    // music46 - 魔族神殿
-    'demon_temple': 'music46',
-    // music62 - 傲慢之塔 1F／2~100F
-    'town_pride': 'music62',
-    'pride_2_10': 'music62', 'pride_11_20': 'music62', 'pride_21_30': 'music62',
-    'pride_31_40': 'music62', 'pride_41_50': 'music62', 'pride_51_60': 'music62',
-    'pride_61_70': 'music62', 'pride_71_80': 'music62', 'pride_81_90': 'music62', 'pride_91_100': 'music62',
-    // music92 - 時空裂痕入口
-    'town_rift': 'music92',
-    // music94 - 底比斯沙漠
-    'thebes_desert': 'music94',
-    // music95 - 底比斯金字塔內部
-    'thebes_pyramid': 'music95',
-    // music103 - 底比斯歐西里斯祭壇
-    'thebes_temple': 'music103',
-    // music48 - 古代巨人之墓
-    'giant_tomb': 'music48',
-    // music99 - 貝希摩斯
-    'town_behemoth': 'music99',
-    // music97 - 希培利亞
-    'town_hyperia': 'music97',
-    // music8 - 攻城
-    'kent_outer': 'music8', 'kent_inner': 'music8',
-    'ww_outer': 'music8', 'ww_inner': 'music8',
-    'heine_outer': 'music8', 'heine_inner': 'music8',
-};
+// 🎵 場景：title(標題)/create(創角畫面)/town(共通安全區)/battle(野外)/boss(頭目)＋下列「專屬 BGM 城鎮」(scene key = 城鎮地圖 id·檔名同名)；其餘城鎮皆用共通 'town'。
+var TOWN_BGM_LIST = [
+    'town_silent',        // 沉默洞穴
+    'town_ivory_tower',   // 象牙塔
+    'town_talking',       // 說話之島
+    'town_kent_castle',   // 肯特城（肯特村）
+    'town_elf',           // 妖精森林
+    'town_giran',         // 奇岩
+    'town_heine',         // 海音
+    'town_aden',          // 亞丁
+    'town_oren',          // 歐瑞村
+    'town_gludio',        // 燃柳村
+    'town_silver_knight', // 銀騎士村
+    'town_witon',         // 威頓村
+    'town_pride',         // 傲慢之塔入口
+    'town_windwood_castle', // 風木城堡
+    'town_hyperia',       // 希培利亞村莊
+    'town_behemoth',      // 貝希摩斯
+    'town_elder_council', // 🌑 v3.4.0 長老會議廳（黑暗妖精聖地.md：music 10）
+];
+var TOWN_BGM_TRACKS = { 'town_hyperia': 'music97', 'town_behemoth': 'music99', 'town_elder_council': 'music10' };
 var CREATE_BGM = {
     royal: 'music1', knight: 'music2', elf: 'music3', mage: 'music4',
     dark: 'music10', illusion: 'music96', dragon: 'music98', warrior: 'music175'
 };
 var BGM_TRACKS = { title: 'title', create: 'create', town: 'town', battle: 'battle', boss: 'boss' };
-Object.keys(MAP_BGM).forEach(function (id) { BGM_TRACKS[id] = MAP_BGM[id]; });
+TOWN_BGM_LIST.forEach(function (id) { BGM_TRACKS[id] = TOWN_BGM_TRACKS[id] || id; });
 Object.keys(CREATE_BGM).forEach(function (cls) { BGM_TRACKS['create_' + cls] = CREATE_BGM[cls]; });
-// 🐍 狩獵區專屬 BGM（地圖 id → 曲目檔名）：提卡爾蛇神降世 3 圖。優先於通用 battle/boss。
-var HUNT_BGM = { 'tikal_area': 'music122', 'tikal_deep': 'music123', 'tikal_altar': 'music125' };
-Object.keys(HUNT_BGM).forEach(function (id) { BGM_TRACKS[HUNT_BGM[id]] = HUNT_BGM[id]; });
+var _TOWN_BGM = {}; TOWN_BGM_LIST.forEach(function (id) { _TOWN_BGM[id] = 1; });
+// 🐍 狩獵區專屬 BGM（地圖 id → 曲目檔名·assets/bgm/<檔>.<ext>）：提卡爾蛇神降世 3 圖。優先於通用 battle/boss，故祭壇(純頭目房)也放自己的曲。
+var HUNT_BGM = { 'tikal_area': 'music122', 'tikal_deep': 'music123', 'tikal_altar': 'music125',
+    'cursed_dark_elf_sanctuary': 'music153', 'collapsed_elder_council_hall': 'music162',   // 🌑 v3.4.0 黑暗妖精聖地雙 BOSS 房（黑暗妖精聖地.md：music 153／162；一般聖地未指定→維持通用 battle）
+    'sunrise_castle': 'music161', 'sunrise_east': 'music167', 'sunrise_west': 'music167', 'sunrise_north': 'music167' };   // 🌅 v3.4.98 日出之國：城墎=music161·東/西/北之地=music167
+Object.keys(HUNT_BGM).forEach(function (id) { BGM_TRACKS[HUNT_BGM[id]] = HUNT_BGM[id]; });   // 註冊曲目 scene=檔名，_bgmInit 會預解析 URL
 var _bgmUrl = {}, _bgmEls = [null, null], _bgmActive = -1, _bgmScene = null, _bgmFadeTimer = null, _bgmInited = false;
 
 function _bgmLoadCfg() {
@@ -590,16 +587,12 @@ function _bgmLoadCfg() {
 function _bgmSaveCfg() { try { if (typeof _lsSet === 'function') _lsSet('fb5_bgm', JSON.stringify(_bgmCfg)); } catch (e) {} }
 function _bgmTargetVol() { return Math.max(0, Math.min(1, _bgmCfg.vol / 100)); }
 
-// 預解析各場景的實際 URL（依序試 assets/Sound/ 與 assets/bgm/，各 ext mp3→ogg→wav）；缺檔→_bgmUrl[scene]=null
+// 預解析各場景的實際 URL（依序試 mp3→ogg→wav）；缺檔→_bgmUrl[scene]=null
 function _bgmResolve(scene, file) {
-    var dirs = ['assets/Sound/', 'assets/bgm/'];
-    var exts = ['mp3', 'ogg', 'wav'];
-    var i = 0, j = 0;
+    var exts = ['mp3', 'ogg', 'wav'], i = 0;
     (function tryNext() {
         if (i >= exts.length) { _bgmUrl[scene] = null; return; }
-        var url = dirs[j] + file + '.' + exts[i];
-        j++;
-        if (j >= dirs.length) { j = 0; i++; }
+        var url = 'assets/bgm/' + file + '.' + exts[i++];
         var probe = new Audio(); probe.preload = 'metadata';
         probe.addEventListener('canplay', function () { _bgmUrl[scene] = url; }, { once: true });
         probe.addEventListener('error', function () { tryNext(); }, { once: true });
@@ -609,6 +602,8 @@ function _bgmResolve(scene, file) {
 
 function _bgmIsCreateScreen() {   // 創角面板可見（#creation-panel 未 hidden）＝玩家正在創角
     if (typeof document === 'undefined') return false;
+    var g = document.getElementById('game-screen');
+    if (g && g.classList && !g.classList.contains('hidden')) return false;   // 🔊 v3.4.17 已進遊戲(game-screen 顯示中)→絕非創角畫面（防 creation-panel classList 殘留誤判→登入/創角 BGM 卡住不切）
     var p = document.getElementById('creation-panel');
     return !!(p && p.classList && !p.classList.contains('hidden'));
 }
@@ -620,8 +615,7 @@ function _bgmDetectScene() {
     if (_bgmIsCreateScreen()) return _bgmCreateScene();   // 創角畫面優先：依目前選擇的職業播放專屬曲目
     if (typeof player === 'undefined' || !player || !player.cls) return 'title';
     var cur = (typeof mapState !== 'undefined' && mapState) ? mapState.current : '';
-    if (cur && MAP_BGM[cur]) return cur;   // 📋 地圖 BGM 對照表優先
-    if (cur && cur.indexOf('town_') === 0) return 'town';   // 其餘城鎮→共通 town
+    if (cur && cur.indexOf('town_') === 0) return _TOWN_BGM[cur] ? cur : 'town';   // 專屬城鎮→自己的曲；其餘安全區→共通 town
     if (cur && HUNT_BGM[cur]) return HUNT_BGM[cur];   // 🐍 狩獵區專屬 BGM（提卡爾 3 圖）→優先於通用 battle/boss（祭壇即使頭目戰也放 music125）
     if (typeof mapState !== 'undefined' && mapState && mapState.mobs && mapState.mobs.some(function (m) { return m && m.boss && m.curHp > 0; })) return 'boss';
     return 'battle';

@@ -117,15 +117,11 @@ function miscCollectionBonus(p, d) {
 //   🏛️v3.0.83 傳統模式已取消：經典+傳統的強化卷軸自動開通分支移除（施法卷軸已恢復全模式可取得）。
 const MISC_SCROLL_UNCURSE = ['new_item_uncurse'];
 const MISC_SCROLL_BLESSED = ['scroll_weapon_b', 'scroll_armor_b'];
-const MISC_SCROLL_BLESS_UNCURSE = ['new_item_bless_wpn', 'new_item_bless_arm', 'new_item_bless_acc', 'new_item_uncurse', 'scroll_weapon_b', 'scroll_armor_b'];
-const MISC_SCROLL_ENHANCE = ['scroll_weapon', 'scroll_armor', 'scroll_acc', 'scroll_weapon_c', 'scroll_armor_c'];
 function _miscModeAutoComplete() {
     if (!player) return;
     if (!player.miscDex) player.miscDex = {};
     var marks = [].concat(MISC_SCROLL_UNCURSE);                                                    // 全模式：解除詛咒卷軸（來源已移除但仍有用途）
-    if (player.classicMode) marks = marks.concat(MISC_SCROLL_BLESS_UNCURSE);                       // 經典：祝福/解除詛咒卷軸（經典不掉施法卷軸→無從獲取）
-    if (player.classicMode && player.traditionalMode) marks = marks.concat(MISC_SCROLL_ENHANCE);   // 經典+傳統：所有強化卷軸（任何來源都不產生施法卷軸）
-    if (player.traditionalMode && !player.classicMode) marks = marks.concat(MISC_SCROLL_ENHANCE);  // 一般+傳統：所有強化卷軸（卷軸不產生）
+    if (player.classicMode) marks = marks.concat(MISC_SCROLL_BLESSED);                             // 經典：祝福的施法卷軸（經典不掉施法卷軸→無從兌換）
     var changed = false;
     marks.forEach(function (id) { if (DB.items[id] && MISC_ITEM_CAT[id] && !player.miscDex[id]) { player.miscDex[id] = true; changed = true; } });
     if (changed && typeof saveMiscDex === 'function') saveMiscDex();
