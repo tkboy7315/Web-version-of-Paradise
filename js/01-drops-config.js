@@ -764,7 +764,7 @@
 // • player.buffs（增益）：以「秒」計，於 tick() 的每秒區塊（state.ticks % 10）「統一」遞減，勿在他處再扣
 // • player.cds.atkSk / healSk / purifySk / convertSk：以 tick 計（施法節奏只看職業／變身 cast，不受攻擊速度影響）
 // • player.cds.pot / reviveScrollCd / magicShieldCd：以秒計（tick() 的每秒區塊遞減）
-// • player.blessings / player.siege（盟主祝福、攻城勝利8折、宣戰冷卻）：牆鐘 Date.now()，刻意設計為關閉遊戲仍流逝
+// • player.siege（攻城勝利8折、宣戰冷卻）：牆鐘 Date.now()，刻意設計為關閉遊戲仍流逝
 // • 召喚物 / 迷魅 endTick：絕對 tick，已隨存檔保存（saveGame 的 ticks 欄位），重載後仍有效
 const BUFF_NAMES = {   // buff 鍵 → 顯示名稱（DB.skills 查不到時使用）
     haste: "加速", brave: "勇敢藥水", blue: "藍色藥水", cautious: "慎重藥水",
@@ -776,8 +776,23 @@ const BUFF_NAMES = {   // buff 鍵 → 顯示名稱（DB.skills 查不到時使�
 // 遠古變體 true→'A'（其餘 'eternal'/'immortal'/'primordial' 原值）、屬性詞綴 attr。
 // 使用處：gainItem 堆疊、卸裝/換裝退回背包合併、倉庫一鍵存入(whSig)/堆疊(_whStackFind)、
 // 載入合併(consolidateInventory)、分頁重繪記憶簽章(renderTabs)。勿再各自手寫比對條件。
-function itemSig(it) { return it.id + '|' + (it.en || 0) + '|' + (it.bless === true ? 'B' : (it.bless ? 'C' : 0)) + '|' + (it.anc === true ? 'A' : (it.anc || 0)) + '|' + (it.attr || '') + '|' + (it.seteff || ''); }   // 🔮 含席琳套裝效果：帶效果的裝備不可與普通品合併
+function itemSig(it) { let _ams = Math.max(1, Math.min(3, Math.floor(Number(it.attrMagicStar) || 1))); return it.id + '|' + (it.en || 0) + '|' + (it.bless === true ? 'B' : (it.bless ? 'C' : 0)) + '|' + (it.anc === true ? 'A' : (it.anc || 0)) + '|' + (it.attr || '') + '|' + (it.seteff || '') + (it.attrMagic ? '|' + it.attrMagic + (_ams > 1 ? '@' + _ams : '') : ''); }   // 🔮 屬性附加魔法採可選尾碼；1星沿用舊簽章，2/3星分開，避免合併時遺失星級
 function sameItemSig(a, b) { return itemSig(a) === itemSig(b); }
+// 🔒 v3.6.92 「退回背包」的堆疊合併單一真相（卸裝/換裝/箭矢同步/副手同步/舊檔遷移共 6 處呼叫）：
+//    ① 併入同簽章堆疊——含鎖定疊（現行不變量＝同簽章永遠只有一格；舊制刻意跳過鎖定疊會多開一格）。
+//    ② 不併入「已標廢品」的堆疊：退回的裝備會跟著被自動販賣掃走。
+//    ③ 保護狀態只會擴散、不會遺失：來源鎖定→整疊鎖定並清掉廢品標記
+//       （舊制沒有這步——鎖定的裝備卸下併入未鎖疊時，鎖定狀態會靜默消失）。
+//    ④ 巨靈願望戒指(gw)每只的願望各自獨立，而 itemSig 不含 gw → 兩側都要排除，否則併疊會吃掉一份願望。
+//    回傳 true＝已併入既有堆疊；false＝呼叫端需自行 player.inv.push(e)。
+function invMergeBack(e) {
+    if (!e || e.gw) return false;
+    let ex = player.inv.find(i => !i.gw && !i.junk && sameItemSig(i, e));
+    if (!ex) return false;
+    ex.cnt = (ex.cnt || 1) + (e.cnt || 1);
+    if (e.lock) { ex.lock = true; ex.junk = false; }
+    return true;
+}
 
 // ===== 🔧 架構#6：存檔版本與集中式預設值 =====
 // 存檔寫入 v 欄位（SAVE_VERSION）；loadGame 在跑完「轉換型」舊檔遷移後呼叫 applySaveDefaults()
@@ -786,20 +801,20 @@ function sameItemSig(a, b) { return itemSig(a) === itemSig(b); }
 const SAVE_VERSION = 2;   // v1 = 未標版本的舊存檔
 const SAVE_DEFAULTS = {
     name: null, bonus: 0, panaceaUsed: 0, bloodPledge: null, lootSeq: 0,
-    magicShieldCd: 0, reviveScrollCd: 0, lastMapByCat: {}, lastBattleMap: null, tracking: null, ismaelAccUsed: false, sherineWorld: false, sherineMad: false, classicMode: false, traditionalMode: false,
+    magicShieldCd: 0, reviveScrollCd: 0, lastMapByCat: {}, lastBattleMap: null, tracking: null, sherineWorld: false, sherineMad: false, classicMode: false, traditionalMode: false,
     masteryQuest: null, mastery: null, masteryChangeCnt: 0,
     prideBeatJenis: false, demonTempleOpen: false, flameAffinity: 0, trialStage: 0, prideRank: { best: null, last: null, isNew: false }, prideRankSherine: { best: null, last: null, isNew: false },
     riftRank: { best: null, last: null, isNew: false }, riftRankSherine: { best: null, last: null, isNew: false }, riftRewardMs: null,
-    elfEle: null, poly: null, summon: null, charmed: null, hot: null,
-    manualCd: {}, blessings: {}, blessingAuto: {}, cardDex: {}, cardDexV: 0, equipDex: {}, miscDex: {},
+    elfEle: null, poly: null, summon: null, charmed: null, hots: {},   // 🔧 v3.5.94 移除零讀取的舊制孤兒欄位 hot(單數)；團隊 HoT 休眠機制實際用的是 hots(複數 dict)，改在此初始化與 js/05/js/13 重設點一致
+    manualCd: {}, cardDex: {}, cardDexV: 0, equipDex: {}, miscDex: {},
     alloc:   { str:0, dex:0, con:0, int:0, wis:0, cha:0 },
     panacea: { str:0, dex:0, con:0, int:0, wis:0, cha:0 },
     cds:     { pot:0, atkSk:0, healSk:0, purifySk:0, convertSk:0 },
     buffs:   { haste:0, brave:0, blue:0, cautious:0, elfcookie:0, poly:0, shield:0, sk_magic_shield:0 },
     statuses:{ stun:0, freeze:0, stone:0, poison:0, poisonDmg:0, poisonTick:0, burn:0, burnDmg:0, burnTick:0,
                scald:0, scaldDmg:0, scaldTick:0, bleed:0, bleedDmg:0, bleedTick:0, sleep:0, silence:0, paralyze:0, magicseal:0, armorBreak:0, slowAtk:0, cleave:0 },
-    siege:   { active:false, city:'kent', victoryCity:null, gateKilled:false, towerKilled:false, endTime:0, kills:0, result:null,
-               cooldownUntil:0, rewardPending:false, victoryUntil:0, accCdUntil:0 }
+    siege:   { active:false, city:'kent', gateKilled:false, towerKilled:false, endTime:0, kills:0, result:null,
+               cooldownUntil:0, accCdUntil:0 }
 };
 function applySaveDefaults(p) {
     for (let k in SAVE_DEFAULTS) {
@@ -820,19 +835,28 @@ function applySaveDefaults(p) {
 //      HP×[3/5]、AC×[1.5/1.75]、MR×[1.5/3]、命中×[1.5/2]、額外減傷 +floor(等級/3)、
 //      經驗×[5/10]、金錢×[5/10]、一般攻擊傷害×[2/3]、技能最終傷害×[2/3]（含持續傷害）；
 //      生怪等待 ×0.8（v3.4.26 由「−1 秒」改乘算·與日光術 ×0.8 相乘疊加；下限 0.5 秒）
-//  - 掉落：物品掉落機率×[3/5]、詞綴(祝福)機率×[3/5]；指定部位裝備可附「席琳套裝效果」
-//      ※ 席琳套裝效果(席琳詞綴)與席琳結晶掉率：瘋狂＝一般席琳的 3 倍（一般怪／頭目皆然）
+//  - 掉落：物品掉落機率×[3/5]、詞綴(祝福)機率×[3/5]
+//      ⚠️ v3.5.96 更正：本區塊原寫「指定部位裝備可附『席琳套裝效果』」與「席琳套裝效果(席琳詞綴)瘋狂＝3 倍」，
+//         但 v3.1.68 起套裝詞綴**已不再附在裝備上**（js/08 seteff 硬編 false·改由 8 格席琳遺骸 rem_* 欄承載），
+//         現行席琳世界只影響「掉落機率」與「祝福詞綴機率」兩項。席琳結晶掉率的 3 倍仍成立。
 //  - 恩賜（applySherineGrace）：席琳世界每次刷新 1% 機率讓場上一隻怪（含頭目）獲恩賜；
 //      無冷卻、場上同時僅一隻；HP×10／經驗×10／金錢×10／掉落×10／持續傷害再×2
 // ============================================================================
 function sherineWorldActive() { return !!(player && (player.sherineWorld || player.sherineMad)); }   // 🔮 一般或瘋狂任一開啟皆視為「席琳的世界」（主題/排名/結晶/套裝效果/出怪強化共用此閘）
 function sherineMadActive() { return !!(player && player.sherineMad); }   // 🔮 僅「瘋狂的席琳世界」：供倍率分流
 function applySherineTheme() { document.body.classList.toggle('sherine-world', sherineWorldActive()); document.body.classList.toggle('sherine-mad', sherineMadActive()); }
-let _sherineLootCtx = null;   // 擊殺掉落上下文：killMob 期間設定（{boss,grace}），供 gainItem 判定詞綴×3 與套裝效果
+let _sherineLootCtx = null;   // 擊殺掉落上下文：killMob 期間設定（唯一寫入點 js/05 killMob·payload 為 { mad } 單鍵，try/finally 清為 null）。⚠️ v3.5.94 原有的 boss/grace 兩欄已刪：唯一讀取點 js/07 rollAffixesNew() 只用 .mad 決定祝福詞綴機率 ×3/×5，套裝效果自 v3.1.68 起改由席琳遺骸承載（🔧 v3.5.96 更正符號名：v3.5.94 這裡誤寫 rollAffixes，該函式不存在）
+//   （🗑️ v3.5.95 刪除此處三行舊註解：它們還在描述已於 v3.5.94 移除的 boss / grace 兩欄，與上一行的「單鍵」敘述互斥，
+//     會讓維護者去找兩個不存在的欄位。所有必要資訊都已併入上一行。）
 let _forceSherineSet = false;   // 🔮 席琳製作：成品必定附帶隨機套裝效果（doCraft 產出期間設定）
 let _tradLootCtx = false;   // 🏛️ 傳統模式「掠奪上下文」（⚠️v3.0.83 傳統模式已取消：旗標已無消費者·僅保留宣告讓各處 set/restore 站點不拋錯）
 let _noAffixCtx = false;    // 🦴 「白板上下文」：設 true 時 gainItem 不附加詞綴（祝福/詛咒/屬性）但仍放行傳統自帶強化值——供寵物裝備製作（白板＋隨機強化值，機率同飾品）
 let _forceBless = false;    // 🔧 v3.1.27 製作：設 true 時 gainItem 產出必定祝福（doCraft 消耗到祝福裝備材料時逐件設定；寵物白板 _noAffixCtx 仍優先擋）
+// 🔒 v3.6.92 一次性關閉「併入鎖定堆疊」：唯一設定點＝js/14 ensureMaterial（製作遞迴補製中間物）。
+//    通則是「再次獲得同物品→直接併同一格、整疊受鎖定保護」（用戶拍板），但製作遞迴的中間物若併進鎖定疊，
+//    invCountId/buildPool（皆排除鎖定件）看不到它 → 父層 consumeMaterialById 扣不到 → 底層材料被吃掉、中間物卻沒扣。
+//    故中間物一律另開未鎖定疊、當場被父層消耗掉；殘量待下次 consolidateInventory 併回。
+let _lockMergeOff = false;
 let _craftBlessCount = 0;   // 🔧 v3.1.27 製作：本次 doCraft 消耗到的「祝福裝備」材料件數（consumeMaterialById/whConsumeId 累加·doCraft 前歸零、依此逐件強制祝福）
 let _vfxLootCtx = false;   // ✨ VFX：擊殺掉落期間設 true，供 gainItem 判定稀有(潘朵拉權重=1)掉落閃光
 let _lootMobInfo = null;   // 🐾 擊殺掉落期間設 {n,lv}＝掉落來源怪物，供 gainItem 顯示「怪名 給你 物品名 。」（商店/製作/NPC 兌換為 null→維持「獲得物品:」）
@@ -1093,7 +1117,7 @@ function fragileMult(t) {
 // ============================================================================
 // 🏅 職業精通系統（威頓村 NPC 漢，Lv50+）
 //  流程：接取任務 → 擊敗職業對應頭目必得「精通之證」（身上已有則不再掉）→ 回威頓村交付 →
-//        開啟精通選擇。初次選擇免費，之後每次更換固定 300 萬金幣＋10 張王族搜索狀。
+//        開啟精通選擇。初次選擇免費，之後每次更換固定 300 萬金幣。
 //  狀態：player.masteryQuest = null|'active'|'done'；player.mastery = 精通id|null；player.masteryChangeCnt = 已付費更換次數
 // ============================================================================
 const MASTERY_DATA = {
@@ -1157,10 +1181,10 @@ function hasMastery(id) { return !!(player && player.mastery === id); }
 function allyHasMastery(ally, id) { return !!(ally && ally.mastery === id); }   // 🔧 傭兵吃「自身存檔」的精通（不吃主玩家精通）
 // 🌟 v3.0.99 隊長團隊光環：任一隊員(玩家或未倒地傭兵)維持該 buff 即全隊生效。清單供「傭兵可維持/隊伍面板可開關/避免重複施放」使用。
 //   ⚠️不含完全免疫類(絕對屏障/大地屏障/魔法屏障·刻意不給傭兵)。golem/ogre/lich 為幻術幻象召喚(illuSummon)·此處僅列其「光環」由玩家提供·傭兵暫不維持(見 _isMercSelfBuff)。
-const TEAM_AURA_SKILLS = ['sk_elf_earthbless', 'sk_royal_burnweapon', 'sk_royal_shield'];   // 傭兵可維持的團隊光環（大地祝福AC-7·灼熱武器傷害/命中+5·閃亮之盾AC-8）。任一來源施放一次即惠及玩家、傭兵、寵物與召喚物，同技能不重複疊加。鋼鐵防護為施法者自身 AC-10，不列入團隊光環。⚠️v3.4.45 水之元氣/化身已改「單體共享」(TEAM_SHARE_BUFFS)→移出此清單。
+const TEAM_AURA_SKILLS = ['sk_elf_earthbless', 'sk_royal_burnweapon', 'sk_royal_shield'];   // 傭兵可維持的團隊光環（大地祝福AC-7·灼熱武器傷害/命中+5·閃亮之盾AC-8）。任一來源施放一次即惠及玩家、傭兵、寵物與召喚物，同技能不重複疊加。鋼鐵防護為施法者自身 AC-10，不列入團隊光環。⚠️v3.4.45 水之元氣/化身已改「單體共享」(TEAM_SHARE_BUFFS)→移出此清單。⚠️此陣列＝唯一註冊點（勿在 DB.skills 加 teamAura 旗標·無人讀取）。
 // 🤝 v3.4.45 單體輔助共享清單：施法者(玩家/傭兵)自己有清單內 buff、隊友沒有 → 由 shareTeamBuffs(js/06) 一次補滿所有缺者(逐一扣施法者 MP)。與「自動維持勾選」解耦(只看清單＋是否持有)。
 //   ⚠️其中原為全隊光環者(幻覺歐吉/巫妖/鑽石高崙/化身·水之元氣)已於本版改單體：移出 TEAM_AURA_SKILLS＋teamIlluAura/teamAcBonus/teamDmgReduceMult 只對寵物/召喚保留(forMinion)；玩家/傭兵改各自持有(recompute d)＋此共享逐人補。
-const TEAM_SHARE_BUFFS = new Set(['sk_holy_wpn', 'sk_dex_up', 'sk_haste_spell', 'sk_bless_wpn', 'sk_str_up', 'sk_holy_barrier', 'sk_illu_ogre', 'sk_illu_focus', 'sk_illu_lich', 'sk_illu_golem', 'sk_illu_avatar', 'sk_elf_watervital', 'sk_elf_windshot', 'sk_elf_earthshield', 'sk_elf_preciseshot', 'sk_elf_stormeye', 'sk_heal_energy_storm']);   // 🌀 v3.4.71 治癒能量風暴＝單體輔助共享（施法者有→幫缺的傭兵/玩家補·各自 320s 結束才再補）
+const TEAM_SHARE_BUFFS = new Set(['sk_holy_wpn', 'sk_dex_up', 'sk_haste_spell', 'sk_greater_haste', 'sk_bless_wpn', 'sk_str_up', 'sk_holy_barrier', 'sk_illu_ogre', 'sk_illu_focus', 'sk_illu_lich', 'sk_illu_golem', 'sk_illu_avatar', 'sk_elf_watervital', 'sk_elf_windshot', 'sk_elf_earthshield', 'sk_elf_preciseshot', 'sk_elf_stormeye', 'sk_heal_energy_storm']);   // 🌀 v3.4.71 治癒能量風暴＝單體輔助共享（施法者有→幫缺的傭兵/玩家補·各自 320s 結束才再補）；v3.5.87 補強力加速術（漏列·原本「只有強力加速術」的施法者不分享加速）
 // ⚠️ v3.4.45 暴風之眼(sk_elf_stormeye·+2遠傷/+2遠命)＝用戶要「一次施放全隊生效」：以自動共享達成（一位維持者→鋪給全隊玩家/傭兵·各自 recompute d 生效）。寵物/召喚未涵蓋（真．全隊 ranged 光環需改 8 個傷害熱點·邊際效益低·暫以共享代之）。
 // 團隊光環是否有「任一隊員(排除 exclude)」維持中：exclude 傳「受益者本身」→其自身光環已由 recomputeStats 套進自身 d，避免與此 helper 雙算（僅對 recompute 有套進 d 的光環需排除·如 AC/攻擊）。
 function _teamAuraHas(sid, exclude) {
@@ -1169,7 +1193,7 @@ function _teamAuraHas(sid, exclude) {
     for (let i = 0; i < al.length; i++) { let a = al[i]; if (a && a !== exclude && !a._downed && a.buffs && (a.buffs[sid] || 0) > 0) return true; }
     return false;
 }
-function masteryChangeCost() { return { gold: 3000000, warrants: 10 }; }   // 🔧 固定費用：每次更換都維持 300 萬金幣＋10 張王族搜索狀，不再隨次數遞增
+function masteryChangeCost() { return { gold: 3000000 }; }   // 固定費用：每次更換都維持 300 萬金幣，不隨次數遞增
 // 技能職業需求等級（單一事實來源）：🏅 魔導精通的妖精可學四項法師法術（需求等級沿用法師）
 function skillReqLv(sk, skId) {
     if (player.cls === 'dark') {
@@ -1198,25 +1222,74 @@ function skillReqLv(sk, skId) {
 let _echoFree = false;        // 🏅 迴響精通：免費連發旗標（連發那次不耗MP、不再連鎖）
 let _royalFreeCast = false;   // 👑 魔法精通：一般攻擊命中 10% 免MP額外施放選定攻擊技的旗標
 
-let state = { running: false, ticks: 0, pDmgTick: 0, ff: false, inTick: false, spd: 1, expMult: 1, goldMult: 1, dropMult: 1 };
-// 主迴圈計時（依真實經過時間補跑 tick）
+let state = { running: false, ticks: 0, pDmgTick: 0, ff: false, ffSmall: false, inTick: false, spd: 1, expMult: 1, goldMult: 1, dropMult: 1 };
+// 🔀 v3.6.95 混合制（用戶拍板）：「網頁還開著」的背景期間（切分頁/縮小）＝回前景時補幀全額補跑（state.ff 補跑重建）；
+//    「真正關閉網頁」後重開＝js/27 離線收益（實戰速率×70%）。兩軌互斥，靠下方錨點與 js/27 的重置防重複入帳。
 const TICK_MS = 100;                 // 一個邏輯 tick 代表的真實時間
 const JUNK_AUTOSELL_TICKS = 100;    // 🗑️ 廢品自動賣出間隔：10 秒（100 tick × 100ms·2026-07-01 由 1800/3分鐘改快）；玩家手動標示廢品會把倒數重置為此值（標完 10 秒無新動作才賣）。⚠️自動賣出這條路徑不 saveGame(見 autoSellJunk)，靠其他既有存檔點落地
 const MERC_EXP_SHARE = 0.5;          // ⚠️v3.0.86 已停用：傭兵經驗改「主玩家＋未倒地傭兵」4 人均分制（見 js/05 partyExpShareCount／killMob）；常數保留避免外部殘留引用報錯
 // 🤝 Phase4：設為「全體」的怪物攻擊技能名（依 mag.skn 比對·同名全部生效）→ 同時打玩家＋全部非倒地傭兵。其餘怪物傷害/狀態魔法仍可依仇恨權重隨機打單一目標(玩家或某傭兵)。
 const MOB_PARTY_AOE_SKILLS = new Set(['闇黑波動','毒霧','鐮刀波動','火焰之舞','燃燒的火球','火焰之陣','地面震裂','跳躍波動','冰雪暴','震裂術','咆哮','燃燒立方','火焰噴吐','流星雨','火牢','寒冰噴吐','巨水炮','大地怒吼','毒氣風暴','閃電風暴','火焰雨','寒冰吐息','地獄犬噴吐','火風暴','龍捲風','爆炎的火球','噴火','漩渦','防身電擊','震裂踏擊','火焰放射','黑霧','火焰氣息','黑暗流星雨','放射斬','迴旋鞭打','衝擊波動','千刃破軍','靈魂波動','火焰爆發','迴旋斬','龍的一擊','地獄火','黑魔法力場','鐮刀劍氣斬','腐蝕之血','冰錐流星雨','水氣爆裂','集體衝暈','巨石爆裂','地面障礙','邪靈之氣','血夜月彎刀','夜魔飛襲','幻象光線','集體相消','劇毒龍捲風','麻痺蜘蛛網','雷霆風暴','沙塵暴','震裂重擊','冰雪颶風','衝擊之暈','岩漿流星雨','火焰散落','鎌鼬旋風','寒冰氣息','妖狐之火','牛鬼突進','大地崩裂','幽魂怨念','枯竭詛咒']);   // 🐍 提卡爾杰弗雷庫雙BOSS 全體技能；🌑 v3.3.33 聖地；🌅 枯竭詛咒對每位玩家/傭兵各自以 MR 判定藥水霜化
-const MAX_CATCHUP_MS = 5 * 60 * 1000; // 單次最多補算 5 分鐘，避免長時間離開後一次模擬過久
 let _loopLast = null;                // 上次主迴圈時間戳 (performance.now)
-let _tickDebt = 0;                   // 尚未換算成 tick 的累積時間 (ms)
+let _tickDebt = 0;                   // 前景未滿一個 tick 的時間餘量；完整逾期 tick 不保留
+let _ffSavePending = false;          // 補跑期間收到的存檔要求：還清後只補存一次，避免半套進度覆蓋 checkpoint
 let _gameLoopId = null;              // 主迴圈 setInterval id（用於避免重複註冊）
 let _saveLoopId = null;             // 自動存檔 setInterval id
 let currentSlot = 1;                // 目前所在的存檔位（1~4）
+
+function catchupActive() {
+    return !!(state && (state.ff || _tickDebt >= TICK_MS));
+}
+
+function deferCatchupSave() {
+    _ffSavePending = true;
+    return false;
+}
+
+function takeCatchupSaveRequest() {
+    let pending = _ffSavePending;
+    _ffSavePending = false;
+    return pending;
+}
+
+function catchupPendingMs() {
+    return Math.max(0, Number(_tickDebt) || 0);
+}
+
+function queueCatchupMs(ms) {
+    ms = Number(ms);
+    if (!Number.isFinite(ms) || ms <= 0 || !state || !state.running || !player || !player.cls || player.dead) return false;
+    _loopLast = _perfNow();
+    _tickDebt += ms;
+    return true;
+}
+
+// 背景分頁回前景改走一次性結算，不把數小時重新拆成數萬個戰鬥 tick。
+function settleBackgroundMs(ms, reason) {
+    ms = Math.max(0, Number(ms) || 0);
+    _loopLast = _perfNow();
+    _tickDebt = 0;
+    _ffSavePending = false;
+    if (ms < TICK_MS) return true;
+    if (typeof window !== 'undefined' && typeof window.offlineSettleCatchup === 'function') {
+        try {
+            if (window.offlineSettleCatchup(ms, reason || 'visibility') !== false) return true;
+        }
+        catch (e) { console.warn('background batch settlement failed', e); }
+    }
+    // 模組異常時不恢復逐 tick 長時間補跑，避免再次讓分頁卡住。
+    if (typeof logSys === 'function') {
+        logSys('背景補幀已關閉，未進行補跑。');
+    }
+    return false;
+}
 
 // 統一啟動遊戲計時器：先清除既有的，再重新註冊，確保整個工作階段只會有一組計時器
 function startGameTimers() {
     if (_gameLoopId !== null) clearInterval(_gameLoopId);
     if (_saveLoopId !== null) clearInterval(_saveLoopId);
-    _loopLast = null; _tickDebt = 0;
+    _loopLast = null; _tickDebt = 0; _ffSavePending = false;
+    _ffHiddenAt = (typeof document !== 'undefined' && document.hidden) ? _perfNow() : 0;   // 🔀 遊戲啟動當下重新錨定（背景分頁裡載入的話，不把載入前的時間算進補跑）
     _gameLoopId = setInterval(gameLoop, 100);
     _saveLoopId = setInterval(saveGame, 300000); // 每 5 分鐘自動存檔
     if (typeof initCombatLogLock === 'function') initCombatLogLock();   // 🔒 綁定戰鬥日誌捲動鎖定（含去重）
@@ -1225,44 +1298,46 @@ function startGameTimers() {
     if (typeof _initTabGuard === 'function') _initTabGuard();           // 🚀 綁定分頁面板點擊保護＋重繪節流（避免狩獵時 賣出/強化 按鈕卡頓、點擊失效）
 }
 
-// 補跑（掛機/背景）所得累積：補跑期間 logSys 被靜音，先把所得累積起來，
-// 等真正回到即時（n===1）且累積時間達門檻時，才統一輸出一次，避免每次小補跑都洗版。
-const AWAY_SUMMARY_MIN_MS = 3000;    // 累積補跑時間達 3 秒才輸出「掛機期間獲得」訊息
-let _awayAcc = { ticks: 0, gold: 0, items: {} };
-// 🕶️ v3.4.44 「掛機期間獲得」訊息只在分頁確實切到背景時才輸出。gameLoop 的補跑(state.ff)判定純看「距上次 loop 過了多久」，
-//   前景一次長卡頓(saveGame 的 LZ 壓縮／開大量物品面板／GC)也會累積成補跑→原本會誤印掛機訊息。改用 visibilitychange
-//   記「本次累積窗口是否確實隱藏過」(sticky 旗標)：收益照計入 player.gold/inv、只 gate 這行訊息。
-let _awaySawHidden = false;
+function _perfNow() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+function _resetGameLoopClock() { _loopLast = _perfNow(); _tickDebt = 0; _ffSavePending = false; }
+// 背景時間錨點：切到背景記下時刻，回前景交給 js/27 以 100% 實戰取樣率一次結算。
+// 不依賴背景中可能被 Chrome 節流或凍結的 setInterval，也不再逐 tick 重播動畫與戰鬥。
+let _ffHiddenAt = (typeof document !== 'undefined' && document.hidden) ? _perfNow() : 0;
 if (typeof document !== 'undefined' && document.addEventListener) {
-    document.addEventListener('visibilitychange', function () { if (document.hidden) _awaySawHidden = true; });
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) { if (!_ffHiddenAt) _ffHiddenAt = _perfNow(); return; }
+        let _now = _perfNow();
+        let _anchor = _ffHiddenAt; _ffHiddenAt = 0;
+        _loopLast = _now;
+        if (_anchor > 0 && typeof state !== 'undefined' && state.running && typeof player !== 'undefined' && player && player.cls && !player.dead) {
+            settleBackgroundMs(Math.max(0, _now - _anchor), 'visibility');
+        }
+    });
 }
-function flushAwaySummary() {
-    if (_awayAcc.ticks <= 0) { _awaySawHidden = false; return; }   // 無累積：順手清掉「短暫隱藏但沒補跑」留下的旗標，避免下次前景卡頓被誤判為掛機
-    if (_awayAcc.ticks * TICK_MS >= AWAY_SUMMARY_MIN_MS && _awaySawHidden) {   // 🕶️ v3.4.44 加「確實隱藏過」條件：前景卡頓造成的補跑不印訊息（收益仍已入袋）
-        let gains = [];
-        for (let id in _awayAcc.items) {
-            if (_awayAcc.items[id] > 0 && DB.items[id]) gains.push({ id, n: _awayAcc.items[id] });
+if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('pageshow', function (ev) {
+        // bfcache 的頁面與 JS 記憶體仍存在，視為背景掛機並一次結算。
+        if (ev && ev.persisted) {
+            let _now = _perfNow();
+            let _anchor = _ffHiddenAt;
+            _ffHiddenAt = 0;
+            _loopLast = _now;
+            if (_anchor > 0 && typeof state !== 'undefined' && state.running && typeof player !== 'undefined' && player && player.cls && !player.dead) {
+                settleBackgroundMs(Math.max(0, _now - _anchor), 'bfcache');
+            }
+            return;
         }
-        if (gains.length) {
-            logSys(`<span class="sys-item-gain">掛機期間獲得：` + gains
-                .map(g => `<span class="${getItemColor({ id: g.id, en: 0 })} font-bold">${DB.items[g.id].n} ×${g.n}</span>`)
-                .join('、') + `</span>`);
-        }
-        if (_awayAcc.gold > 0) {
-            /* 🔧 掛機期間獲得的金幣不輸出日誌（已計入 player.gold、即時顯示於左側面板）；賣出/花費/消耗等金幣訊息仍保留 */
-        }
-    }
-    // 無論是否達門檻都清空（未達門檻者視為一般即時遊玩的計時抖動，不輸出）
-    _awayAcc = { ticks: 0, gold: 0, items: {} };
-    _awaySawHidden = false;
+        _ffHiddenAt = 0;
+        _resetGameLoopClock();
+    });
 }
 
 let player = {
-    cls: null, name: null, lv: 1, exp: 0, gold: 1000, hp: 0, mhp: 0, mp: 0, mmp: 0, blessings: {}, blessingAuto: {}, alignmentValue: 0, pvpOn: false, pvpRevengeList: [],
-    base: { str:0, dex:0, con:0, int:0, wis:0, cha:8 }, bonus: 0, alloc: { str:0, dex:0, con:0, int:0, wis:0, cha:0 }, panacea: { str:0, dex:0, con:0, int:0, wis:0, cha:0 }, panaceaUsed: 0, junkPrefs: {}, bloodPledge: null, magicShieldCd: 0, lastMapByCat: {}, tracking: null, ismaelAccUsed: false, sherineWorld: false, masteryQuest: null, mastery: null, masteryChangeCnt: 0, siege: { active:false, gateKilled:false, towerKilled:false, endTime:0, kills:0, result:null, cooldownUntil:0, rewardPending:false, victoryUntil:0, accCdUntil:0 },
+    cls: null, name: null, lv: 1, exp: 0, gold: 1000, hp: 0, mhp: 0, mp: 0, mmp: 0, alignmentValue: 0, pvpOn: false, pvpRevengeList: [],
+    base: { str:0, dex:0, con:0, int:0, wis:0, cha:8 }, bonus: 0, alloc: { str:0, dex:0, con:0, int:0, wis:0, cha:0 }, panacea: { str:0, dex:0, con:0, int:0, wis:0, cha:0 }, panaceaUsed: 0, junkPrefs: {}, bloodPledge: null, magicShieldCd: 0, lastMapByCat: {}, tracking: null, sherineWorld: false, masteryQuest: null, mastery: null, masteryChangeCnt: 0, siege: { active:false, city:'kent', gateKilled:false, towerKilled:false, endTime:0, kills:0, result:null, cooldownUntil:0, accCdUntil:0 },
     inv: [], eq: { wpn: null, arrow: null, helm: null, armor: null, shin: null, shield: null, cloak: null, tshirt: null, gloves: null, boots: null, ring1: null, ring2: null, ring3: null, ring4: null, amulet: null, ear1: null, ear2: null, belt: null, pet: null, doll: null },
     skills: [], buffs: { haste: 0, brave: 0, blue: 0, cautious: 0, elfcookie: 0, poly: 0, shield: 0, sk_magic_shield: 0 }, poly: null, allies: [],
-    summon: null, charmed: null, manualCd: {}, elfEle: null, hot: null,
+    summon: null, charmed: null, manualCd: {}, elfEle: null, hots: {},   // 🔧 v3.5.94 同上：孤兒 hot(單數) → 休眠機制真正使用的 hots(複數 dict)
     cds: { pot: 0, atkSk: 0, healSk: 0, purifySk: 0, convertSk: 0 }, dead: false, statuses: { stun: 0, freeze: 0, stone: 0, poison: 0, poisonDmg: 0, poisonTick: 0, burn: 0, burnDmg: 0, burnTick: 0, scald: 0, scaldDmg: 0, scaldTick: 0, bleed: 0, bleedDmg: 0, bleedTick: 0, sleep: 0, silence: 0, paralyze: 0, magicseal: 0, armorBreak: 0, slowAtk: 0, cleave: 0 },
     d: { str:0, dex:0, con:0, int:0, wis:0, cha:8,
          meleeDmg: 0, meleeHit: 0, meleeCrit: 0,           // 近距離（力量）
@@ -1710,14 +1785,80 @@ function initSysLogLock() {
     el.addEventListener('touchmove', onScroll, { passive: true });
 }
 
-function logSys(msg) {
+// 📌 v3.6.73 未讀點改為「只有傳說／遺物掉落才亮」（用戶指示：其餘訊息一律不顯示紅點）。
+//    第二參 rare＝'legend'｜'relic'，只有這兩種才點亮並帶對應顏色（傳說橘／遺物藍）。
+//    ⚠️ 既有 471 個呼叫端不傳第二參＝不亮點，無須逐一修改。
+function logSys(msg, rare) {
     if(state.ff) return; // 補跑期間不洗版
     const el = document.getElementById('sys-log');
+    if (!el) return;
     el.insertAdjacentHTML('beforeend', `<div class="log-entry text-slate-100">${msg}</div>`);   // 🚀 同戰鬥日誌：只解析新訊息，避免 innerHTML+= 重建全部
     // 🔒 鎖定捲動時保留更多歷史（150 行）；未鎖定時維持一般上限（50 行）
     let _max = _sysLogLocked ? SYS_LOG_MAX_LOCKED : SYS_LOG_MAX;
     while(el.children.length > _max && el.children.length > 1) el.removeChild(el.firstChild);
     if(!_sysLogLocked) el.scrollTop = el.scrollHeight;   // 鎖定時不自動捲到底，保留玩家檢視位置
+    if (_logTab !== 'sys' && (rare === 'legend' || rare === 'relic')) {   // 🗂️ v3.6.73 只有稀有掉落才亮未讀點（不在系統分頁時）
+        let d = document.getElementById('logtab-dot-sys');
+        if (d) { d.classList.remove('hidden', 'logtab-dot-legend', 'logtab-dot-relic'); d.classList.add('logtab-dot-' + rare); }   // 後到的稀有度覆蓋前一顆（點只有一顆）
+    }
+}
+
+// 🗂️ v3.6.50 戰鬥／系統日誌合併於同一視窗：標題列分頁鈕切換（過濾 pill 只在戰鬥分頁顯示）。
+let _logTab = 'combat';
+function switchLogTab(tab) {
+    _logTab = (tab === 'sys') ? 'sys' : 'combat';
+    let onSys = (_logTab === 'sys');
+    let cl = document.getElementById('combat-log'), sl = document.getElementById('sys-log');
+    if (cl) cl.classList.toggle('hidden', onSys);
+    if (sl) sl.classList.toggle('hidden', !onSys);
+    let bc = document.getElementById('logtab-btn-combat'), bs = document.getElementById('logtab-btn-sys');
+    if (bc) bc.classList.toggle('logtab-on', !onSys);
+    if (bs) bs.classList.toggle('logtab-on', onSys);
+    let pills = document.getElementById('combat-filter-pills'); if (pills) pills.classList.toggle('hidden', onSys);
+    // 兩顆捲動鎖定提示各自只在自己的分頁出現（切走時先收起，避免浮在另一個日誌上）
+    let cu = document.getElementById('combat-log-unlock'); if (cu && onSys) cu.classList.add('hidden');
+    let su = document.getElementById('sys-log-unlock'); if (su && !onSys) su.classList.add('hidden');
+    if (onSys) {
+        let d = document.getElementById('logtab-dot-sys'); if (d) { d.classList.add('hidden'); d.classList.remove('logtab-dot-legend', 'logtab-dot-relic'); }   // 進系統分頁＝已讀（連稀有度顏色一併清掉，下次才不會沿用舊色）
+        if (sl && !_sysLogLocked) sl.scrollTop = sl.scrollHeight;
+        initSysLogLock();
+    } else if (cl && !_combatLogLocked) cl.scrollTop = cl.scrollHeight;
+}
+
+// 🌐 v3.6.50 世界頻道：只放 NPC 對話（叫賣廣播／嗆聲／提問回覆），與系統日誌完全分流。
+let _worldLogLocked = false;
+const WORLD_LOG_MAX = 60;
+const WORLD_LOG_MAX_LOCKED = 200;
+function worldLogToBottom() {
+    let el = document.getElementById('world-log');
+    if (!el) return;
+    _worldLogLocked = false;
+    el.scrollTop = el.scrollHeight;
+    let btn = document.getElementById('world-log-unlock'); if (btn) btn.classList.add('hidden');
+}
+function initWorldLogLock() {
+    let el = document.getElementById('world-log');
+    if (!el || el._lockInit) return;
+    el._lockInit = true;
+    let onScroll = () => {
+        let btn = document.getElementById('world-log-unlock');
+        if ((el.scrollHeight - el.scrollTop - el.clientHeight) < 24) {
+            if (_worldLogLocked) { _worldLogLocked = false; if (btn) btn.classList.add('hidden'); }
+        } else {
+            if (!_worldLogLocked) { _worldLogLocked = true; if (btn) btn.classList.remove('hidden'); }
+        }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('touchmove', onScroll, { passive: true });
+}
+function logWorld(msg, cls) {
+    if (state.ff) return;   // 補跑期間不洗版（與其他日誌一致）
+    const el = document.getElementById('world-log');
+    if (!el) return;
+    el.insertAdjacentHTML('beforeend', `<div class="log-entry ${cls || ''}">${msg}</div>`);
+    let _max = _worldLogLocked ? WORLD_LOG_MAX_LOCKED : WORLD_LOG_MAX;
+    while (el.children.length > _max && el.children.length > 1) el.removeChild(el.firstChild);
+    if (!_worldLogLocked) el.scrollTop = el.scrollHeight;
 }
 
 // 🔧 架構#4：calcStats 職責拆分 ——
@@ -1769,6 +1910,15 @@ Object.assign(ITEM_WEIGHTS, {"滅魔的 金屬盔甲":170,"滅魔的 披肩":20,
 Object.assign(ITEM_WEIGHTS, {"陰陽師的扇子":15,"巨型骷髏之指環":30,"體力戒指":3,"沸騰蒸氣的鍋蓋":30,"鐮鼬的藥壺":5,"長首妖怪的圍巾":3,"老舊的百年唐傘":10,"沸騰蒸氣的巨釜":250,"鐮鼬的尾刃":120,"河童的尻子玉":10,"赤鬼的內褲":10,"青鬼的虎皮衫":100,"毒鵺的黑尾":120,"天狗的羽扇":50,"阿修羅的武神技":15,"九尾妖狐的怒火":15,"牛鬼的斷角":20,"牛鬼之子的黑戒":5,"巨大骷髏的頭骨":150});
 // 🏺 遺物 第十七批掉落（單一怪物 0.0001%）
 [['歐姆戰士','relic_heavy_belt'],['殘暴的骷髏神射手','relic_bone_bow'],['殘暴的骷髏鬥士','relic_fighter_armor'],['幼龍','relic_drake_pawprint'],['火焰之靈魂(紅)','relic_red_wraith'],['受詛咒的艾爾摩法師','relic_mage_dagger']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+// 🏺 v3.6.44 遺物 第十九批掉落（15 件·各 0.0001%·「墳墓守護者」拆法師＋騎士兩隻同率）
+[['深淵弓箭手','relic_marksman_corset'],['地靈之主','relic_earthshatter_sword'],['風靈之主','relic_gale_fistblade'],['火靈之主','relic_hellfire_hammer'],['墳墓守護者法師','relic_pet_devotion'],['墳墓守護者騎士','relic_pet_devotion'],['血色術士','relic_blood_ritual_dagger'],['恐怖的伊弗利特','relic_genie_wishes'],['火焰之靈魂(藍)','relic_cold_blueflame'],['火焰烈炎獸','relic_scorch_greatsword'],['底比斯 斯芬克斯','relic_guardian_riddle'],['闇黑君王','relic_mana_array_boots'],['血騎士','relic_bloodknight_dual'],['骨龍','relic_cursed_egg'],['受詛咒的艾爾摩士兵','relic_elmo_spear'],['遺忘之島亞力安','relic_petrify_essence']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+Object.assign(ITEM_WEIGHTS, {"精銳射手的戰鬥束衣":50,"大地碎裂劍":120,"疾風拳刃":60,"業火鍛造鎚":120,"珍愛夥伴的執念":5,"血祭儀式短刀":30,"巨靈的三個願望":3,"凜冽的青色火炎":120,"烈炎燒灼的滾燙巨劍":150,"守護獸的難題":10,"魔力凝聚的法陣":15,"嗜血騎士的雙刀":30,"充滿詛咒氣息的蛋":5,"艾爾摩尖頭槍":120,"石化魔法的精髓":60});   // 🏺 遺物重量（依名稱·v3.6.44 +15 件·蛋未給重量暫定 5）
+// 🏺 v3.6.47 遺物 第二十批掉落（3 件·各 0.0001%）
+[['烈炎獸','relic_lava_nozzle'],['飛龍','relic_doom_egg'],['重裝歐姆戰士','relic_crusher_hammer']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+Object.assign(ITEM_WEIGHTS, {"火山怪獸的熔岩噴嘴":120,"充滿厄運氣息的蛋":5,"重裝戰士的粉碎鎚":250});   // 🏺 遺物重量（依名稱·v3.6.47 +3 件·蛋未給重量比照詛咒蛋暫定 5）
+// 🥚 v3.6.62 遺物 第二十一批掉落（2 件·各 0.0001%）：破滅蛋／災厄蛋＝補完四蜥蜴取得管道
+[['遺忘之島飛龍','relic_doomsday_egg'],['深淵地靈','relic_calamity_egg']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+Object.assign(ITEM_WEIGHTS, {"充滿破滅氣息的蛋":5,"充滿災厄氣息的蛋":5});   // 🏺 遺物重量（依名稱·v3.6.62 +2 件·蛋未給重量比照前兩顆蛋暫定 5）
 // ⚖️ 負重顯示色：0～49% 暖白、50～81% 介面金黃、82%以上介面紅（loadTier 0/1/2～3）。
 function getLoadColor(tier){ return Number(tier) >= 2 ? 'load-tone-danger' : (Number(tier) >= 1 ? 'load-tone-warning' : 'load-tone-normal'); }
 // 🪆 取目前裝備之魔法娃娃的某 % 欄位值（expBonus/goldBonus/potionBonus…；未裝娃娃→0）
@@ -1837,22 +1987,21 @@ function sanitizeState() {
     if (player.eq) for (let k in player.eq) clampEn(player.eq[k]);
 }
 // 武器強化 → { dmg:額外傷害, hit:額外命中 }
-//  +0~+10：每階 額外傷害+1、額外命中+1（線性）。
-//  +11~+20：取消額外傷害加成（額外傷害維持在 +10 的量＝10）；額外命中沿用「累積」（在 +10 之上再加下表）；
-//           傷害成長改由「最終傷害倍率」提供（enhanceWpnFinalMult，非累加、取該階段數值）。
-const WPN_EN_HIT_OVER10 = { 11:1, 12:2, 13:4, 14:6, 15:8, 16:11, 17:14, 18:17, 19:21, 20:25, 21:29, 22:33, 23:37, 24:41, 25:45, 26:49, 27:53, 28:57, 29:61, 30:65 };   // +11~+20 額外命中（超過 +10 的「累加」量；每階增量 1,1,2,2,2,3,3,3,4,4 逐級累加 → 總命中 +11/+12/+14/+16/+18/+21/+24/+27/+31/+35）
+//  額外傷害：+0~+20 每階+1（實務受 ENHANCE_CAP.wpn=15 夾擠，最高 +15）；
+//  額外命中：+0~+10 每階+1，+10 之後依 WPN_EN_HIT_OVER10 累加。
+const WPN_EN_HIT_OVER10 = { 11:1, 12:2, 13:4, 14:6, 15:8, 16:11, 17:14, 18:17, 19:21, 20:25, 21:30, 22:35, 23:40, 24:46, 25:52, 26:58, 27:65, 28:72, 29:80, 30:88 };
 function enhanceWpnBonus(en) {
     en = Math.max(0, Number(en) || 0);
     let base = Math.min(en, 10);                                                            // +10 以內：每階 +1
     let hitOver = (en > 10) ? (WPN_EN_HIT_OVER10[Math.min(en, 30)] || 0) : 0;               // +11~+30：額外命中累積
-    return { dmg: Math.min(en, 30), hit: base + hitOver };                                  // 🔧 額外傷害每階+1、全程延伸到+30；額外命中+1~+10後依表續加（最高總+65@+30）
+    return { dmg: Math.min(en, 30), hit: base + hitOver };
 }
 // 武器強化 → 最終傷害倍率（一般物理攻擊）；+1~+20「取該階段數值」（非累加），+0 為 1.0
 // 基準曲線（最高檔）：+1 ×1.02（平緩）→ +10 ×1.37 → +20 ×2.50（爆發）；總數值 100→250 對應的倍率（總數值/100）。
 const WPN_EN_FINALMULT = {
     1:1.02, 2:1.04, 3:1.06, 4:1.09, 5:1.12, 6:1.15, 7:1.19, 8:1.24, 9:1.30, 10:1.37,
     11:1.45, 12:1.53, 13:1.62, 14:1.72, 15:1.83, 16:1.95, 17:2.08, 18:2.21, 19:2.35, 20:2.50,
-    21:2.55, 22:2.60, 23:2.65, 24:2.70, 25:2.75, 26:2.80, 27:2.85, 28:2.90, 29:2.95, 30:3.00
+    21:2.66, 22:2.83, 23:3.01, 24:3.20, 25:3.40, 26:3.61, 27:3.83, 28:4.06, 29:4.30, 30:4.55
 };
 // 🔧 v2.6.65：+20 上限依「潘朵拉權重」分五級（曲線形狀相同·bonus 部分等比縮放）
 //    分級用「未加倍」權重：js/14 initGachaWeights 對權重≥50 一律×2（提高低稀有度出現率）→ runtime≥100 者先還原÷2 再分級
@@ -1872,10 +2021,11 @@ function wpnEnCurveMax(def) {
 }
 function enhanceWpnFinalMult(en, def) {
     en = Math.max(0, Number(en) || 0);
-    if (en <= 0) return 1;
-    let base = WPN_EN_FINALMULT[Math.min(en, 30)] || 1;
-    let cap = wpnEnCurveMax(def);
-    return Math.min(base, cap);
+    if (en < 1) return 1;
+    let base = WPN_EN_FINALMULT[Math.min(en, ENHANCE_CAP.wpn)] || 1;
+    let mx = wpnEnCurveMax(def);
+    if (mx === 2.5) return base;
+    return Math.round((1 + (base - 1) * (mx - 1) / 1.5) * 100) / 100;
 }
 function wpnEnFinalMult(wpnInst) { return enhanceWpnFinalMult(wpnInst && wpnInst.en, wpnInst && DB.items[wpnInst.id]); }      // 由武器實例取倍率（未裝備→1）
 
@@ -1939,7 +2089,10 @@ function atkSpdApm(p, id) {
     let wid = id || (p && p.eq && p.eq.wpn ? p.eq.wpn.id : null);
     if (!wid) return 60;   // 空手＝每分鐘 60 次（維持原 1.0s 間隔）
     let fam = atkSpdFamily(wid) || '單手劍';
-    if (!id && p && p.eq && p.eq.offwpn) fam = '雙斧';   // ⚔️ 雙持單手斧：每次觸發主副手各打一次
+    // ⚔️ v3.5.100 主副手攻速分離：移除「裝副手 → 主手改吃雙斧家族」的覆蓋。
+    //   舊制讓雙手鈍器主手一裝副手就從 51.43 跳到 65.45 APM（戰士 +27%），等於主手借用副手的速度；
+    //   現在兩手各用自己的武器家族，副手的間隔由 d.aspdOff 另計（js/02）。
+    //   （'雙斧' 這一欄在 ATK_APM 全 16 職與 '單手鈍器' 數值完全相同＝純別名，移除覆蓋不影響單手鈍器主手。）
     return row[fam] || ATK_APM_DEFAULT[fam] || 60;
 }
 function atkSpdBaseItv(p) { return Math.round(6000 / Math.max(1, atkSpdApm(p))) / 100; }   // 基礎攻擊間隔（秒·2位小數·未含加速/精通等倍率）

@@ -877,18 +877,36 @@ function buildRecipeIndex() {
     }
 }
 // ===== 🔧 倉庫材料支援：製作與試煉兌換可動用共用倉庫的材料（背包優先、不足再扣倉庫；金幣僅算身上）=====
+// ⚡ v3.5.93 同步任務內倉庫快照：loadWarehouse() 單次 1.18ms（localStorage 讀 ×2＋LZ 解壓 ×2＋JSON.parse 最多 5000 筆），
+//    而製作面板一次渲染會呼叫 141 次（逐材料列的 invCountId/materialObtainable，加上 maxMakeRecipe 二分搜尋每步 buildPool）
+//    → 娜路帕（29 配方／94 材料列）實測 329ms 主執行緒阻塞。
+//    這裡不是 TTL 快取：queueMicrotask 會在「當前這個同步任務結束時」立刻清掉，
+//    所以快取存活範圍 ＝ 恰好一次渲染／一次事件處理，跨使用者操作絕不可能拿到舊資料。
+//    另由 js/12 saveWarehouse → _lkInvalidateWhCache() 一併清除，涵蓋「同一個同步區塊內先扣倉庫再重算」
+//    的情形（doCraft → ensureMaterial → consumeMaterialById → whConsumeId 存檔後，下一次 invCountId 必須讀到新值）。
+// ⚠️ 只給「唯讀」用途。任何會 mutate 倉庫物件再 saveWarehouse 的路徑（whConsumeId／whRemoveStackByUid）
+//    一律直接呼叫 loadWarehouse()，不得走這裡，否則會改到共用實例。
+let _whSyncCache = null;
+function _whReadCached() {
+    if (_whSyncCache) return _whSyncCache;
+    let w = loadWarehouse();
+    _whSyncCache = w;
+    let clear = () => { _whSyncCache = null; };
+    if (typeof queueMicrotask === 'function') queueMicrotask(clear); else Promise.resolve().then(clear);
+    return w;
+}
 function whCountId(id) {
     if (id === 'gold') return 0;   // 倉庫金幣不列入材料計算
-    try { let w = loadWarehouse(); return w.items.filter(i => i.id === id).reduce((s, i) => s + i.cnt, 0); } catch (e) { return 0; }
+    try { let w = _whReadCached(); return w.items.filter(i => i.id === id && !i.lock).reduce((s, i) => s + i.cnt, 0); } catch (e) { return 0; }   // 🔒 鎖定件不算可用材料（與 whConsumeId 同口徑，否則會「顯示可做卻材料不足」）
 }
 function whConsumeId(id, n) {   // 自倉庫扣除最多 n 個（白板/低強化優先），回傳實際扣除數
     if (n <= 0) return 0;
     try {
         let w = loadWarehouse();
-        let need = n, stacks = w.items.filter(i => i.id === id);
+        let need = n, stacks = w.items.filter(i => i.id === id && !i.lock);   // 🔒 鎖定件不得當材料銷毀（與三個客製製作 findXxxSource 一致）
         stacks.sort((a, b) => (((a.en||0)*100)+(a.anc?10:0)+(a.bless?10:0)+(a.attr?10:0)+(a.seteff?50:0)) - (((b.en||0)*100)+(b.anc?10:0)+(b.bless?10:0)+(b.attr?10:0)+(b.seteff?50:0)));
         for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); if (d > 0 && st.bless === true) _craftBlessCount += d; st.cnt -= d; need -= d; }   // 🔧 v3.1.27 倉庫祝福裝備材料件數累加
-        w.items = w.items.filter(i => i.cnt > 0);
+        w.items = w.items.filter(i => i.cnt == null || i.cnt > 0);   // ⚠️ null-safe：cnt 未定義的舊存檔物品不得被當成 0 而靜默刪除
         saveWarehouse(w);
         return n - need;
     } catch (e) { return 0; }
@@ -907,22 +925,52 @@ function whRemoveStackByUid(uid, n) {
     } catch (e) { return false; }
 }
 // 試煉兌換用：背包＋倉庫合併計數 / 扣除
-function questCountId(id) { return player.inv.filter(i => i.id === id).reduce((s, i) => s + i.cnt, 0) + whCountId(id); }
+function questCountId(id) { return player.inv.filter(i => i.id === id && !i.lock).reduce((s, i) => s + i.cnt, 0) + whCountId(id); }   // 🔒 鎖定件不列入
+// 🔒 v3.5.87 鎖定件另計（背包＋倉庫）：材料/任務道具「不足」時用來判斷是否因上鎖造成，
+//    讓玩家知道「明明背包看得到卻說不足」的原因，而不是靜默卡死（製作/試煉交付共用）。
+// ⚡ v3.5.89 倉庫端改「鎖定件索引＋500ms TTL 快取」：原本每次呼叫都整份 loadWarehouse()
+//    （localStorage 讀 ×2＋LZ 解壓 ×2＋JSON.parse 最多 5000 筆），而 craftReqHtml 是逐材料列呼叫的熱路徑
+//    → 倉庫接近滿時開啟配方最多的製作 NPC（娜路帕 29 配方／94 材料列）可多出數百 ms 主執行緒阻塞。
+//    TTL 只影響「提示數字」的新鮮度（最壞慢 0.5 秒），完全不參與任何扣除/閘門判定，故安全。
+let _lkWhIdx = null, _lkWhIdxAt = -99999, _lkWhIdxKey = '';
+function _lkWhLockedIdx() {
+    let k = '';
+    try { k = whKey(); } catch (e) { k = ''; }
+    let now = Date.now();
+    if (_lkWhIdx && _lkWhIdxKey === k && (now - _lkWhIdxAt) < 500) return _lkWhIdx;
+    let idx = {};
+    try { for (let it of _whReadCached().items) if (it && it.lock) idx[it.id] = (idx[it.id] || 0) + (it.cnt || 1); } catch (e) {}
+    _lkWhIdx = idx; _lkWhIdxAt = now; _lkWhIdxKey = k;
+    return idx;
+}
+function _lkInvalidateWhCache() { _lkWhIdx = null; _whSyncCache = null; }   // 倉庫寫入後由 js/12 saveWarehouse 呼叫，避免存/取後提示數字還是舊的（⚡ v3.5.93 同步快照一併清，否則同一區塊內先扣倉庫再重算會讀到扣除前的量）
+function lockedCountId(id) {
+    let n = player.inv.filter(i => i.id === id && i.lock).reduce((s, i) => s + (i.cnt || 1), 0);
+    return n + (_lkWhLockedIdx()[id] || 0);
+}
+// 🔒 產生「已上鎖不計」提示 HTML（無鎖定件回空字串）；ids 可傳單一 id 或陣列
+function lockHintHtml(ids) {
+    let arr = Array.isArray(ids) ? ids : [ids];
+    let hit = [];
+    for (let id of arr) { if (id === 'gold') continue; let n = lockedCountId(id); if (n > 0) hit.push({ id: id, n: n }); }   // ⚡ 每個 id 只算一次（原本 filter 一次、map 又一次）
+    if (!hit.length) return '';
+    return `<span class="text-slate-400">（提示：${hit.map(h => `${(DB.items[h.id] || {}).n || h.id} 有 ${h.n} 個已上鎖`).join('、')}·上鎖物品不會被使用，可解鎖後再試）</span>`;
+}
 function questConsumeId(id, n) {
-    let need = n;
-    for (let it of player.inv.filter(i => i.id === id)) { if (need <= 0) break; let d = Math.min(it.cnt, need); it.cnt -= d; need -= d; }
-    player.inv = player.inv.filter(i => i.cnt > 0);
+    let need = n, _gone = new Set();
+    for (let it of player.inv.filter(i => i.id === id && !i.lock)) { if (need <= 0) break; let d = Math.min(it.cnt, need); it.cnt -= d; need -= d; if (it.cnt <= 0) _gone.add(it.uid); }   // 🔒 鎖定件不得被任務兌換吃掉
+    if (_gone.size) player.inv = player.inv.filter(i => !_gone.has(i.uid));   // ⚠️ uid 精準移除：舊寫法 filter(i=>i.cnt>0) 會把 cnt 未定義的舊存檔物品連同鎖定件一併靜默刪除
     if (need > 0) whConsumeId(id, need);
 }
 
 function invCountId(id) {
     if (id === 'gold') return player.gold;
-    return player.inv.filter(i => i.id === id).reduce((s, i) => s + i.cnt, 0) + whCountId(id);   // 🔧 含倉庫存量
+    return player.inv.filter(i => i.id === id && !i.lock).reduce((s, i) => s + i.cnt, 0) + whCountId(id);   // 🔧 含倉庫存量　🔒 鎖定件不列入
 }
 function buildPool() {
     let pool = { gold: player.gold };
-    for (let it of player.inv) pool[it.id] = (pool[it.id] || 0) + it.cnt;
-    try { for (let it of loadWarehouse().items) pool[it.id] = (pool[it.id] || 0) + it.cnt; } catch (e) {}   // 🔧 倉庫材料一併列入模擬池
+    for (let it of player.inv) if (!it.lock) pool[it.id] = (pool[it.id] || 0) + it.cnt;   // 🔒 與實際扣除口徑一致
+    try { for (let it of _whReadCached().items) if (!it.lock) pool[it.id] = (pool[it.id] || 0) + it.cnt; } catch (e) {}   // 🔧 倉庫材料一併列入模擬池（⚡ 唯讀·pool 是每次新建的複本，不會動到快照）
     return pool;
 }
 function simulateMake(id, count, pool, depth) {
@@ -959,10 +1007,12 @@ function materialObtainable(id, cnt) {
 }
 function consumeMaterialById(id, n) {
     if (id === 'gold') { player.gold -= n; return; }
-    let need = n, stacks = player.inv.filter(i => i.id === id);
-    stacks.sort((a, b) => ((a.en*100)+(a.anc?10:0)+(a.bless?10:0)+(a.attr?10:0)) - ((b.en*100)+(b.anc?10:0)+(b.bless?10:0)+(b.attr?10:0)));
-    for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); if (d > 0 && st.bless === true) _craftBlessCount += d; st.cnt -= d; need -= d; }   // 🔧 v3.1.27 祝福裝備材料件數累加（供 doCraft 逐件強制祝福）
-    player.inv = player.inv.filter(i => i.cnt > 0);
+    let need = n, stacks = player.inv.filter(i => i.id === id && !i.lock), _gone = new Set();   // 🔒 鎖定件不得當材料銷毀
+    // ⚠️ 排序鍵須與 whConsumeId(倉庫) 完全一致，含 seteff（席琳套裝詞綴）權重 50，否則同一件裝備
+    //    放背包會被和白板同權重誤吃、放倉庫卻被正確排到最後。
+    stacks.sort((a, b) => (((a.en||0)*100)+(a.anc?10:0)+(a.bless?10:0)+(a.attr?10:0)+(a.seteff?50:0)) - (((b.en||0)*100)+(b.anc?10:0)+(b.bless?10:0)+(b.attr?10:0)+(b.seteff?50:0)));
+    for (let st of stacks) { if (need <= 0) break; let d = Math.min(st.cnt, need); if (d > 0 && st.bless === true) _craftBlessCount += d; st.cnt -= d; need -= d; if (st.cnt <= 0) _gone.add(st.uid); }   // 🔧 v3.1.27 祝福裝備材料件數累加（供 doCraft 逐件強制祝福）
+    if (_gone.size) player.inv = player.inv.filter(i => !_gone.has(i.uid));   // ⚠️ uid 精準移除（舊寫法 i.cnt>0 會誤刪 cnt 未定義的舊物品）
     if (need > 0) whConsumeId(id, need);   // 🔧 背包不足：自倉庫扣除
 }
 function ensureMaterial(id, count, depth) {
@@ -974,7 +1024,11 @@ function ensureMaterial(id, count, depth) {
     let need = count - have, y = rec.yield || 1, batches = Math.ceil(need / y);
     for (let req of rec.req) ensureMaterial(req.id, req.cnt * batches, depth + 1);
     for (let req of rec.req) consumeMaterialById(req.id, req.cnt * batches);
-    gainItem(id, batches * y, true, true);
+    // 🔒 v3.6.92 中間物一律落在「未鎖定疊」：gainItem 通則是併入鎖定疊（同簽章只有一格），但這裡產出後
+    //    立刻要被父層 consumeMaterialById 扣掉，而扣料/計數口徑（invCountId·buildPool）都排除鎖定件——
+    //    若併進鎖定疊就會「底層材料被吃掉、中間物卻沒扣」（v3.5.85 修過的帳目錯亂）。殘量待下次載入合併回去。
+    _lockMergeOff = true;
+    try { gainItem(id, batches * y, true, true); } finally { _lockMergeOff = false; }
 }
 // 計算製作 count 個某配方時，缺少的「最底層材料 / 金幣」與數量（遞迴展開中間物）
 function craftReqHtml(reqArr) {
@@ -991,6 +1045,8 @@ function craftReqHtml(reqArr) {
         if (hasCnt >= req.cnt) color = 'text-green-400';
         else if (materialObtainable(req.id, req.cnt)) { color = 'text-amber-400'; extra = '<span class="text-amber-400 text-xs ml-0.5">(可合成)</span>'; }
         else color = 'text-red-400';
+        let _lk = (hasCnt < req.cnt) ? lockedCountId(req.id) : 0;   // ⚡ v3.5.89 收成區域變數：原本同一行對同一 id 呼叫兩次（各自跑一趟倉庫）
+        if (_lk > 0) extra += `<span class="text-slate-400 text-xs ml-0.5">(另有 ${_lk} 個已上鎖不計)</span>`;   // 🔒 v3.5.87 顯示口徑＝扣除口徑·但要讓玩家知道差額在鎖定件
         return `<span class="text-sm font-bold leading-none"><span class="${color}">${hasCnt}</span>/${req.cnt} ${reqItem.n}${extra}</span>`;
     }).join('<span class="text-slate-500 mx-2 leading-none">+</span>');
 }
@@ -1035,7 +1091,7 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine 參數保留簽�
             parts.push('席琳結晶 1');
         }
         let detail = parts.length ? `（尚缺：${parts.join('、')}）` : '';
-        logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">${detail}</span>`);
+        logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">${detail}</span>${lockHintHtml(Object.keys(lack))}`);   // 🔒 v3.5.87 缺料若因上鎖·明講
         return;
     }
 
@@ -1087,7 +1143,9 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine 參數保留簽�
         renderFinnCraft(document.getElementById('interaction-content'), npcId);
     } else if (npcId === 'npc_joel' || npcId === 'npc_ryan') {
         renderJoelCraft(document.getElementById('interaction-content'), npcId);
-    } else if (['npc_nalien', 'npc_rekne', 'npc_narupa', 'npc_elfqueen', 'npc_elf', 'npc_ent', 'npc_pan', 'npc_moliya', 'npc_hector', 'npc_herbert', 'npc_lumiel', 'npc_ibelbin', 'npc_tas', 'npc_robinson', 'npc_kupu', 'npc_lentis', 'npc_upni', 'npc_bamut', 'npc_flame_shadow', 'npc_imp', 'npc_flame_smith', 'npc_norse', 'npc_keluya', 'npc_dytite', 'npc_bartel', 'npc_pir', 'npc_zeus_golem', 'npc_rabiani', 'npc_david', 'npc_flame_aide', 'npc_kororanz', 'npc_sebas', 'npc_mystic_mage'].includes(npcId)) {
+    } else if (CRAFT_RECIPES[npcId]) {
+        // 🔧 v3.5.87 重繪分派改看資料（CRAFT_RECIPES 有配方＝通用製作 NPC）：原手抄白名單漏了 npc_atelier（亞提利歐），
+        //    製作後 #interaction-content 不重繪、需求數字停留舊值——根除與 js/11 分派清單的平行兩份維護。
         renderUniversalCraft(document.getElementById('interaction-content'), npcId);
     }
 
@@ -1190,7 +1248,7 @@ function pandoraPrice(id) {
     let lo, hi;
     if (w === 1) { base = Math.max(base, 100000); lo = 11; hi = 1000; }
     else { lo = Math.max(1, 11 - 0.1 * w); hi = lo * 100; }
-    let mult = lo + Math.random() * (hi - lo);
+    let mult = lo + lootRng('pandoraPrice') * (hi - lo);   // 🎲 committed RNG：同一次上架的商品抽選已走 lootRng，價格若用 Math.random 就能靠 SL 重讀洗出低價
     return Math.max(1, Math.round(base * mult));
 }
 
@@ -1238,7 +1296,7 @@ function pandoraBuyOrderPriceProfile(id) {
 
 function pandoraBuyOrderPrice(id) {
     let r = pandoraBuyOrderPriceProfile(id);
-    let mult = r.minMult + Math.floor(Math.random() * (r.maxMult - r.minMult + 1));
+    let mult = r.minMult + Math.floor(lootRng('pandoraBuyOrder') * (r.maxMult - r.minMult + 1));   // 🎲 committed RNG：否則可 SL 重讀洗收購單命中
     return Math.max(1, Math.round(r.base * mult));
 }
 
@@ -1576,8 +1634,11 @@ function buyPandoraItem(i) {
     if (s.sold) { let e = msgEl(); if (e) e.innerHTML = '<span class="text-red-400">此商品已售出，請等待該格輪換。</span>'; return; }
     if ((player.gold || 0) < s.price) { let e = msgEl(); if (e) e.innerHTML = `<span class="text-red-400">金幣不足！需 ${s.price.toLocaleString()} 金幣。</span>`; return; }
     player.gold -= s.price;
-    _tradLootCtx = true;                              // 🏛️ 傳統模式：潘朵拉黑市裝備隨機自帶強化值
-    let gi; try { gi = gainItem(s.id, 1, true, false, false); } finally { _tradLootCtx = false; }   // 黑市購買：即所見、不附帶詞綴（try/finally 防殘留洩漏）
+    _tradLootCtx = true;                              // 🏛️ 傳統模式殘留旗標（v3.0.83 傳統模式已取消·js/01:837 起無消費者）：實際不再賦予隨機強化值，購買恆 +0
+    // ⚠️ v3.5.102 更正註解：舊註解寫「即所見、不附帶詞綴」是傳統模式時期的過時說法。
+    //    實際 forceNormal=false → gainItem 仍會在「購買當下」擲 rollAffixesNew()＝1% 祝福（席琳世界×3／瘋狂×5·committed lootRng 防 SL）。
+    //    上架的格子（_pandoraStock）只存 {id, price, weight, setTick, sold}，不預先決定詞綴。
+    let gi; try { gi = gainItem(s.id, 1, true, false, false); } finally { _tradLootCtx = false; }   // try/finally 防旗標殘留洩漏
     let inst = gi || { id: s.id };
     logSys(`在潘朵拉黑市花費 <span class="text-yellow-300">${s.price.toLocaleString()}</span> 金幣購買了 <span class="${getItemColor(inst)} font-bold">${getItemFullName(inst)}</span>。`);
     s.sold = true;
@@ -1620,7 +1681,6 @@ function cancelEditName() {
 
 window.onload = () => {
     migrateSaves();
-    { const btnLoad = document.getElementById('btn-load'); if (btnLoad && anySaveExists()) btnLoad.classList.remove('hidden'); }
     try { _applyVfxPref(); } catch (e) {}   // 🎚️ 套用標題畫面的「戰鬥特效開關」偏好（持久化於 localStorage）
     try { let _v = document.getElementById('login-version'); if (_v && typeof GAME_VERSION !== 'undefined') _v.textContent = GAME_VERSION; } catch (e) {}   // 🏷️ 登入頁面版本號：以 GAME_VERSION 為單一真相來源
     try { if (typeof wireBuffEnders === 'function') wireBuffEnders(); } catch (e) {}   // 🔧 藥水/卷軸維持型增益勾選框：取消打勾即立即結束
@@ -1633,9 +1693,10 @@ window.onload = () => {
     const STAT_LABEL = { ac:'AC', mr:'魔防(MR)', dr:'傷害減免', er:'迴避(ER)', str:'力量', dex:'敏捷', con:'體質', int:'智力', wis:'精神', cha:'魅力', mhp:'HP上限', mmp:'MP上限', hpR:'HP恢復', mpR:'MP恢復', resFire:'火屬性抗性', resWater:'水屬性抗性', resEarth:'地屬性抗性', resWind:'風屬性抗性', meleeHit:'近距離命中', rangedHit:'遠距離命中', meleeDmg:'近距離傷害', rangedDmg:'遠距離傷害', mdmg:'魔法傷害', extraHit:'額外命中', extraDmg:'額外傷害' };
     const EFF_LABEL = { moonburst:'月光爆裂', pierce:'穿透', dice_death:'即死', haste:'自我加速', immStone:'免疫石化', mp_drain:'命中恢復MP', crush:'重擊', cleave:'切割' };
     function sgn(v){ return (v>=0?'+':'') + v; }
-    function buildMap(){ ICON2ID = {}; for(let id in DB.items){ let d = DB.items[id]; if(d) ICON2ID[getIconUrl(d)] = id; } }
+    // ⚠️ 先定義者勝：多件物品可能共用同一張圖（例：沙哈之箭借用 箭.png），後者若覆蓋 key 會讓前者的 hover tooltip 顯示成後者。
+    function buildMap(){ ICON2ID = {}; for(let id in DB.items){ let d = DB.items[id]; if(d){ let k = getIconUrl(d); if(!(k in ICON2ID)) ICON2ID[k] = id; } } }
     function getTip(){ if(!tipEl){ tipEl = document.createElement('div'); tipEl.className = 'game-tooltip'; document.body.appendChild(tipEl); } return tipEl; }
-    function hideTip(){ if(tipEl) tipEl.style.display = 'none'; }
+    function hideTip(){ if(tipEl){ tipEl.style.display = 'none'; tipEl._id = null; } }   // ⚠️ 一併清單例快取鍵：鍵只含 uid，物品「原地」變動（強化 +N／碧恩屬性賦予）後 uid 不變 → 不清就會一直顯示改動前的舊內容
     // ===== 技能 tooltip（技能頁：游標移到技能上顯示能力）=====
     const SK_TYPE = { atk:'攻擊', heal:'治癒', buff:'增益', manual:'手動', convert:'轉換', summon:'召喚' };
     const SK_ELE = { fire:'火', water:'水', earth:'地', wind:'風', none:'無' };
@@ -1724,7 +1785,7 @@ window.onload = () => {
         }
         if(d.type === 'wpn' || d.type === 'arm' || d.type === 'acc'){
             let _eff = [];
-            if(d.unBonus || d.unDice || d.sp === 'elf') _eff.push('不死／狼人加成（額外造成1D20傷害）');
+            if(d.unBonus) _eff.push('不死／狼人加成（額外造成1D20傷害）');   // 🗑️ v3.5.87 刪恆假死運算元 unDice / sp==='elf'（DB.items 全表零定義·sp 只存在於變身型態物件且為數字）
             if(d.eff === 'pierce')     _eff.push('穿透 ' + (d.pierceChance !== undefined ? d.pierceChance : 100) + '%（命中後追加攻擊另一名敵人）');
             if(d.alsoPierce)           _eff.push('穿透 ' + (d.pierceChance !== undefined ? d.pierceChance : 100) + '%（命中後追加攻擊另一名敵人）');   // 🌑 v3.3.33 附帶穿透
             if(d.eff === 'moonburst')  _eff.push('月光爆裂（命中時8%造成1D30＋強化×2風傷）');
@@ -1786,6 +1847,7 @@ window.onload = () => {
                 _eff.push(`${_en}附傷${d.onHitEleDmg.rate ? ` ${d.onHitEleDmg.rate}%` : ''}（命中時追加${d.onHitEleDmg.dmg}點傷害）`);
             }
             if(d.freeChill) _eff.push('寒冰氣息不消耗魔力');
+            if(d.windHelm) _eff.push('施放加速術／強力加速術不消耗魔力（裝備或放在背包皆有效）');   // 🏝️ v3.5.87 風之頭盔：隱藏規格補進說明（旗標原零引用·實作在 js/08 playerHasWindHelm）
             if(d.noConsume && d.isArrow) _eff.push('箭矢不會消耗');
             if(d.oneHand && d.isBow) _eff.push('可單手持握');
             if(d.ele && d.ele !== 'none') _eff.push(`一般攻擊化為${({fire:'火',water:'水',wind:'風',earth:'地'}[d.ele] || d.ele)}屬性`);
@@ -1812,12 +1874,15 @@ window.onload = () => {
             }
             if(d.type === 'wpn' && typeof weaponPurposeLabels === 'function') _eff.push(...weaponPurposeLabels(d));
             if(d.relic && typeof relicPurposeLabels === 'function') _eff.push(...relicPurposeLabels(d));
-            _eff = [...new Set(_eff)];
+            _eff = typeof dedupeGeneratedTooltipEffects === 'function'
+                ? dedupeGeneratedTooltipEffects([...new Set(_eff)], d)
+                : [...new Set(_eff)];
             _eff = filterClassicEffLabels(_eff, d);   // 🎮 經典模式：移除已停用特效字樣（classicOk 物品不過濾）
             if(_eff.length) parts.push(`<div class="text-rose-300 font-bold" style="font-size:12px;">特效：${_eff.join(' / ')}</div>`);
         }
         if(!hidePrice && typeof d.p === 'number' && d.p > 0) parts.push(`<div class="text-yellow-400" style="font-size:12px;">售價 ${d.p.toLocaleString()} 金幣</div>`);   // 🗡️ 裝備收集冊 hidePrice=true：隱藏售價
-        if(d.d) parts.push(`<div class="text-slate-400" style="font-size:11px;margin-top:4px;">${d.d}</div>`);
+        let _rawDesc = typeof tooltipItemDescription === 'function' ? tooltipItemDescription(d, id) : d.d;
+        if(_rawDesc) parts.push(`<div class="text-slate-400" style="font-size:11px;margin-top:4px;">${_rawDesc}</div>`);
         return parts.join('');
     }
     // 取出 hover 物品的實例（倉庫或背包），供倉庫等以實例顯示的清單使用
