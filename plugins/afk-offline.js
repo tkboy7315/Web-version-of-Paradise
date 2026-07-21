@@ -19,14 +19,14 @@
   var CAP_HOURS        = 24;                      // 離線收益上限(小時)
   var CAP_MS           = CAP_HOURS * 3600 * 1000;
   var HEARTBEAT_MS     = 5 * 1000;              // 活著時多久蓋一次時間戳
-  var OVERLAY_MIN_TICK = 3000;                  // 補跑超過這麼多 tick 才顯示進度遮罩(約 5 分鐘)
+  var OVERLAY_MIN_TICK = 1500;                  // 補跑超過這麼多 tick 才顯示進度遮罩(約 2.5 分鐘)
   // 「每段最多跑這麼久就 await raf 讓出一次」＝畫面更新間隔(進度遮罩只在讓出時重繪、期間頁面凍結)。
   //   值小→讓出多、畫面順但等影格開銷大、結算慢;值大→相反。故依「要補跑的時間長短」動態取值:
   //   短離線(本來就快)用小值求順,長離線(才需要快)用大值求速度,中間線性漸變 → 兼顧順暢與速度。
   var SLICE_MIN_MS     = 28;                    // 短離線:接近一個影格(~16ms),畫面順
-  var SLICE_MAX_MS     = 250;                   // 長離線:讓出少、結算快
-  var SLICE_SHORT_TICK = 3000;                  // ≤5 分鐘(=遮罩門檻)以下一律用最小值(順)
-  var SLICE_LONG_TICK  = 36000;                 // ≥1 小時一律用最大值(快);兩者之間線性內插
+  var SLICE_MAX_MS     = 400;                   // 長離線:讓出少、結算快
+  var SLICE_SHORT_TICK = 1500;                  // ≤2.5 分鐘(=遮罩門檻)以下一律用最小值(順)
+  var SLICE_LONG_TICK  = 18000;                 // ≥30 分鐘一律用最大值(快);兩者之間線性內插
   function sliceFor(totalTicks) {
     if (totalTicks <= SLICE_SHORT_TICK) return SLICE_MIN_MS;
     if (totalTicks >= SLICE_LONG_TICK) return SLICE_MAX_MS;
@@ -466,12 +466,12 @@
     // 一律退回全模擬的情況:特殊地圖(攀登/遺忘之島/軍王之室,由 fastEligible 排除)、取樣最低血量過低
     //   (可能會死→維持撞死即停的忠實性)、殺太少(樣本不可信)、消耗品斷貨且自動購買補不上(戰局質變)。
     // 升級 → 戰力變了殺速會變 → 退回真模擬重新取樣。HP/MP 軌跡不用模擬:結算存活本就補滿(見下方落點)。
-    var FAST_SAMPLE_TICKS = 3000;     // 首次取樣:5 分鐘(3000 拍)
-    var FAST_RESAMPLE_TICKS = 1200;   // 升級後重取樣:2 分鐘
-    var FAST_MIN_KILLS = 8;           // 取樣至少殺 8 隻,平均殺速才勉強可信(低於此→延長,仍不足→全模擬)
-    var FAST_GOOD_KILLS = 60;         // 樣本殺數低於此 → 平均殺速統計誤差偏大(~±13%),延長取樣一次收斂
+    var FAST_SAMPLE_TICKS = 1500;     // 首次取樣:2.5 分鐘(1500 拍)
+    var FAST_RESAMPLE_TICKS = 900;    // 升級後重取樣:1.5 分鐘
+    var FAST_MIN_KILLS = 5;           // 取樣至少殺 5 隻,平均殺速才勉強可信(低於此→延長,仍不足→全模擬)
+    var FAST_GOOD_KILLS = 30;         // 樣本殺數低於此 → 平均殺速統計誤差偏大,延長取樣一次收斂
     var FAST_MIN_HP_PCT = 70;         // 取樣期間最低血量 % 低於此 → 有死亡風險,不快轉
-    var FAST_MIN_REMAIN = 6000;       // 取樣後剩不到 10 分鐘 → 全模擬本來就快,不值得切
+    var FAST_MIN_REMAIN = 3000;       // 取樣後剩不到 5 分鐘 → 全模擬本來就快,不值得切
     var fastEligible = !isClimb && !isObl && !isKing && totalTicks >= (FAST_SAMPLE_TICKS + FAST_MIN_REMAIN) && !_forceNoFast;
     _forceNoFast = false;   // 🧪 一次性:用過即歸零,不影響之後的真實離線結算
     var fastMode = false, fastOff = false;   // fastOff = 本次補跑永久退出快速段

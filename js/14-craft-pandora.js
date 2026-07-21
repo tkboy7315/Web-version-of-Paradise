@@ -1234,7 +1234,7 @@ function getWeightedGachaResult(doubleNonRare) {
 //    出現機率＝原始 gachaWeight（v3.0.81 起 initGachaWeights 的 ≥50 ×2 加倍已移除）。
 // ==========================================
 const PANDORA_SLOT_COUNT = 24;
-const PANDORA_SLOT_TICKS = 6000;   // 10 分鐘 = 600 秒 × 10 tick/秒
+const PANDORA_SLOT_TICKS = 3000;   // 5 分鐘 = 300 秒 × 10 tick/秒
 const PANDORA_LIFETIME_TICKS = PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT;   // 240 分鐘
 let _pandoraDiv = null;            // 目前黑市面板容器（購買/輪換後重繪用）
 
