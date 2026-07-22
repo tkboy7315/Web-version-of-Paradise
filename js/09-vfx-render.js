@@ -43,6 +43,10 @@ const SPELL_FX = {
     '冰矛圍籬': { dir:'冰矛圍籬', dirPrefix:'756-', dirs:8, n:4, fps:12, blend:'screen', proj:true, nw:49, nh:44, ax:0.50, ay:0.50 },
     '冰箭': { dir:'冰箭', dirPrefix:'1797-', dirs:8, n:4, fps:12, blend:'screen', proj:true, nw:15, nh:21, ax:0.50, ay:0.50 },
     '冰錐': { dir:'冰錐', dirPrefix:'1809-', dirs:8, n:3, fps:12, blend:'screen', proj:true, nw:35, nh:59, ax:0.50, ay:0.50 },
+    // ❄️ v3.7.43 冰裂術（蕾雅魔杖 meleeHitSpell 命中觸發）：gfx3685 主體＋gfx3686 影子·各 8 方向（依施法者→目標角度選向·主體與影子同向）。
+    //    ⚠️冰塊＝不透明實體型：轉檔不加 --luma-alpha、不套 screen（比照 地裂術／冰凍狀態；套了會讓碎冰半透明褪色）。
+    //    ax/ay＝spr 世界原點在畫布內的比例（106×96 原點 27,71）→碎冰正確落在打擊點。
+    '冰裂術': { dir:'冰裂術', dirPrefix:'3685-', shadowDirPrefix:'3686-', dirs:8, n:13, fps:16, w:0.85, ax:0.255, ay:0.740, targetVc:0.90 },
     '冰雪暴': { dir:'冰雪暴', prefix:'757-0', n:23, fps:16, blend:'screen', h:1.35, ax:0.50, ay:0.55 },
     '吸血鬼之吻': { dir:'吸血鬼之吻', dirPrefix:'236-', dirs:8, n:6, fps:12, blend:'screen', proj:true, nw:63, nh:96, ax:0.50, ay:0.50 },
     '呼喚盟友': { dir:'呼喚盟友', prefix:'2281-0', n:7, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
@@ -54,6 +58,8 @@ const SPELL_FX = {
     '地面障礙': { dir:'地面障礙', prefix:'2250-0', n:13, fps:14, blend:'screen', w:0.9, ax:0.50, ay:0.82, targetVc:0.9 },
     '壞物術': { dir:'壞物術', prefix:'172-0', n:15, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
     '寒冰氣息': { dir:'寒冰氣息', prefix:'1804-0', n:21, fps:16, blend:'screen', h:1.2, ax:0.50, ay:0.55 },
+    // 🧊 v3.7.43 寒冰尖刺（遺物 古代法師的隨手小抄 grantSkills·sk_frost_spike）：gfx3687 冰刺＋gfx3688 地面影子（單向·無方向組）。同為實體型→不 luma、不 screen。
+    '寒冰尖刺': { dir:'寒冰尖刺', prefix:'3687-0', shadowPrefix:'3688-0', n:12, fps:14, w:0.95, ax:0.366, ay:0.651, targetVc:0.90 },
     '寒冷戰慄': { dir:'寒冷戰慄', dirPrefix:'252-', dirs:8, n:6, fps:12, blend:'screen', proj:true, nw:63, nh:96, ax:0.50, ay:0.50 },
     '封印禁地': { dir:'封印禁地', prefix:'2241-0', n:13, fps:14, blend:'screen', h:1, ax:0.50, ay:0.55 },
     '岩牢': { dir:'岩牢', prefix:'1805-0', n:17, fps:14, blend:'screen', h:1.2, ax:0.50, ay:0.55 },
@@ -150,9 +156,11 @@ function playSpellFx(skn, mob) {
         let _anc = _mobImgAnchor(_mobImg);
         let _vc = (cfg.targetVc != null) ? cfg.targetVc : _anc.vc;   // 🌋 地面型特效可指定較低錨點(近腳底)
         let ax = r.left + r.width * _anc.hc, ay = r.top + r.height * _vc;   // 打擊點螢幕座標
-        // 🎯 方向型投射物：依「施法者(玩家 sprite 胸口／戰鬥區底部中央)→目標打擊點」角度選對應方向 spr（8向原生·4向左側鏡射）
-        let _effPrefix = cfg.prefix, _flipX = false;
-        if (cfg.proj && cfg.dirs && cfg.dirPrefix) {
+        // 🎯 方向型特效：依「施法者(玩家 sprite 胸口／戰鬥區底部中央)→目標打擊點」角度選對應方向 spr（8向原生·4向左側鏡射）
+        //    v3.7.43 起不再限定投射物(proj)——疊在目標身上的方向型特效(如冰裂術 3685-0..7)同樣依角度選向；
+        //    影子層有 shadowDirPrefix 時一併跟著同一方向索引（主體與影子必須同向，否則碎冰與影子會分家）。
+        let _effPrefix = cfg.prefix, _flipX = false, _shadowPrefix = cfg.shadowPrefix;
+        if (cfg.dirs && cfg.dirPrefix) {
             let _bv0 = document.getElementById('battle-view'); let _br0 = _bv0 && _bv0.getBoundingClientRect();
             let _pr0 = (typeof _pmCasterRect === 'function') ? _pmCasterRect() : null;
             let _ox0 = _pr0 ? (_pr0.left + _pr0.width * 0.5) : (_br0 ? (_br0.left + _br0.width * 0.5) : ax);
@@ -160,9 +168,10 @@ function playSpellFx(skn, mob) {
             let _deg = (Math.atan2(ax - _ox0, -(ay - _oy0)) * 180 / Math.PI + 360) % 360;   // 0=正上·順時針
             let _sel = _pickFxDir(cfg.dirs, Math.round(_deg / 45) % 8);
             _effPrefix = cfg.dirPrefix + _sel.idx; _flipX = _sel.flip;
+            if (cfg.shadowDirPrefix) _shadowPrefix = cfg.shadowDirPrefix + _sel.idx;
         }
         let frames = _preloadFxFrames(cfg.dir, _effPrefix, cfg.n);
-        let shadowFrames = cfg.shadowPrefix ? _preloadFxFrames(cfg.dir, cfg.shadowPrefix, cfg.n) : null;
+        let shadowFrames = _shadowPrefix ? _preloadFxFrames(cfg.dir, _shadowPrefix, cfg.n) : null;
         let first = frames[0];
         let _arFallback = !(first.naturalWidth && first.naturalHeight);   // 🩹 v2.7.41 首播未解碼→ar 退 0.93→解碼後 interval 重算一次(修高瘦特效如究極光裂術 395×568 首播被 0.93 撐寬)
         let ar = _arFallback ? 0.93 : (first.naturalWidth / first.naturalHeight);
@@ -227,6 +236,7 @@ function playSpellFx(skn, mob) {
         }
         let sEl = shadowFrames ? mkImg(shadowFrames[0].src, 'vfx-spell-shadow', null) : null;   // 🌑 影子層先加(在後·DOM 順序→特效層疊其上)
         let el = mkImg(first.src, null, cfg.blend);   // 特效層
+        if (_flipX) { el.style.transform = 'scaleX(-1)'; if (sEl) sEl.style.transform = 'scaleX(-1)'; }   // 🎯 v3.7.43 非投射的方向型也支援 4 向左側鏡射（8 向恆 flip=false→此行不作用）
         // 🎇 v2.7.41 多層同步(cfg.layers=額外前綴陣列·同畫布同幾何同幀·如究極光裂術/震裂術 3 spr 同時播)：每層一個 img·全部同 fxW/fxH/left/top/blend·interval 同步推進
         let extraLayers = [];
         if (cfg.layers) for (let lp of cfg.layers) { let lf = _preloadFxFrames(cfg.dir, lp, cfg.n); extraLayers.push({ el: mkImg(lf[0].src, null, cfg.blend), frames: lf }); }
@@ -2164,7 +2174,7 @@ function _playerMorphApply() {   // 8fps ticker 驅動（🗡️ v3.0.67 形態�
         el.style.width = w + 'px';
     } else if (_pmState.el.parentElement !== bv) bv.appendChild(_pmState.el);
     // 🗡️ v3.0.71 每輪更新：站怪物格縫隙(依 5格/3格版面動態)·免 transform；🤝 v3.6.89 固定站位＝玩家恆前排中央（bottom/zIndex 一併固定）
-    { let _pp = _partySpritePos().P, _pw = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100; _pmState.el.style.left = 'calc(' + _pp.x + ' - ' + Math.round(_pw / 2) + 'px)'; _pmState.el.style.bottom = (_pp.b - _playerMorphYOffset(form)) + 'px'; _pmState.el.style.zIndex = String(70 - _pp.b); }
+    { let _pp = _partySpritePos().P, _pw = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100; _pmState.el.style.left = 'calc(' + _pp.x + ' - ' + Math.round(_pw / 2) + 'px)'; _pmState.el.style.bottom = (_pp.b - _playerMorphYOffset(form)) + 'px'; _pmState.el.style.zIndex = String(30 - _pp.b); }
     if (CLASS_ANIM_3DIR.has(player.avatar) || MORPH_ANIM_3DIR.has(_playerMorphName() || '')) _class3Facing(player, _pmState.el);   // 🧭 v3.2.12 依攻擊目標更新朝向（寫 player._face3·下一幀 _classForm/_playerBattleForm 生效）·v3.5.10 三方向變身亦更新
     // 動作＋幀（比照 _mobAnimApply：單次動作播一輪回待機·death 凍結最後一幀）
     let act = null, f = 0, _useW = false;
@@ -2216,8 +2226,8 @@ if (typeof manualCast === 'function' && !manualCast._pmWrapped) {
 //    改為「玩家＋傭兵依招募順序站固定位置」：玩家＋傭兵1~3 前排（bottom 2·z 28）·傭兵4~7 後排（bottom 26·z 4=站後面有景深）·永不跳位、zIndex 恆為正。
 function _partySpritePos() {
     let five = true; try { five = (typeof backSlotsActive !== 'function') || backSlotsActive(); } catch (e) {}
-    return five ? { P: { x: '45.5%', b: 2 }, A: [{ x: '23%', b: 2 }, { x: '66%', b: 2 }, { x: '83.5%', b: 2 }, { x: '28%', b: 26 }, { x: '51%', b: 26 }, { x: '70.5%', b: 26 }, { x: '7%', b: 26 }] }
-                : { P: { x: '39%', b: 2 },   A: [{ x: '28%', b: 2 }, { x: '62%', b: 2 }, { x: '72%', b: 2 }, { x: '33.5%', b: 26 }, { x: '57%', b: 26 }, { x: '77.5%', b: 26 }, { x: '23%', b: 26 }] };
+    return five ? { P: { x: '45.5%', b: 2 }, A: [{ x: '23%', b: 2 }, { x: '66%', b: 2 }, { x: '83.5%', b: 2 }, { x: '28%', b: 2 }, { x: '51%', b: 2 }, { x: '70.5%', b: 2 }, { x: '7%', b: 2 }] }
+                : { P: { x: '39%', b: 2 },   A: [{ x: '28%', b: 2 }, { x: '62%', b: 2 }, { x: '72%', b: 2 }, { x: '33.5%', b: 2 }, { x: '57%', b: 2 }, { x: '77.5%', b: 2 }, { x: '23%', b: 2 }] };
 }
 let _allySpriteStates = {};   // slot → { act, t, prevHp, el, imgs, key, skGen }
 function _allySpriteTrigger(ally, k, skId) {   // js/06 掛點：allyAttackOnce→'attack'·三施法函式→'skill'
@@ -2248,7 +2258,7 @@ function _allySpritesApply() {   // 8fps ticker 驅動
     if (!inBattle) return;
     allies.forEach((ally, i) => {
         if (!ally) return;
-        let form = _actorBattleForm(ally, i > 0);   // 傭兵變身優先；未變身才使用原職業動畫
+        let form = _actorBattleForm(ally, true);   // 傭兵一律用 true 確保正確動畫資料夾
         if (!form) return;
         let a = _morphBattleCache[form.key];
         if (a === undefined) { _battleSpriteProbe(form); return; }
@@ -2278,7 +2288,7 @@ function _allySpritesApply() {   // 8fps ticker 驅動
         } else if (st.el.parentElement !== bv) bv.appendChild(st.el);
         let w = (a.idle && a.idle[0]) ? a.idle[0].naturalWidth : 100;
         st.el.style.width = w + 'px';
-        { let _ps = _partySpritePos().A, _pp = _ps[Math.min(i, _ps.length - 1)]; let _aLen = _ps.length; let _fromRight = _aLen - i; let _extraBtm = (_fromRight === 3) ? -10 : 0; st.el.style.left = 'calc(' + _pp.x + ' - ' + Math.round(w / 2) + 'px)'; st.el.style.bottom = (_pp.b + _extraBtm) + 'px'; st.el.style.zIndex = String(70 - (_pp.b + _extraBtm)); }   // 每輪更新（隊員順位/地圖版面 5格↔3格 可能變）；🤝 v3.6.89 固定站位＝依招募順序（前排 0~2·後排 3~6）
+        { let _ps = _partySpritePos().A, _pp = _ps[Math.min(i, _ps.length - 1)]; st.el.style.left = 'calc(' + _pp.x + ' - ' + Math.round(w / 2) + 'px)'; st.el.style.bottom = _pp.b + 'px'; st.el.style.zIndex = String(70 - _pp.b); }   // 每輪更新（隊員順位/地圖版面 5格↔3格 可能變）；🤝 v3.6.89 固定站位＝依招募順序
         if (CLASS_ANIM_3DIR.has(ally.avatar) || MORPH_ANIM_3DIR.has(_actorMorphName(ally) || '')) _class3Facing(ally, st.el);   // 🧭 職業／變身皆依攻擊目標更新朝向
         // 動作＋幀（同主玩家邏輯·wskill 武器專屬 skill 優先·咆哮通用）
         let act = null, f = 0, _useW = false;
@@ -2315,7 +2325,7 @@ function _allySpritesApply() {   // 8fps ticker 驅動
         }
     });
 }
-setInterval(() => { if (!document.hidden) { try { _mobAnimApply(); } catch (e) {} try { _updateFreezeFx(); } catch (e) {} try { _updateMobSkillFx(); } catch (e) {} try { _allySpritesApply(); } catch (e) {} try { _playerMorphApply(); } catch (e) {} } }, Math.floor(1000 / MOB_ANIM_FPS));
+setInterval(() => { if (!document.hidden && !(typeof catchupActive === 'function' && catchupActive())) { try { _mobAnimApply(); } catch (e) {} try { _updateFreezeFx(); } catch (e) {} try { _updateMobSkillFx(); } catch (e) {} try { _allySpritesApply(); } catch (e) {} try { _playerMorphApply(); } catch (e) {} } }, Math.floor(1000 / MOB_ANIM_FPS));
 
 // 🌙 v3.6.03 掛網記憶體釋放：切到背景的瞬間清空 #vfx-layer 全部特效元素＋冰凍/怪技能追蹤 dict。
 //    背景分頁的移除管線全數停擺（animationend 不觸發·WAAPI onfinish 暫停·setTimeout 節流至 1/分鐘），

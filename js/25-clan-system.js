@@ -775,11 +775,30 @@ function _npcClanApplyHatredLocked(clan, delta) {
     }
 }
 
+// 世界頻道等非戰鬥事件共用的 NPC 血盟仇恨入口；只改隱藏仇恨，不套用擊殺士氣或掉落結算。
+function npcClanAdjustHatred(clanId, delta, p) {
+    let role = p || (typeof player !== 'undefined' ? player : null);
+    let amount = Math.trunc(Number(delta) || 0);
+    if (!clanId || !amount || !role || !role.cls) return { ok:false, missing:true };
+    let mode = clanModeKey(role);
+    npcClanEnsureWorld(role);
+    let result = _clanWithLock(st => {
+        let world = st.npcWorlds[mode];
+        let clan = world && _npcClanById(world, String(clanId));
+        if (!clan) return { commit:false, missing:true };
+        let before = clan.hatred;
+        _npcClanApplyHatredLocked(clan, amount);
+        return { hatred:clan.hatred, changed:clan.hatred !== before };
+    });
+    if (result && result.ok) delete _npcClanWarCache[mode];
+    return result;
+}
+
 function _npcClanEventLog(events) {
     (events || []).forEach(event => {
         if (!event) return;
         if (event.type === 'dissolve' && typeof logSys === 'function') {
-            logSys(`<span class="text-cyan-300 font-bold">【世界頻道】</span><span class="text-slate-200">NPC 血盟「${clanEsc(event.name)}」宣布解散：${clanEsc(event.reason)}</span>`);
+            logSys(`<span class="text-cyan-300 font-bold">【世界頻道】</span><span class="text-slate-200">血盟「${clanEsc(event.name)}」宣布解散：${clanEsc(event.reason)}</span>`);
         } else if (event.type === 'mercy' && typeof logSys === 'function') {
             logSys(`<span class="text-amber-300">NPC 血盟「${clanEsc(event.name)}」已失去戰意，主動解除敵對。</span>`);
         }
@@ -1111,6 +1130,7 @@ function npcClanGroupBattleEnd(reason) {
 
 function npcClanOnLeaveBattleArea() {
     if (mapState && mapState.npcClanBattle) npcClanGroupBattleEnd('leave');
+    if (typeof wcMassTauntOnLeaveBattleArea === 'function') wcMassTauntOnLeaveBattleArea();
 }
 
 function npcClanMaybeStartGroupBattle(mob) {
@@ -1120,9 +1140,12 @@ function npcClanMaybeStartGroupBattle(mob) {
         (typeof KING_ROOMS !== 'undefined' && KING_ROOMS[mapState.current]) ||
         (typeof PURE_BOSS_MAPS !== 'undefined' && PURE_BOSS_MAPS.includes(mapState.current)) ||
         npcClanGroupBattleActive()) return false;
+    // ⚡ v3.7.30 先骰再讀（補跑效能修）：npcClanGetWorld 每呼叫都重讀＋解析血盟帳號桶（~2.5ms），v3.7.27 起掛在每次擊殺
+    //    → 補跑 per-tick 慢 2.6 倍（killMob 佔 93%·其中 95% 是本函式）。把 1% 機率骰移到最前＝99% 擊殺零成本；兩事件獨立，觸發機率不變。
+    if (Math.random() >= NPC_CLAN_GROUP_CHANCE) return false;
     let world = npcClanGetWorld(player);
     let candidates = world ? world.clans.filter(c => c && c.war && c.hatred > 80) : [];
-    if (!candidates.length || Math.random() >= NPC_CLAN_GROUP_CHANCE) return false;
+    if (!candidates.length) return false;
     let clan = _npcClanPick(candidates);
     mapState.npcClanBattle = {
         clanId:clan.id,

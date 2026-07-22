@@ -1,0 +1,17 @@
+# 自動判斷行尾符號：文字檔 LF、二進位檔不動
+* text=auto
+
+# 明確指定 JS/HTML/CSS/JSON 保持 LF（不轉 CRLF）
+*.js text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# 二進位檔不做任何轉換
+*.png binary
+*.jpg binary
+*.gif binary
+*.mp3 binary
+*.ogg binary
+*.wav binary

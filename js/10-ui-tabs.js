@@ -153,7 +153,7 @@ function renderClassicSkillBook(sDiv) {
         + '</div>';
 }
 function renderTabs(force) {
-    if(state.ff) return; // 補跑期間不刷新畫面
+    if(state.ff || (typeof catchupActive === 'function' && catchupActive())) return; // 補跑全部完成前不刷新畫面
     // 🚀 使用者正按住分頁面板(點擊中)：延後非強制重建到放開後，避免按鈕被重繪掉而點擊失效
     if(!force && (_tabPointerDown || _tabWheelActive)) { _tabRebuildPending = true; return; }
     // 🚀 戰鬥 tick 內的高頻變動(扣箭/耗肉)：合併成一次重建(節流 250ms)，降低狩獵卡頓；使用者操作(非 tick)維持即時回饋
@@ -551,8 +551,6 @@ function renderSkillSelects() {
         let needLv = skillReqLv(sk, sid);   // 🏅 集中化：含魔導精通特例
         if(!__granted && (needLv === undefined || player.lv < needLv)) isAvail = false;
         // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
-        // if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) isAvail = false;
-        // if(!__granted && sk.reqEleAny && !player.elfEle) isAvail = false;
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
@@ -631,6 +629,9 @@ const WEAPON_TAGS = {
     relic_scorch_greatsword: ['雙手劍'], relic_bloodknight_dual: ['雙刀'], relic_elmo_spear: ['矛'],
     // 🏺 v3.6.47 遺物第二十批（鎖鏈劍 relic_lava_nozzle 靠 chainsword 旗標自判免 tag；雙手鈍器 tag 自帶貫穿）
     relic_crusher_hammer: ['雙手鈍器'],
+    // 🏺 v3.7.20 遺物第二十二批武器 tag：瞥視=雙手鈍器；漆黑之劍=反擊＋居合雙標籤（裝真盾→反擊、無盾→居合·黃金權杖先例）；巨劍/鐮刀=雙手劍（切割走 eff:cleave）
+    relic_maze_demon_glare: ['雙手鈍器'], relic_warrior_blackblade: ['單手劍', '武士刀'],
+    relic_elmore_greatsword: ['雙手劍'], relic_beheading_scythe: ['雙手劍'],
     wpn_20: ['單手鈍器'], wpn_10: ['單手鈍器'], wpn_13: ['單手鈍器'], wpn_alien: ['單手鈍器'], wpn_1: ['單手鈍器'], wpn_2: ['單手鈍器'], wpn_ancient_axe: ['單手鈍器'], wpn_warrior_trial_axe: ['單手鈍器'], wpn_master_axe: ['單手鈍器'], wpn_demon_axehead: ['單手鈍器'], wpn_iron_axehead: ['單手鈍器'], wpn_giant_axehead: ['單手鈍器'],   // 🔧 古代神之斧／試煉斧頭／大匠的斧頭／魔物的斧頭／鐵斧頭／巨人的斧頭：單手鈍器（鈍擊）
     wpn_2hsword: ['雙手劍'], wpn_dragonslayer: ['雙手劍'], wpn_official_2h: ['雙手劍'],   // 🔧 雙手劍類型標註
     // 🔧 重擊特效武器標註為「雙手鈍器」
@@ -825,7 +826,7 @@ function relicPurposeLabels(d) {
     if (d.procPoisonPct) out.push(`附毒（一般攻擊命中附加每秒該次傷害${d.procPoisonPct.pct || 50}%的中毒，最多1層，持續${d.procPoisonPct.dur || 6}秒）`);
     if (d.statusHealHp) out.push(`受到異常狀態影響時，恢復${d.statusHealHp}HP`);
     if (d.potionBonus && !d.doll) out.push(`治癒藥水恢復量+${d.potionBonus}%`);
-    if (d.missGrazeRate) out.push(`擦傷補正（未命中時${d.missGrazeRate}%改判為擦傷，造成50%傷害且不會爆擊）`);
+    if (d.missGrazeRate) out.push(`擦傷補正（未命中時${d.missGrazeRate}%改判為擦傷，造成${d.grazeDmgPct || 50}%傷害且不會爆擊）`);
     if (d.hitEchoMagic) out.push(`元素爆破 ${d.hitEchoMagic.rate}%（命中後追加等同本次一般攻擊傷害的${eleName(d.hitEchoMagic.ele)}屬性魔法傷害）`);
     if (d.onHitWet) out.push('潮濕（命中後持續10秒；下一次風屬性傷害×2並解除）');
     if (d.onHitCastSkill) out.push(`命中施法（每${d.onHitCastSkill.cdSec || 5}秒觸發${skillName(d.onHitCastSkill.skId)}）`);
@@ -997,6 +998,11 @@ function buildItemDescHTML(item) {
         if(d.meleeHitPerEn) {
             let en = capEn(item.en, d);
             desc += `<br><span class="text-sky-300">近距離命中 +${en * d.meleeHitPerEn}（每強化 +${d.meleeHitPerEn}）。</span>`;
+        }
+        let _fEn = Number(item.en) || 0;
+        if (_fEn > 0 && typeof enhanceWpnFinalMult === 'function') {
+            let _fMult = enhanceWpnFinalMult(_fEn, d);
+            if (_fMult > 1) desc += `<br><span class="text-purple-300 font-bold">最終傷害倍率: ×${_fMult.toFixed(2)}</span>`;
         }
     }
     if(d.type === 'arm' || d.type === 'acc') {
@@ -1233,7 +1239,7 @@ function buildItemDescHTML(item) {
     if (d.grantSkills && d.grantSkills.length) {
         let _gsk = d.grantSkills.map(sk => (DB.skills[sk] && DB.skills[sk].n) || sk).join('、');
         desc += `<br><span class="text-emerald-300 font-bold">可額外使用魔法：${_gsk}</span>`;
-        desc += `<br><span class="text-slate-400 text-xs">騎士／王族／戰士放在背包即可使用；其他職業需裝備。</span>`;
+        desc += `<br><span class="text-slate-400 text-xs">${d.grantSkillsEquipOnly ? '必須裝備才可使用。' : '騎士／王族／戰士放在背包即可使用；其他職業需裝備。'}</span>`;
     }
 
     // 🛡️ 適用職業：以職業 logo 顯示可裝備此裝備的職業（騎士/妖精/法師/黑暗妖精/幻術士；黑暗妖精走 darkEquipOk 真實規則）
@@ -1255,15 +1261,6 @@ function buildItemDescHTML(item) {
     if (d.type === 'wpn' || d.type === 'arm' || d.type === 'acc') {
         if (d.noEnhance) desc += `<br><span class="text-rose-300 font-bold">無法強化</span>`;
         else desc += `<br><span class="text-slate-400">安定值: ${d.safe || 0}</span>`;
-    }
-
-    // ⚔️ 武器最終傷害倍率顯示（+11 起生效）
-    if (d.type === 'wpn') {
-        let _fEn = Number(item.en) || 0;
-        if (_fEn > 0) {
-            let _fMult = enhanceWpnFinalMult(_fEn, d);
-            if (_fMult > 1) desc += `<br><span style="color:#a78bfa;font-weight:bold;">最終傷害倍率: ×${_fMult.toFixed(2)}</span>`;
-        }
     }
 
     return desc;
@@ -1900,6 +1897,7 @@ const invSortCmp=function(a,b){
 function setInventorySortMode(mode){
     if(!player||!['category','quality','name'].includes(mode))return;
     player[INV_SORT_MODE_KEY]=mode; player.inv.sort(invSortCmp);
+    if(typeof resetCatchupGainItemIndex==='function')resetCatchupGainItemIndex();
     if(typeof saveGame==='function')saveGame(); renderTabs(true);
 }
 function toggleInventoryAutoSort(on){ if(!player)return;player.inventoryAutoSort=!!on;if(typeof saveGame==='function')saveGame(); }
@@ -1911,12 +1909,14 @@ function autoSortInventory() {
     if (state.ticks - _autoSortAt < 100) return;   // ⏲️ 10 秒節流（100 ticks）
     _autoSortAt = state.ticks;
     player.inv.sort(invSortCmp);
+    if (typeof resetCatchupGainItemIndex === 'function') resetCatchupGainItemIndex();
     renderTabs(true);
 }
 // 🔧 v2.6.80 規則視窗「立即一鍵排列」：純排序＋提示·不 saveGame（避免把視窗草稿規則一併落地·排序結果隨其他存檔點落地）·視窗保持開啟
 function sortInventoryNow() {
     if (!player || !Array.isArray(player.inv)) return;
     player.inv.sort(invSortCmp);
+    if (typeof resetCatchupGainItemIndex === 'function') resetCatchupGainItemIndex();
     renderTabs(true);
     logSys('<span class="text-cyan-300 font-bold">背包已重新排列。</span>');
 }
@@ -2464,7 +2464,6 @@ function switchTab(t, btn) {
     ['stats', 'equip', 'weapons', 'skill', 'armors', 'items', 'audit', 'pvp', 'clan', 'automation', 'search'].forEach(id => { let _e = document.getElementById(`tab-${id}`); if(_e) _e.classList.add('hidden'); });   // 🔧 v2.6.74 自動化設定改分頁內嵌（tab-automation）
     document.getElementById(`tab-${t}`).classList.remove('hidden');
     if(typeof setEquipmentPanelEmbedded === 'function') setEquipmentPanelEmbedded(t === 'equip');
-    if(typeof toggleEquipGuide === 'function') { let _egp = document.getElementById('equip-guide-panel'); if(_egp) _egp.remove(); }
     if(t === 'audit' && typeof renderAuditTab === 'function') renderAuditTab();
     if(t === 'pvp' && typeof renderPvpTab === 'function') renderPvpTab();
     if(t === 'clan' && typeof renderClanTab === 'function') renderClanTab();
@@ -2667,112 +2666,99 @@ function setAllyAutoBuff(slot, sid, on) {
 //    （比照 v2.6.76 處理 _applySquadCollapse/toggleSquadCollapse 的先例。）
 // 🔧 v2.6.76 傭兵隊伍面板收合已移除（恆展開·用戶要求）：_applySquadCollapse/toggleSquadCollapse 刪除、index.html 標題列改純標題無箭頭。
 
-// ===== 🔍 物品掉落查詢系統 (#7) =====
+// ===== 📖 裝備系統說明面板（#5-6）=====
+// ===== 🔍 物品掉落查詢系統（#7）=====
 window._dropIdx = null;
 window._mobMapIdx = null;
-
 function _buildDropIndex() {
-    var tables = [];
-    if (typeof MOB_DROPS !== 'undefined') tables.push(MOB_DROPS);
-    if (typeof DRAGON_DROPS !== 'undefined') tables.push(DRAGON_DROPS);
-    if (typeof WARRIOR_DROPS !== 'undefined') tables.push(WARRIOR_DROPS);
-    if (typeof DARK_WEAPON_DROPS !== 'undefined') tables.push(DARK_WEAPON_DROPS);
-    if (typeof MEM_DROPS !== 'undefined') tables.push(MEM_DROPS);
-    if (typeof DARK_CRYSTAL_DROPS !== 'undefined') tables.push(DARK_CRYSTAL_DROPS);
-    var idx = {};
-    tables.forEach(function(table) {
-        for (var mobName in table) {
-            var drops = table[mobName];
-            if (!drops || !drops.length) continue;
-            drops.forEach(function(d) {
-                var itemId = Array.isArray(d) ? d[0] : (d.id || d.iid || d);
-                if (!itemId) return;
-                if (!idx[itemId]) idx[itemId] = {};
-                idx[itemId][mobName] = true;
+    let idx = {};
+    let tables = [MOB_DROPS];
+    try { if (typeof DRAGON_DROPS !== 'undefined') tables.push(DRAGON_DROPS); } catch(e) {}
+    try { if (typeof WARRIOR_DROPS !== 'undefined') tables.push(WARRIOR_DROPS); } catch(e) {}
+    try { if (typeof DARK_WEAPON_DROPS !== 'undefined') tables.push(DARK_WEAPON_DROPS); } catch(e) {}
+    try { if (typeof MEM_DROPS !== 'undefined') tables.push(MEM_DROPS); } catch(e) {}
+    try { if (typeof DARK_CRYSTAL_DROPS !== 'undefined') tables.push(DARK_CRYSTAL_DROPS); } catch(e) {}
+    tables.forEach(tbl => {
+        for (let mobName in tbl) {
+            let drops = tbl[mobName];
+            if (!Array.isArray(drops)) continue;
+            drops.forEach(d => {
+                let iid = Array.isArray(d) ? d[0] : (d.id || d.iid);
+                if (!iid) return;
+                if (!idx[iid]) idx[iid] = new Set();
+                idx[iid].add(mobName);
             });
         }
     });
-    var result = {};
-    for (var k in idx) result[k] = Object.keys(idx[k]);
-    window._dropIdx = result;
+    window._dropIdx = idx;
 }
-
-function onSearchInput() {
-    var input = document.getElementById('search-item-input');
-    var container = document.getElementById('search-results');
-    if (!input || !container) return;
-    var q = (input.value || '').trim().toLowerCase();
-    if (!q) { container.innerHTML = '<div class="text-slate-500">請輸入關鍵字開始搜尋…</div>'; return; }
-    if (!window._dropIdx) _buildDropIndex();
-    if (typeof DB === 'undefined' || !DB || !DB.items) { container.innerHTML = '<div class="text-slate-500">遊戲資料未載入。</div>'; return; }
-    var matches = [];
-    for (var id in DB.items) {
-        var d = DB.items[id];
-        if (!d || !d.n) continue;
-        var name = d.n.toLowerCase();
-        if (name.indexOf(q) >= 0 || id.toLowerCase().indexOf(q) >= 0) {
-            var mobs = window._dropIdx[id] || [];
-            matches.push({ id: id, name: d.n, mobs: mobs });
-        }
-    }
-    matches.sort(function(a, b) { return a.name.localeCompare(b.name, 'zh-Hant'); });
-    if (!matches.length) { container.innerHTML = '<div class="text-slate-500">沒有找到符合的物品。</div>'; return; }
-    var html = matches.slice(0, 50).map(function(m) {
-        var mobTags = m.mobs.length
-            ? m.mobs.map(function(n) { return '<span class="inline-block bg-slate-700 text-cyan-300 text-xs px-2 py-0.5 rounded cursor-pointer hover:bg-slate-600" onclick="toggleMobMap(this, \'' + n.replace(/'/g, "\\'") + '\')">' + n + '</span>'; }).join(' ')
-            : '<span class="text-slate-500 text-xs">此物品未出現在掉落表中</span>';
-        return '<div class="bg-slate-800/80 rounded-lg border border-slate-700 p-2"><div class="text-purple-300 font-bold text-sm">' + m.name + '</div><div class="flex flex-wrap gap-1 mt-1">' + mobTags + '</div></div>';
-    }).join('');
-    container.innerHTML = html;
-}
-
 function _buildMobMapIndex() {
-    var idToName = {};
-    if (typeof DB !== 'undefined' && DB.mobs) {
-        for (var id in DB.mobs) { var m = DB.mobs[id]; if (m && m.n) idToName[id] = m.n; }
-    }
-    var mapNames = {};
-    if (typeof MAP_REGIONS !== 'undefined') {
-        MAP_REGIONS.forEach(function(r) {
-            if (!r || !r.maps) return;
-            r.maps.forEach(function(mapEntry) {
-                var mid = typeof mapEntry === 'object' ? mapEntry.v : mapEntry;
-                if (mid && r.t) mapNames[mid] = r.t;
-            });
+    let idToName = {}, mapNames = {};
+    try {
+        Object.entries(DB.mobs || {}).forEach(([mid, m]) => { if (m && m.n) idToName[mid] = m.n; });
+    } catch(e) {}
+    try {
+        if (typeof MAP_REGIONS !== 'undefined') MAP_REGIONS.forEach(r => {
+            (r.maps || []).forEach(m => { if (m && m.v && m.t) mapNames[m.v] = m.t; });
         });
-    }
-    if (typeof HIDDEN_AREA_NAMES !== 'undefined') {
-        for (var hid in HIDDEN_AREA_NAMES) mapNames[hid] = HIDDEN_AREA_NAMES[hid];
-    }
-    var result = {};
-    if (typeof DB !== 'undefined' && DB.maps) {
-        for (var mapId in DB.maps) {
-            var mobIds = DB.maps[mapId];
-            if (!mobIds || !mobIds.length) continue;
-            var mapName = mapNames[mapId] || mapId;
-            mobIds.forEach(function(mid) {
-                var mobName = idToName[mid] || mid;
-                if (!result[mobName]) result[mobName] = {};
-                result[mobName][mapName] = true;
+    } catch(e) {}
+    try {
+        if (typeof HIDDEN_AREA_NAMES !== 'undefined') Object.assign(mapNames, HIDDEN_AREA_NAMES);
+    } catch(e) {}
+    let idx = {};
+    try {
+        for (let mapId in (DB.maps || {})) {
+            let mobs = DB.maps[mapId];
+            if (!Array.isArray(mobs)) continue;
+            let mapName = mapNames[mapId] || mapId;
+            mobs.forEach(mid => {
+                let mobName = idToName[mid] || mid;
+                if (!idx[mobName]) idx[mobName] = new Set();
+                idx[mobName].add(mapName);
             });
         }
-    }
-    var out = {};
-    for (var k in result) out[k] = Object.keys(result[k]);
-    window._mobMapIdx = out;
+    } catch(e) {}
+    window._mobMapIdx = idx;
 }
-
+function onSearchInput() {
+    let q = (document.getElementById('search-item-input') || {}).value || '';
+    q = q.trim().toLowerCase();
+    let box = document.getElementById('search-results');
+    if (!box) return;
+    if (!q) { box.innerHTML = '<p class="text-slate-500">請輸入關鍵字開始搜尋…</p>'; return; }
+    if (!window._dropIdx) _buildDropIndex();
+    let results = [];
+    Object.entries(DB.items || {}).forEach(([iid, d]) => {
+        if (!d) return;
+        let name = (d.n || '').toLowerCase();
+        let id = iid.toLowerCase();
+        if (!name.includes(q) && !id.includes(q)) return;
+        let mobs = window._dropIdx[iid] || null;
+        results.push({ name: d.n || iid, id: iid, mobs: mobs });
+    });
+    results.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-Hant'));
+    if (!results.length) { box.innerHTML = '<p class="text-slate-500">沒有找到符合的物品。</p>'; return; }
+    let html = results.slice(0, 50).map(r => {
+        let mobTags = '';
+        if (r.mobs && r.mobs.size) {
+            mobTags = [...r.mobs].map(m => `<span class="inline-block bg-slate-700 border border-slate-600 rounded px-2 py-0.5 text-cyan-300 cursor-pointer text-xs" onclick="toggleMobMap(this,'${m.replace(/'/g,"\\'")}')">${m}</span>`).join(' ');
+        } else {
+            mobTags = '<span class="text-slate-500 text-xs">此物品未出現在掉落表中</span>';
+        }
+        return `<div class="bg-slate-800/80 rounded-lg border border-slate-700 p-2"><span class="text-purple-300 font-bold">${r.name}</span><div class="flex flex-wrap gap-1 mt-1">${mobTags}</div></div>`;
+    }).join('');
+    box.innerHTML = html;
+}
 function toggleMobMap(el, mobName) {
-    var parent = el.closest('.bg-slate-800\\/80') || el.parentElement;
-    if (!parent) return;
-    var existing = parent.querySelector('.mob-map-list');
+    let parent = el.closest('.bg-slate-800\\/80') || el.parentElement;
+    let existing = parent.querySelector('.mob-map-list');
     if (existing) { existing.remove(); return; }
     if (!window._mobMapIdx) _buildMobMapIndex();
-    var maps = window._mobMapIdx[mobName] || [];
-    var div = document.createElement('div');
+    let maps = window._mobMapIdx[mobName] || null;
+    let div = document.createElement('div');
     div.className = 'mob-map-list flex flex-wrap gap-1 mt-1';
-    if (maps.length) {
-        div.innerHTML = maps.map(function(n) { return '<span class="inline-block bg-slate-800 text-cyan-300 text-xs px-2 py-0.5 rounded border border-cyan-800">' + n + '</span>'; }).join('');
+    if (maps && maps.size) {
+        div.innerHTML = [...maps].map(m => `<span class="inline-block bg-slate-800 border border-cyan-800 rounded px-2 py-0.5 text-cyan-300 text-xs">${m}</span>`).join('');
     } else {
         div.innerHTML = '<span class="text-slate-500 text-xs">此怪物未出現在常規地圖（可能為頭目／召喚／限時活動）</span>';
     }

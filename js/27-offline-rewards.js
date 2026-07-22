@@ -1,13 +1,13 @@
 // ===== 真正離線收益（獨立於戰鬥 tick，不補幀、不模擬戰鬥）=====
 // 公式：同地圖最近實戰每分鐘產出 × 可結算分鐘 × 70%。
-// 最短離線 1 分鐘、最多結算 12 小時；依實戰怪物組成抽取一般掉落與卡片。
-// 頭目、PVP、任務專用品與活動事件不做離線抽取，避免事件重複觸發。
-// 混合制：「真正關閉網頁後重開」走 70% 離線收益；切分頁、縮小與 bfcache 還原走 100% 一次結算。
+// 最短離線 1 分鐘、最多結算 12 小時；依實戰怪物組成抽取一般掉落、卡片與已證明可擊敗的隨機頭目。
+// PVP、任務專用品與活動事件不做離線抽取，避免事件重複觸發。
+// 混合制：「真正關閉網頁後重開」走 70% 離線收益；切分頁、縮小與 bfcache 還原由 gameLoop 逐 tick 真實補跑。
 // 若玩家在背景中直接關頁，關頁前的背景時間另存並於下次載入批次結算，離線收益只從真正關頁時刻開始。
 (function () {
     'use strict';
 
-    const OFFLINE_VERSION = 3;
+    const OFFLINE_VERSION = 6;
     const OFFLINE_MIN_MS = 1 * 60 * 1000;
     const OFFLINE_MAX_MS = 12 * 60 * 60 * 1000;
     const OFFLINE_EFFICIENCY = 0.70;
@@ -20,6 +20,7 @@
     const OFFLINE_MAX_EXP_PER_MIN = 1e12;
     const OFFLINE_MAX_GOLD_PER_MIN = 1e10;
     const OFFLINE_MAX_MOB_PROFILES = 80;
+    const OFFLINE_MAX_BOSS_PROFILES = 40;
     const OFFLINE_STORE_PREFIX = 'lineage_idle_offline_v1_';
 
     let _offlineRuntime = null;
@@ -28,6 +29,9 @@
     let _offlineInternalSave = false;
     let _offlineRestoredCatchupKey = '';
     let _offlineLastBatchSavedOk = false;
+    let _offlineRoleDetached = false;
+    let _offlineSurvivalRuntime = null;
+    let _offlineSurvivalTickCtx = null;
     // ⚠️ 背景分頁期間任何存檔（js/01 每 5 分鐘自動存檔在背景仍會觸發）都不得把 awaySince／
     //    checkpoint.lastActive 往後推，否則離線時長永遠湊不滿 1 分鐘下限、資格也會因
     //    「最後擊殺超過 5 分鐘」被翻成 false → 回前景永遠結不了帳。
@@ -164,11 +168,62 @@
             mob.sherineMad ? 1 : 0, mob.grace ? 1 : 0].join('|');
     }
 
+    function _offlineBossProfile(raw) {
+        if (!raw || typeof raw !== 'object' || !raw.n) return null;
+        let wins = Math.max(0, Math.floor(_offlineFinite(raw.wins, 0)));
+        if (!wins) return null;
+        return {
+            n: String(raw.n).slice(0, 100),
+            wins: Math.min(1e9, wins),
+            lv: Math.max(1, Math.floor(_offlineFinite(raw.lv, 1))),
+            race: String(raw.race || ''),
+            transformTo: raw.transformTo ? String(raw.transformTo) : '',
+            sherine: raw.sherine === true,
+            sherineMad: raw.sherineMad === true,
+            grace: raw.grace === true,
+            avgKillMs: _offlineClamp(raw.avgKillMs, TICK_MS, OFFLINE_MAX_MS),
+            expPerKill: _offlineClamp(raw.expPerKill, 0, OFFLINE_MAX_EXP_PER_MIN),
+            goldPerKill: _offlineClamp(raw.goldPerKill, 0, OFFLINE_MAX_GOLD_PER_MIN),
+            petExpPerKill: _offlineClamp(raw.petExpPerKill, 0, OFFLINE_MAX_EXP_PER_MIN),
+            allyExpPerKill: _offlineClamp(raw.allyExpPerKill, 0, OFFLINE_MAX_EXP_PER_MIN),
+            updatedAt: Math.max(0, Math.floor(_offlineFinite(raw.updatedAt, 0)))
+        };
+    }
+
+    function _offlineBossProfiles(raw) {
+        if (!Array.isArray(raw)) return [];
+        let result = [];
+        for (let i = 0; i < raw.length && result.length < OFFLINE_MAX_BOSS_PROFILES; i++) {
+            let boss = _offlineBossProfile(raw[i]);
+            if (boss) result.push(boss);
+        }
+        return result;
+    }
+
+    function _offlineSurvivalProfile(raw) {
+        if (!raw || typeof raw !== 'object' || !(Number(raw.sampleMs) > 0)) return null;
+        return {
+            sampleMs: Math.max(0, Math.floor(_offlineFinite(raw.sampleMs, 0))),
+            damagePerMin: _offlineClamp(raw.damagePerMin, 0, OFFLINE_MAX_EXP_PER_MIN),
+            healingPerMin: _offlineClamp(raw.healingPerMin, 0, OFFLINE_MAX_EXP_PER_MIN),
+            potionHealPerMin: _offlineClamp(raw.potionHealPerMin, 0, OFFLINE_MAX_EXP_PER_MIN),
+            potionPerMin: _offlineClamp(raw.potionPerMin, 0, OFFLINE_MAX_KILLS_PER_MIN),
+            potionId: raw.potionId ? String(raw.potionId) : '',
+            deathRatePerHour: _offlineClamp(raw.deathRatePerHour, 0, 60),
+            deaths: Math.max(0, Math.floor(_offlineFinite(raw.deaths, 0))),
+            minHpPct: _offlineClamp(raw.minHpPct, 0, 1),
+            updatedAt: Math.max(0, Math.floor(_offlineFinite(raw.updatedAt, 0)))
+        };
+    }
+
     function _offlineProfile(raw) {
         if (!raw || typeof raw !== 'object' || !raw.map) return null;
         return {
             map: String(raw.map),
             mapName: String(raw.mapName || _offlineMapName(raw.map)),
+            bossRoom: raw.bossRoom === true,
+            bossCycleMs: Math.max(0, Math.floor(_offlineFinite(raw.bossCycleMs, 0))),
+            survival: _offlineSurvivalProfile(raw.survival),
             expPerMin: _offlineClamp(raw.expPerMin, 0, OFFLINE_MAX_EXP_PER_MIN),
             goldPerMin: _offlineClamp(raw.goldPerMin, 0, OFFLINE_MAX_GOLD_PER_MIN),
             killsPerMin: _offlineClamp(raw.killsPerMin, 0, OFFLINE_MAX_KILLS_PER_MIN),
@@ -176,6 +231,7 @@
             allyExpPerMin: _offlineClamp(raw.allyExpPerMin, 0, OFFLINE_MAX_EXP_PER_MIN),
             sampleMs: Math.max(0, Math.floor(_offlineFinite(raw.sampleMs, 0))),
             mobs: _offlineMobProfiles(raw.mobs),
+            bosses: _offlineBossProfiles(raw.bosses),
             sampleKills: Math.max(0, Math.floor(_offlineFinite(raw.sampleKills, 0))),
             updatedAt: Math.max(0, Math.floor(_offlineFinite(raw.updatedAt, 0)))
         };
@@ -228,6 +284,8 @@
         player.offlineHunt = {
             v: OFFLINE_VERSION,
             eligible: raw.eligible === true,
+            bossUnlocked: raw.bossUnlocked !== false,
+            bossUnlockedAt: Math.max(0, Math.floor(_offlineFinite(raw.bossUnlockedAt, 0))),
             awaySince: Math.max(0, Math.floor(_offlineFinite(raw.awaySince, 0))),
             map: raw.map ? String(raw.map) : '',
             mapName: raw.mapName ? String(raw.mapName) : '',
@@ -249,24 +307,41 @@
             allyExp: 0,
             mobKills: Object.create(null)
         };
+        _offlineResetSurvivalRuntime(map);
+    }
+
+    function _offlineResetSurvivalRuntime(map) {
+        let hp = typeof player !== 'undefined' && player ? Math.max(0, Number(player.hp) || 0) : 0;
+        let mhp = typeof player !== 'undefined' && player ? Math.max(1, Number(player.mhp) || 1) : 1;
+        _offlineSurvivalRuntime = {
+            map: String(map || ''), activeMs: 0, damage: 0, healing: 0,
+            potionHealing: 0, potionUses: 0, potionCounts: Object.create(null), potionHeals: Object.create(null),
+            deaths: 0, minHpPct: _offlineClamp(hp / mhp, 0, 1),
+            lastHp: hp, lastTick: -1, deathTick: -1,
+            baseSurvival: null, baseSet: false
+        };
+        _offlineSurvivalTickCtx = null;
     }
 
     function _offlineValidHuntMap(map) {
         if (!map || String(map).indexOf('town_') === 0) return false;
         if (typeof DB === 'undefined' || !DB.maps || !Array.isArray(DB.maps[map])) return false;
         if (typeof isSiegeArea === 'function' && isSiegeArea(map)) return false;
-        if (typeof KING_ROOMS !== 'undefined' && KING_ROOMS && KING_ROOMS[map]) return false;
-        if (typeof PURE_BOSS_MAPS !== 'undefined' && Array.isArray(PURE_BOSS_MAPS) && PURE_BOSS_MAPS.includes(map)) return false;
-        if (/^pride_f\d+$/.test(map) || map === 'rift_battle' || String(map).indexOf('oblivion_') === 0) return false;
+        if (/^pride_f\d+$/.test(map) || map === 'rift_battle') return false;
         return true;
+    }
+
+    function _offlineBossRoomMap(map) {
+        return typeof PURE_BOSS_MAPS !== 'undefined' && Array.isArray(PURE_BOSS_MAPS) && PURE_BOSS_MAPS.includes(map);
     }
 
     function _offlineCanSnapshot(now, profile) {
         if (typeof state === 'undefined' || !state || !state.running) return false;
         if (typeof player === 'undefined' || !player || !player.cls || player.dead) return false;
+        if (!player.offlineHunt || player.offlineHunt.bossUnlocked === false) return false;
         if (typeof mapState === 'undefined' || !mapState || !_offlineValidHuntMap(mapState.current)) return false;
         if (player.siege && player.siege.active) return false;
-        if (state.prideClimb || state.riftRun || state.oblivion) return false;
+        if (state.prideClimb || state.riftRun) return false;
         if (!profile || profile.map !== String(mapState.current) || profile.killsPerMin <= 0) return false;
         if (_offlineRuntime && _offlineRuntime.map === String(mapState.current) && _offlineRuntime.lastKillAt > 0 &&
             now - _offlineRuntime.lastKillAt > OFFLINE_RECENT_KILL_MS) return false;
@@ -275,9 +350,76 @@
 
     function _offlineValidMob(mob, map) {
         if (!mob || mob._dead || !_offlineValidHuntMap(map)) return false;
+        if (_offlineBossRoomMap(map)) return false;
         if (mob.boss || mob.trollPlayer || mob.siegeEnemy || mob.pledgeEnemy || mob.noAutoTeleport) return false;
         if (mob.race === '血盟' || mob.race === '建築' || !(Number(mob.exp) > 0)) return false;
         return true;
+    }
+
+    function _offlineValidBoss(mob, map) {
+        if (!mob || mob._dead || !mob.boss || !_offlineValidHuntMap(map)) return false;
+        if (mob.trollPlayer || mob.siegeEnemy || mob.pledgeEnemy || mob.noAutoTeleport) return false;
+        if (mob.race === '血盟' || mob.race === '建築' || !(Number(mob.exp) > 0)) return false;
+        let pool = typeof DB !== 'undefined' && DB.maps && Array.isArray(DB.maps[map]) ? DB.maps[map] : [];
+        return pool.some(id => {
+            let root = DB.mobs && DB.mobs[id];
+            if (!root || !root.boss) return false;
+            let finalMob = _offlineFinalMob(root);
+            return finalMob && finalMob.n === mob.n;
+        });
+    }
+
+    function _offlineSurvivalTrackable() {
+        return typeof state !== 'undefined' && state && state.running && !state.ff &&
+            typeof player !== 'undefined' && player && player.cls && !player.dead &&
+            typeof mapState !== 'undefined' && mapState && _offlineValidHuntMap(mapState.current) &&
+            !(player.siege && player.siege.active) && !state.prideClimb && !state.riftRun;
+    }
+
+    function _offlineSurvivalSnapshot(map, previous, now, force) {
+        let rt = _offlineSurvivalRuntime;
+        previous = _offlineSurvivalProfile(previous);
+        if (!rt || rt.map !== String(map || '')) return previous;
+        if (!rt.baseSet) {
+            rt.baseSurvival = previous;
+            rt.baseSet = true;
+        }
+        if (!force && rt.activeMs < OFFLINE_SAMPLE_MIN_MS) return previous;
+        let base = _offlineSurvivalProfile(rt.baseSurvival);
+        let baseMs = base ? Math.min(base.sampleMs, 30 * 60 * 1000) : 0;
+        let sampleMs = Math.max(1, baseMs + rt.activeMs);
+        let total = (rate, ms) => Math.max(0, Number(rate) || 0) * ms / 60000;
+        let damage = total(base && base.damagePerMin, baseMs) + rt.damage;
+        let healing = total(base && base.healingPerMin, baseMs) + rt.healing;
+        let potionId = base && base.potionId ? base.potionId : '';
+        let dominantPotionUses = base && base.potionId ? total(base.potionPerMin, baseMs) : 0;
+        Object.keys(rt.potionCounts).forEach(id => {
+            let count = Math.max(0, Number(rt.potionCounts[id]) || 0);
+            let candidate = count + (base && base.potionId === id ? total(base.potionPerMin, baseMs) : 0);
+            if (candidate > dominantPotionUses) { dominantPotionUses = candidate; potionId = id; }
+        });
+        let basePotionUses = base ? total(base.potionPerMin, baseMs) : 0;
+        let basePotionHeal = base ? total(base.potionHealPerMin, baseMs) : 0;
+        let deathEvents = (base ? base.deathRatePerHour * baseMs / 3600000 : 0) + rt.deaths;
+        return _offlineSurvivalProfile({
+            sampleMs: sampleMs,
+            damagePerMin: damage * 60000 / sampleMs,
+            healingPerMin: healing * 60000 / sampleMs,
+            potionHealPerMin: (basePotionHeal + rt.potionHealing) * 60000 / sampleMs,
+            potionPerMin: (basePotionUses + rt.potionUses) * 60000 / sampleMs,
+            potionId: potionId,
+            deathRatePerHour: deathEvents * 3600000 / sampleMs,
+            deaths: Math.round(deathEvents),
+            minHpPct: Math.min(base ? base.minHpPct : 1, rt.minHpPct),
+            updatedAt: now
+        });
+    }
+
+    function _offlineAttachSurvival(profile, map, now, force) {
+        profile = _offlineProfile(profile);
+        if (!profile) return null;
+        let survival = _offlineSurvivalSnapshot(map, profile.survival, now, force);
+        return _offlineProfile(Object.assign({}, profile, { survival: survival }));
     }
 
     function _offlineExpProgress(lv, exp) {
@@ -295,8 +437,7 @@
         let base = Math.max(0, Number(mob && mob.exp) || 0);
         let bonus = typeof partyExpBonusPct === 'function' ? Number(partyExpBonusPct()) || 0 : 0;
         let share = typeof partyExpShareCount === 'function' ? Math.max(1, Number(partyExpShareCount()) || 1) : 1;
-        let expMult = typeof getExpBonusMult === 'function' ? getExpBonusMult() : 1;
-        let ally = Math.floor(base * (1 + bonus / 100) / share * expMult);
+        let ally = Math.floor(base * (1 + bonus / 100) / share);
         let doll = typeof dollFieldVal === 'function' ? Number(dollFieldVal('expBonus')) || 0 : 0;
         return {
             pet: Math.max(0, Math.floor(ally * (1 + doll / 100))),
@@ -331,11 +472,68 @@
         }
     }
 
+    function _offlineRecordBossKill(mob, map, expGain, goldGain, petExpGain, allyExpGain, now) {
+        let st = _offlineEnsureState();
+        if (!st || !mob) return;
+        let wasLocked = st.bossUnlocked === false;
+        let previous = _offlineProfileForMap(st, map) || {
+            map: String(map), mapName: _offlineMapName(map), expPerMin: 0, goldPerMin: 0,
+            killsPerMin: 0, petExpPerMin: 0, allyExpPerMin: 0, sampleMs: 0,
+            mobs: [], bosses: [], sampleKills: 0, updatedAt: 0
+        };
+        previous = _offlineAttachSurvival(previous, map, now, false) || previous;
+        let bosses = _offlineBossProfiles(previous.bosses);
+        let old = bosses.find(row => row.n === mob.n) || null;
+        let weight = old ? Math.min(20, old.wins) : 0;
+        let avg = (oldValue, sample) => (Math.max(0, _offlineFinite(oldValue, 0)) * weight +
+            Math.max(0, _offlineFinite(sample, 0))) / (weight + 1);
+        let bornAt = Math.max(0, _offlineFinite(mob._bornMs, 0));
+        let killMs = bornAt > 0 ? now - bornAt : 1000;
+        killMs = _offlineClamp(killMs, TICK_MS, OFFLINE_MAX_MS);
+        let next = _offlineBossProfile({
+            n: mob.n,
+            wins: (old ? old.wins : 0) + 1,
+            lv: mob.lv,
+            race: mob.race,
+            transformTo: mob.transformTo,
+            sherine: !!mob._sherine,
+            sherineMad: !!mob._sherineMad,
+            grace: !!mob._grace,
+            avgKillMs: avg(old && old.avgKillMs, killMs),
+            expPerKill: avg(old && old.expPerKill, expGain),
+            goldPerKill: avg(old && old.goldPerKill, goldGain),
+            petExpPerKill: avg(old && old.petExpPerKill, petExpGain),
+            allyExpPerKill: avg(old && old.allyExpPerKill, allyExpGain),
+            updatedAt: now
+        });
+        bosses = bosses.filter(row => row.n !== mob.n);
+        if (next) bosses.unshift(next);
+        let remembered = _offlineRememberProfile(st, Object.assign({}, previous, {
+            bosses: bosses.slice(0, OFFLINE_MAX_BOSS_PROFILES),
+            updatedAt: now
+        }));
+        if (_offlineBossRoomMap(map)) remembered = _offlineRememberProfile(st, _offlineBuildBossRoomProfile(remembered, map, now));
+        st.bossUnlocked = true;
+        st.bossUnlockedAt = now;
+        st.profile = remembered;
+        _offlinePrepareSnapshot(now);
+        _offlineInternalSave = true;
+        try { if (typeof _offlineOriginalSaveGame === 'function') _offlineOriginalSaveGame(); } catch (e) {}
+        finally { _offlineInternalSave = false; }
+        if (wasLocked && typeof logSys === 'function') {
+            logSys('<span class="text-emerald-300 font-bold">已擊敗頭目，離線掛機資格重新解鎖。</span>');
+        }
+    }
+
     function _offlineCommitProfile(now, st) {
         st = st || _offlineEnsureState();
         if (!st) return null;
         let currentMap = String(mapState && mapState.current || '');
         let previous = _offlineProfileForMap(st, currentMap);
+        if (previous) {
+            previous = _offlineAttachSurvival(previous, currentMap, now, false) || previous;
+            previous = _offlineRememberProfile(st, Object.assign({}, previous, { updatedAt: now }));
+        }
         st.profile = previous;
         if (!_offlineRuntime || !_offlineRuntime.firstKillAt) return previous;
         let rt = _offlineRuntime;
@@ -354,6 +552,8 @@
             allyExpPerMin: rt.allyExp / mins,
             sampleMs: elapsed,
             mobs: Object.keys(rt.mobKills).map(k => rt.mobKills[k]),
+            bosses: previous ? previous.bosses : [],
+            survival: _offlineSurvivalSnapshot(rt.map, previous && previous.survival, now, false),
             sampleKills: rt.kills,
             updatedAt: now
         });
@@ -385,7 +585,16 @@
         let key = _offlineStoreKey('catchup');
         if (!key) return false;
         let runtimeMs = typeof catchupPendingMs === 'function' ? catchupPendingMs() : 0;
-        let hiddenMs = _offlineHiddenAt > 0 ? Math.max(0, closedAt - _offlineHiddenAt) : 0;
+        // 🔄 v3.7.31 背景增量補跑架構修正：隱藏期間 gameLoop 仍被節流喚醒逐 tick 處理（且 5 分鐘自動存檔可能已落地），
+        //    舊公式 hiddenMs＝closedAt−_offlineHiddenAt（整段隱藏時間）會把「已處理＋已存檔」的部分在重開時重複結算（雙重入帳）。
+        //    未處理殘額＝runtime 債務（catchupPendingMs）＋「最後一次 gameLoop 之後」的尾段（同 js/01 差額錨點口徑）；
+        //    _loopLast 從未跑過（隱藏中載入等）才退回整段隱藏時間。⚠️_loopLast/_perfNow＝performance.now 時域，勿與 closedAt(Date.now) 相減。
+        let hiddenMs;
+        if (typeof _loopLast !== 'undefined' && Number.isFinite(_loopLast) && _loopLast > 0 && typeof _perfNow === 'function') {
+            hiddenMs = Math.max(0, _perfNow() - _loopLast);
+        } else {
+            hiddenMs = _offlineHiddenAt > 0 ? Math.max(0, closedAt - _offlineHiddenAt) : 0;
+        }
         let previous = _offlineReadJson(key);
         // 已排入本頁記憶體的舊債不可再取 max，否則中途關頁會把已補過的部分再次帶回。
         let previousMs = _offlineRestoredCatchupKey === key ? 0 :
@@ -498,6 +707,47 @@
         return Object.keys(byKey).map(k => byKey[k]).slice(0, OFFLINE_MAX_MOB_PROFILES);
     }
 
+    function _offlineBossPool(map) {
+        if (typeof DB === 'undefined' || !DB.maps || !DB.mobs || !Array.isArray(DB.maps[map])) return [];
+        let byName = Object.create(null);
+        DB.maps[map].forEach(id => {
+            let root = DB.mobs[id];
+            if (!root || !root.boss || root.trollPlayer || root.siegeEnemy || root.pledgeEnemy || root.noAutoTeleport) return;
+            let mob = _offlineFinalMob(root);
+            if (!mob || mob.race === '血盟' || mob.race === '建築' || !(Number(mob.exp) > 0)) return;
+            byName[mob.n] = true;
+        });
+        return Object.keys(byName);
+    }
+
+    function _offlineBuildBossRoomProfile(profile, map, now) {
+        profile = _offlineProfile(profile);
+        if (!profile) return null;
+        let pool = _offlineBossPool(map);
+        let proofs = _offlineBossProfiles(profile.bosses).filter(row => pool.includes(row.n));
+        if (!pool.length || pool.some(name => !proofs.some(row => row.n === name))) return profile;
+        let cycleMs = 5000 + Math.max.apply(null, proofs.map(row => row.avgKillMs));
+        cycleMs = _offlineClamp(cycleMs, TICK_MS, OFFLINE_MAX_MS);
+        let perMin = 60000 / cycleMs;
+        let sumField = field => proofs.reduce((sum, row) => sum + Math.max(0, Number(row[field]) || 0), 0);
+        return _offlineProfile(Object.assign({}, profile, {
+            map: String(map),
+            mapName: _offlineMapName(map),
+            bossRoom: true,
+            bossCycleMs: cycleMs,
+            killsPerMin: proofs.length * perMin,
+            expPerMin: sumField('expPerKill') * perMin,
+            goldPerMin: sumField('goldPerKill') * perMin,
+            petExpPerMin: sumField('petExpPerKill') * perMin,
+            allyExpPerMin: sumField('allyExpPerKill') * perMin,
+            sampleMs: cycleMs,
+            sampleKills: proofs.reduce((sum, row) => sum + row.wins, 0),
+            mobs: proofs.map(row => _offlineMobProfile(Object.assign({ count: 1 }, row))).filter(Boolean),
+            bosses: proofs,
+            updatedAt: now
+        }));
+    }
+
     function _offlineMobPlan(profile, kills) {
         kills = Math.max(0, Math.floor(_offlineFinite(kills, 0)));
         if (!kills) return [];
@@ -555,6 +805,164 @@
             let value = values[Math.floor(Math.random() * values.length)];
             result[value] = (result[value] || 0) + 1;
         }
+        return result;
+    }
+
+    function _offlineBossPlan(profile, normalKills, elapsedMs) {
+        let result = {
+            rows: [], kills: 0, timeMs: 0, exp: 0, gold: 0, petExp: 0, allyExp: 0
+        };
+        let map = profile && profile.map;
+        let pool = _offlineBossPool(map);
+        let proofs = _offlineBossProfiles(profile && profile.bosses);
+        normalKills = Math.max(0, Math.floor(_offlineFinite(normalKills, 0)));
+        elapsedMs = Math.max(0, Math.floor(_offlineFinite(elapsedMs, 0)));
+        if (!pool.length || !proofs.length || !normalKills || !elapsedMs) return result;
+
+        let chance = map === 'elder_room' ? 0.05 : 0.01;
+        let encounters = _offlineBinomial(normalKills, chance);
+        if (!encounters) return result;
+        let split = _offlineSplitUniform(pool, encounters);
+        let remainingMs = elapsedMs;
+        pool.forEach(name => {
+            let requested = Math.max(0, Math.floor(_offlineFinite(split[name], 0)));
+            let proof = proofs.find(row => row.n === name);
+            if (!requested || !proof) return;
+            let perKillMs = _offlineClamp(proof.avgKillMs, TICK_MS, OFFLINE_MAX_MS);
+            let count = Math.min(requested, Math.floor(remainingMs / perKillMs));
+            if (!count) return;
+            let spent = Math.floor(perKillMs * count);
+            remainingMs = Math.max(0, remainingMs - spent);
+            result.rows.push({ mob: proof, kills: count });
+            result.kills += count;
+            result.timeMs += spent;
+            result.exp += Math.floor(proof.expPerKill * count);
+            result.gold += Math.floor(proof.goldPerKill * count);
+            result.petExp += Math.floor(proof.petExpPerKill * count);
+            result.allyExp += Math.floor(proof.allyExpPerKill * count);
+        });
+        return result;
+    }
+
+    function _offlineInventoryCount(id) {
+        if (!id || !player || !Array.isArray(player.inv)) return 0;
+        return player.inv.reduce((sum, item) => sum + (item && item.id === id ? Math.max(1, Number(item.cnt) || 1) : 0), 0);
+    }
+
+    function _offlineConsumeInventory(id, count) {
+        count = Math.max(0, Math.floor(_offlineFinite(count, 0)));
+        if (!id || !count || !player || !Array.isArray(player.inv)) return 0;
+        let used = 0;
+        for (let i = player.inv.length - 1; i >= 0 && used < count; i--) {
+            let item = player.inv[i];
+            if (!item || item.id !== id) continue;
+            let have = Math.max(1, Math.floor(Number(item.cnt) || 1));
+            let take = Math.min(have, count - used);
+            if (take >= have) player.inv.splice(i, 1);
+            else item.cnt = have - take;
+            used += take;
+        }
+        return used;
+    }
+
+    function _offlineSurvivalPlan(profile, elapsedMs, efficiency, consumePotions) {
+        let result = {
+            elapsedMs: Math.max(0, Math.floor(_offlineFinite(elapsedMs, 0))),
+            combatMs: 0, died: false, deathAtMs: 0,
+            potionId: '', potionUsed: 0
+        };
+        let survival = _offlineSurvivalProfile(profile && profile.survival);
+        let eff = _offlineClamp(efficiency, 0, 1);
+        if (!survival || !eff || !(survival.sampleMs > 0)) return result;
+        let combatMs = result.elapsedMs * eff;
+        let hp = Math.max(1, Number(player && player.hp) || 1);
+        let mhp = Math.max(hp, Number(player && player.mhp) || hp);
+        let damage = Math.max(0, survival.damagePerMin);
+        let healing = Math.max(0, survival.healingPerMin);
+        let potionHealing = Math.min(healing, Math.max(0, survival.potionHealPerMin));
+        let nonPotionHealing = Math.max(0, healing - potionHealing);
+        let potionRate = Math.max(0, survival.potionPerMin);
+        let potionId = survival.potionId;
+        let potionStock = potionId ? _offlineInventoryCount(potionId) : 0;
+        let stockedMs = potionRate > 0 ? potionStock / potionRate * 60000 : combatMs;
+        let deathCombatMs = Infinity;
+        let elapsedCombat = 0;
+        let runPressure = (duration, netPerMin) => {
+            duration = Math.max(0, duration);
+            if (!duration || deathCombatMs !== Infinity) return;
+            if (netPerMin > 0) {
+                let untilDeath = hp * 60000 / netPerMin;
+                if (untilDeath <= duration) {
+                    deathCombatMs = elapsedCombat + untilDeath;
+                    return;
+                }
+            }
+            hp = _offlineClamp(hp - netPerMin * duration / 60000, 1, mhp);
+            elapsedCombat += duration;
+        };
+        let stockedDuration = Math.min(combatMs, stockedMs);
+        runPressure(stockedDuration, damage - healing);
+        if (deathCombatMs === Infinity && stockedDuration < combatMs) {
+            runPressure(combatMs - stockedDuration, damage - nonPotionHealing);
+        }
+        if (survival.deathRatePerHour > 0) {
+            let roll = Math.max(1e-9, 1 - Math.random());
+            let empiricalDeathMs = -Math.log(roll) * 3600000 / survival.deathRatePerHour;
+            deathCombatMs = Math.min(deathCombatMs, empiricalDeathMs);
+        }
+        let died = deathCombatMs <= combatMs;
+        let survivedCombatMs = died ? Math.max(0, deathCombatMs) : combatMs;
+        let survivedElapsedMs = died ? Math.max(0, Math.floor(survivedCombatMs / eff)) : result.elapsedMs;
+        let potionUsed = potionId && potionRate > 0 ? Math.min(potionStock,
+            Math.max(0, Math.floor(potionRate * survivedCombatMs / 60000 + 1e-7))) : 0;
+        if (consumePotions && potionUsed > 0) potionUsed = _offlineConsumeInventory(potionId, potionUsed);
+        result.elapsedMs = survivedElapsedMs;
+        result.combatMs = Math.floor(survivedCombatMs);
+        result.died = died;
+        result.deathAtMs = died ? survivedElapsedMs : 0;
+        result.potionId = potionId;
+        result.potionUsed = potionUsed;
+        return result;
+    }
+
+    function _offlineBossRoomCostId(map) {
+        if (typeof KING_ROOMS !== 'undefined' && KING_ROOMS && KING_ROOMS[map]) {
+            return KING_ROOMS[map].key || 'item_king_key';
+        }
+        if (typeof SANCT_RESPAWN_COST !== 'undefined' && SANCT_RESPAWN_COST && SANCT_RESPAWN_COST[map]) {
+            return SANCT_RESPAWN_COST[map];
+        }
+        return '';
+    }
+
+    function _offlineBossRoomPlan(profile, elapsedMs, efficiency, consumeCost) {
+        let result = { rows: [], kills: 0, cycles: 0, timeMs: 0, exp: 0, gold: 0, petExp: 0, allyExp: 0, costId: '', costUsed: 0 };
+        if (!profile || profile.bossRoom !== true) return result;
+        let pool = _offlineBossPool(profile.map);
+        let proofs = _offlineBossProfiles(profile.bosses).filter(row => pool.includes(row.n));
+        if (!pool.length || pool.some(name => !proofs.some(row => row.n === name))) return result;
+        let cycleMs = _offlineClamp(profile.bossCycleMs || (5000 + Math.max.apply(null, proofs.map(row => row.avgKillMs))), TICK_MS, OFFLINE_MAX_MS);
+        let cycles = Math.floor(Math.max(0, _offlineFinite(elapsedMs, 0)) * _offlineClamp(efficiency, 0, 1) / cycleMs);
+        let costId = _offlineBossRoomCostId(profile.map);
+        if (costId) cycles = Math.min(cycles, _offlineInventoryCount(costId));
+        if (!cycles) return result;
+        if (costId && consumeCost) {
+            let used = _offlineConsumeInventory(costId, cycles);
+            cycles = Math.min(cycles, used);
+            result.costUsed = used;
+        }
+        if (!cycles) return result;
+        result.costId = costId;
+        result.cycles = cycles;
+        result.timeMs = Math.floor(cycleMs * cycles);
+        proofs.forEach(proof => {
+            result.rows.push({ mob: proof, kills: cycles });
+            result.kills += cycles;
+            result.exp += Math.floor(proof.expPerKill * cycles);
+            result.gold += Math.floor(proof.goldPerKill * cycles);
+            result.petExp += Math.floor(proof.petExpPerKill * cycles);
+            result.allyExp += Math.floor(proof.allyExpPerKill * cycles);
+        });
         return result;
     }
 
@@ -678,7 +1086,7 @@
         let oldForceBless = _forceBless;
         try {
             _sherineLootCtx = mob.sherine ? { mad: !!mob.sherineMad } : null;
-            if (typeof MOB_DROPS !== 'undefined') _offlineRollTable(mob, kills, MOB_DROPS, dropMult, loot, true);
+            if (typeof MOB_DROPS !== 'undefined') _offlineRollTable(mob, kills, MOB_DROPS, dropBase, loot, true);
             if (mob.lv >= 40) {
                 let panacea = _offlineBinomial(kills, 0.0001 * classic);
                 let split = _offlineSplitUniform(['panacea_str','panacea_dex','panacea_con','panacea_int','panacea_wis','panacea_cha'], panacea);
@@ -700,7 +1108,7 @@
             }
             if (typeof DARK_WEAPON_DROPS !== 'undefined') _offlineRollTable(mob, kills, DARK_WEAPON_DROPS, dropMult, loot, false);
             if (typeof DARK_CRYSTAL_DROPS !== 'undefined') _offlineRollTable(mob, kills, DARK_CRYSTAL_DROPS, dropMult, loot, false);
-            if (typeof DRAGON_DROPS !== 'undefined') _offlineRollTable(mob, kills, DRAGON_DROPS, dropMult, loot, false);
+            if (typeof DRAGON_DROPS !== 'undefined') _offlineRollTable(mob, kills, DRAGON_DROPS, dropBase, loot, false);
             if (typeof WARRIOR_DROPS !== 'undefined') _offlineRollTable(mob, kills, WARRIOR_DROPS, dropMult, loot, false);
             if (typeof MEM_DROPS !== 'undefined') _offlineRollTable(mob, kills, MEM_DROPS, dropMult, loot, false);
             _offlineRollCards(mob, kills, loot);
@@ -722,9 +1130,12 @@
         }
     }
 
-    function _offlineRollLoot(profile, kills) {
+    function _offlineRollLoot(profile, kills, bossPlan) {
         let loot = { items: Object.create(null), cards: Object.create(null), itemCount: 0, cardCount: 0 };
         _offlineMobPlan(profile, kills).forEach(row => _offlineRollMobLoot(row.mob, row.kills, profile.map, loot));
+        if (bossPlan && Array.isArray(bossPlan.rows)) {
+            bossPlan.rows.forEach(row => _offlineRollMobLoot(row.mob, row.kills, profile.map, loot));
+        }
         try { if (typeof autoSortInventory === 'function') autoSortInventory(); } catch (e) {}
         return loot;
     }
@@ -788,6 +1199,7 @@
     function _offlineShowSummary(result) {
         let old = document.getElementById('offline-reward-modal');
         if (old) old.remove();
+        let potionName = result.potionId && DB.items[result.potionId] ? DB.items[result.potionId].n : result.potionId;
         let overlay = document.createElement('div');
         overlay.id = 'offline-reward-modal';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:10080;background:rgba(2,6,23,.78);display:flex;align-items:center;justify-content:center;padding:16px;';
@@ -796,14 +1208,18 @@
                 '<div style="font-size:22px;font-weight:700;color:#fde68a;border-bottom:1px solid #4b5563;padding-bottom:10px;margin-bottom:14px;">離線收益</div>' +
                 '<div style="color:#cbd5e1;line-height:1.7;margin-bottom:12px;">' +
                     '<div>狩獵區：<span style="color:#93c5fd;">' + _offlineEsc(result.mapName) + '</span></div>' +
-                    '<div>離線時間：' + _offlineFormatDuration(result.elapsedMs) + (result.capped ? '（已達 12 小時上限）' : '') + '</div>' +
+                    '<div>離線時間：' + _offlineFormatDuration(result.requestedElapsedMs || result.elapsedMs) + (result.capped ? '（已達 12 小時上限）' : '') + '</div>' +
+                    (result.died ? '<div style="color:#fca5a5;font-weight:700;">戰鬥 ' + _offlineFormatDuration(result.elapsedMs) + ' 後死亡，後續收益停止。</div>' : '') +
                 '</div>' +
                 '<div style="display:grid;grid-template-columns:1fr auto;gap:8px 14px;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:12px;">' +
+                    (result.died ? '<span>離線結果</span><b style="color:#f87171;">戰鬥中死亡</b>' : '') +
                     '<span>獲得經驗</span><b style="color:#86efac;">' + result.exp.toLocaleString() + '</b>' +
                     '<span>獲得金幣</span><b style="color:#fde047;">' + result.gold.toLocaleString() + '</b>' +
                     '<span>擊殺怪物</span><b style="color:#c4b5fd;">' + result.kills.toLocaleString() + '</b>' +
+                    (result.bossKills > 0 ? '<span>擊殺頭目</span><b style="color:#fca5a5;">' + result.bossKills.toLocaleString() + '</b>' : '') +
                     '<span>掉落物品</span><b style="color:#fef08a;">' + result.itemCount.toLocaleString() + '</b>' +
                     '<span>怪物卡片</span><b style="color:#93c5fd;">' + result.cardCount.toLocaleString() + '</b>' +
+                    (result.potionUsed > 0 ? '<span>消耗藥水</span><b style="color:#fda4af;">' + _offlineEsc(potionName) + ' × ' + result.potionUsed.toLocaleString() + '</b>' : '') +
                 '</div>' +
                 '<div style="margin-top:12px;padding:12px;border:1px solid #334155;border-radius:6px;background:#111827;line-height:1.65;font-size:14px;">' +
                     '<div style="font-weight:700;color:#fcd34d;margin-bottom:6px;">離線戰利品</div>' + _offlineLootHtml(result) + '</div>' +
@@ -877,15 +1293,47 @@
         });
     }
 
+    function _offlineApplySettledDeath() {
+        if (!player) return;
+        player.hp = 0;
+        player.dead = true;
+        player.summon = null;
+        player.charmed = null;
+        if (Array.isArray(player.summonsV2)) player.summonsV2 = [];
+        if (player.buffs) player.buffs.sk_charm = 0;
+        try {
+            let revive = document.getElementById('btn-revive');
+            if (revive) revive.classList.remove('hidden');
+            if (typeof updateReviveInPlaceBtn === 'function') updateReviveInPlaceBtn();
+            if (typeof renderSummonPanel === 'function') renderSummonPanel(true);
+            if (typeof updateUI === 'function') updateUI();
+        } catch (e) {}
+    }
+
     function _offlineGrantBatch(source, profile, elapsed, rawElapsed, efficiency, options) {
         options = options || {};
         let now = options.now || _offlineNow();
-        let exp = _offlineRewardAmount(profile.expPerMin, elapsed, efficiency);
-        let gold = _offlineRewardAmount(profile.goldPerMin, elapsed, efficiency);
-        let kills = _offlineRewardAmount(profile.killsPerMin, elapsed, efficiency);
-        let petExp = _offlineRewardAmount(profile.petExpPerMin, elapsed, efficiency);
-        let allyExp = _offlineRewardAmount(profile.allyExpPerMin, elapsed, efficiency);
-        let loot = kills > 0 ? _offlineRollLoot(profile, kills) : { items: {}, cards: {}, itemCount: 0, cardCount: 0 };
+        let requestedElapsed = elapsed;
+        let survivalPlan = _offlineSurvivalPlan(profile, elapsed, efficiency, true);
+        elapsed = survivalPlan.elapsedMs;
+        let bossRoom = profile.bossRoom === true;
+        let previewKills = bossRoom ? 0 : _offlineRewardAmount(profile.killsPerMin, elapsed, efficiency);
+        let bossPlan = bossRoom ? _offlineBossRoomPlan(profile, elapsed, efficiency, true) :
+            (options.allowBosses ? _offlineBossPlan(profile, previewKills, elapsed) :
+                { rows: [], kills: 0, timeMs: 0, exp: 0, gold: 0, petExp: 0, allyExp: 0 });
+        let huntElapsed = bossRoom ? 0 : Math.max(0, elapsed - bossPlan.timeMs);
+        let normalKills = bossRoom ? 0 : _offlineRewardAmount(profile.killsPerMin, huntElapsed, efficiency);
+        let exp = Math.min(Number.MAX_SAFE_INTEGER, bossRoom ? bossPlan.exp :
+            _offlineRewardAmount(profile.expPerMin, huntElapsed, efficiency) + bossPlan.exp);
+        let gold = Math.min(Number.MAX_SAFE_INTEGER, bossRoom ? bossPlan.gold :
+            _offlineRewardAmount(profile.goldPerMin, huntElapsed, efficiency) + bossPlan.gold);
+        let kills = Math.min(Number.MAX_SAFE_INTEGER, normalKills + bossPlan.kills);
+        let petExp = Math.min(Number.MAX_SAFE_INTEGER, bossRoom ? bossPlan.petExp :
+            _offlineRewardAmount(profile.petExpPerMin, huntElapsed, efficiency) + bossPlan.petExp);
+        let allyExp = Math.min(Number.MAX_SAFE_INTEGER, bossRoom ? bossPlan.allyExp :
+            _offlineRewardAmount(profile.allyExpPerMin, huntElapsed, efficiency) + bossPlan.allyExp);
+        let loot = kills > 0 ? _offlineRollLoot(profile, normalKills, bossPlan) :
+            { items: {}, cards: {}, itemCount: 0, cardCount: 0 };
         let safeRoom = Number.MAX_SAFE_INTEGER - Math.max(0, Number(player.gold) || 0);
         gold = Math.min(gold, Math.max(0, safeRoom));
         if ((player.lv || 1) < 100 && exp > 0) {
@@ -901,6 +1349,7 @@
         _offlineApplyAllyExp(allyExp);
         if (kills > 0 && typeof pvpChangeAlignment === 'function') pvpChangeAlignment(kills);
         if (options.advanceCombatTime) _offlineAdvanceCombatTime(elapsed);
+        if (survivalPlan.died) _offlineLockAfterDeath();
 
         _offlineResetRuntime(typeof mapState !== 'undefined' && mapState ? mapState.current : '');
         _offlinePrepareSnapshot(now);
@@ -918,25 +1367,38 @@
         let result = {
             mapName: source.mapName || profile.mapName || source.map,
             elapsedMs: elapsed,
+            requestedElapsedMs: requestedElapsed,
+            died: survivalPlan.died,
+            deathAtMs: survivalPlan.deathAtMs,
+            potionId: survivalPlan.potionId,
+            potionUsed: survivalPlan.potionUsed,
             capped: options.showModal === true && rawElapsed > OFFLINE_MAX_MS,
             exp: exp,
             gold: gold,
             kills: kills,
+            bossKills: bossPlan.kills,
             items: loot.items,
             cards: loot.cards,
             itemCount: loot.itemCount,
             cardCount: loot.cardCount
         };
         if (typeof logSys === 'function' && options.catchupFormat) {
-            logSys('<span class="text-cyan-300 font-bold">⏩ 掛機補跑完成：</span>已補上 ' +
-                _offlineFormatCatchupDuration(elapsed) + ' 的進度' + (gold > 0 ? ('，金幣 +' + gold.toLocaleString()) : '') + '。');
+            logSys('<span class="' + (survivalPlan.died ? 'text-red-400' : 'text-cyan-300') + ' font-bold">⏩ 掛機補跑完成：</span>已補上 ' +
+                _offlineFormatCatchupDuration(elapsed) + ' 的進度' + (gold > 0 ? ('，金幣 +' + gold.toLocaleString()) : '') +
+                (survivalPlan.died ? '，角色在戰鬥中死亡，後續時間不再計算收益。' : '。'));
             let gains = _offlineCatchupGainRows(loot);
             if (gains.length) logSys('<span class="sys-item-gain">掛機期間獲得：' + gains.join('、') + '</span>');
         } else if (typeof logSys === 'function') {
             logSys('<span class="text-amber-300 font-bold">' + label + '：</span>經驗 ' + exp.toLocaleString() +
                 '、金幣 ' + gold.toLocaleString() + '、擊殺怪物 ' + kills.toLocaleString() +
+                (bossPlan.kills > 0 ? ('（含頭目 ' + bossPlan.kills.toLocaleString() + '）') : '') +
                 '、掉落物 ' + loot.itemCount.toLocaleString() + '、卡片 ' + loot.cardCount.toLocaleString() + '。');
+            if (survivalPlan.died) {
+                logSys('<span class="text-red-400 font-bold">角色在離線戰鬥 ' + _offlineFormatDuration(elapsed) +
+                    ' 後死亡，後續收益已停止；需再次擊敗頭目才能解鎖離線掛機。</span>');
+            }
         }
+        if (survivalPlan.died) _offlineApplySettledDeath();
         if (options.showModal) _offlineShowSummary(result);
         return true;
     }
@@ -996,8 +1458,18 @@
 
             let source = saved;
             if (cpSnapshot && cpActive >= (saved.awaySince || 0)) {
+                if (Object.prototype.hasOwnProperty.call(cpSnapshot, 'bossUnlocked')) {
+                    saved.bossUnlocked = cpSnapshot.bossUnlocked !== false;
+                    saved.bossUnlockedAt = Math.max(0, Math.floor(_offlineFinite(cpSnapshot.bossUnlockedAt, 0)));
+                }
+                let cpProfile = _offlineProfile(cpSnapshot.profile);
+                if (cpProfile) {
+                    saved.profiles = _offlineSavedProfiles(cpSnapshot.profiles, cpProfile);
+                    saved.profile = saved.profiles.find(row => row.map === cpProfile.map) || cpProfile;
+                }
                 source = {
                     eligible: cpSnapshot.eligible === true,
+                    bossUnlocked: cpSnapshot.bossUnlocked !== false,
                     awaySince: Math.max(0, Math.floor(_offlineFinite(cpSnapshot.awaySince, cpActive))),
                     map: cpSnapshot.map ? String(cpSnapshot.map) : '',
                     mapName: cpSnapshot.mapName ? String(cpSnapshot.mapName) : '',
@@ -1011,7 +1483,7 @@
             let elapsed = Math.min(rawElapsed, OFFLINE_MAX_MS);
             let profile = _offlineProfile(source.profile);
 
-            if (!source.eligible || !profile || profile.map !== source.map || elapsed < OFFLINE_MIN_MS || profile.killsPerMin <= 0) {
+            if (!source.eligible || source.bossUnlocked === false || !profile || profile.map !== source.map || elapsed < OFFLINE_MIN_MS || profile.killsPerMin <= 0) {
                 _offlineResetRuntime(typeof mapState !== 'undefined' && mapState ? mapState.current : '');
                 _offlinePrepareSnapshot(now);
                 return false;
@@ -1021,6 +1493,7 @@
             return _offlineGrantBatch(source, profile, elapsed, rawElapsed, OFFLINE_EFFICIENCY, {
                 now: now,
                 label: '離線收益',
+                allowBosses: true,
                 advanceCombatTime: false,
                 showModal: true
             });
@@ -1030,22 +1503,194 @@
         }
     }
 
+    function _offlineHealingPotionId(id) {
+        id = String(id || '');
+        return id === 'potion_heal' || id === 'potion_strong' || id === 'potion_ult' || id === 'new_item_141';
+    }
+
+    function _offlineEnsureSurvivalRuntime(map) {
+        map = String(map || '');
+        if (!_offlineSurvivalRuntime || _offlineSurvivalRuntime.map !== map) _offlineResetSurvivalRuntime(map);
+        return _offlineSurvivalRuntime;
+    }
+
+    function _offlineRecordPotionUse(id, count, healed) {
+        if (!_offlineSurvivalTrackable() || !_offlineHealingPotionId(id)) return;
+        let rt = _offlineEnsureSurvivalRuntime(mapState.current);
+        count = Math.max(0, Math.floor(_offlineFinite(count, 0)));
+        healed = Math.max(0, _offlineFinite(healed, 0));
+        if (!count) return;
+        rt.potionUses += count;
+        rt.potionCounts[id] = (rt.potionCounts[id] || 0) + count;
+        rt.potionHealing += healed;
+        rt.potionHeals[id] = (rt.potionHeals[id] || 0) + healed;
+        rt.healing += healed;
+        if (_offlineSurvivalTickCtx && _offlineSurvivalTickCtx.rt === rt) {
+            _offlineSurvivalTickCtx.directHealing += healed;
+        }
+    }
+
+    const _offlineOriginalUseItem = window.useItem;
+    if (typeof _offlineOriginalUseItem === 'function') {
+        window.useItem = function (uid) {
+            let item = player && Array.isArray(player.inv) ? player.inv.find(row => row && row.uid === uid) : null;
+            let id = item && item.id;
+            let track = _offlineSurvivalTrackable() && _offlineHealingPotionId(id);
+            let beforeCount = track ? _offlineInventoryCount(id) : 0;
+            let beforeHp = track ? Math.max(0, Number(player.hp) || 0) : 0;
+            let result = _offlineOriginalUseItem.apply(this, arguments);
+            if (track) {
+                let used = Math.max(0, beforeCount - _offlineInventoryCount(id));
+                let healed = Math.max(0, (Number(player.hp) || 0) - beforeHp);
+                _offlineRecordPotionUse(id, used, healed);
+            }
+            return result;
+        };
+    }
+
+    const _offlineOriginalTick = window.tick;
+    if (typeof _offlineOriginalTick === 'function') {
+        window.tick = function () {
+            let track = _offlineSurvivalTrackable();
+            let rt = track ? _offlineEnsureSurvivalRuntime(mapState.current) : null;
+            let ctx = track ? { rt: rt, beforeHp: Math.max(0, Number(player.hp) || 0), directHealing: 0 } : null;
+            _offlineSurvivalTickCtx = ctx;
+            let result;
+            try { result = _offlineOriginalTick.apply(this, arguments); }
+            finally {
+                _offlineSurvivalTickCtx = null;
+                if (ctx && rt === _offlineSurvivalRuntime) {
+                    let afterHp = Math.max(0, Number(player.hp) || 0);
+                    if (rt.deathTick !== (state && state.ticks)) {
+                        let residual = afterHp - ctx.beforeHp - ctx.directHealing;
+                        if (residual < 0) rt.damage += -residual;
+                        else if (residual > 0) rt.healing += residual;
+                        rt.activeMs += TICK_MS;
+                        rt.lastTick = state && state.ticks;
+                    }
+                    rt.lastHp = afterHp;
+                    let mhp = Math.max(1, Number(player.mhp) || 1);
+                    rt.minHpPct = Math.min(rt.minHpPct, _offlineClamp(afterHp / mhp, 0, 1));
+                }
+            }
+            return result;
+        };
+    }
+
     const _offlineOriginalKillMob = window.killMob;
     if (typeof _offlineOriginalKillMob === 'function') {
         window.killMob = function (idx) {
             let map = typeof mapState !== 'undefined' && mapState ? String(mapState.current || '') : '';
             let mob = mapState && mapState.mobs ? mapState.mobs[idx] : null;
-            // ⏩ v3.6.95 補跑（state.ff）期間的擊殺不進離線取樣：補幀是把數小時壓縮在幾秒內重放，
-            //    餵進取樣會把「每分鐘擊殺/經驗/金幣速率」灌爆 → 之後關頁的離線收益跟著爆炸。
-            let valid = !(typeof state !== 'undefined' && state && state.ff) && _offlineValidMob(mob, map);
-            let beforeGold = valid ? Math.max(0, Number(player.gold) || 0) : 0;
-            let beforeProgress = valid ? _offlineExpProgress(player.lv, player.exp) : 0;
-            let partyExp = valid ? _offlineExpectedPartyExp(mob) : { pet: 0, ally: 0 };
+            // 真實補跑（state.ff）會逐 tick 正常給獎，但不能拿壓縮執行的牆鐘時間建立離線速率或 BOSS 擊殺時間證明。
+            let foreground = !(typeof state !== 'undefined' && state && state.ff);
+            let validMob = foreground && _offlineValidMob(mob, map);
+            let validBoss = foreground && _offlineValidBoss(mob, map);
+            let tracked = validMob || validBoss;
+            let beforeGold = tracked ? Math.max(0, Number(player.gold) || 0) : 0;
+            let beforeProgress = tracked ? _offlineExpProgress(player.lv, player.exp) : 0;
+            let partyExp = tracked ? _offlineExpectedPartyExp(mob) : { pet: 0, ally: 0 };
+            let bossPetBefore = null;
+            let bossAllyBefore = null;
+            if (validBoss) {
+                try {
+                    if (typeof _ffPetProgressSum === 'function') bossPetBefore = _ffPetProgressSum();
+                    if (typeof _ffAllyProgress === 'function' && Array.isArray(player.allies)) {
+                        bossAllyBefore = player.allies.reduce((sum, ally) =>
+                            sum + (ally ? _ffAllyProgress(ally) : 0), 0);
+                    }
+                } catch (e) {
+                    bossPetBefore = null;
+                    bossAllyBefore = null;
+                }
+            }
             let result = _offlineOriginalKillMob.apply(this, arguments);
-            if (valid && mob && mob._dead) {
+            if (tracked && mob && mob._dead) {
                 let afterProgress = _offlineExpProgress(player.lv, player.exp);
-                _offlineRecordKill(mob, map, afterProgress - beforeProgress,
-                    Math.max(0, (Number(player.gold) || 0) - beforeGold), partyExp.pet, partyExp.ally, _offlineNow());
+                let now = _offlineNow();
+                let expGain = afterProgress - beforeProgress;
+                let goldGain = Math.max(0, (Number(player.gold) || 0) - beforeGold);
+                if (validBoss) {
+                    let petGain = partyExp.pet;
+                    let allyGain = partyExp.ally;
+                    try {
+                        if (bossPetBefore != null && typeof _ffPetProgressSum === 'function') {
+                            petGain = Math.max(0, _ffPetProgressSum() - bossPetBefore);
+                        }
+                        if (bossAllyBefore != null && typeof _ffAllyProgress === 'function' && Array.isArray(player.allies)) {
+                            let allyAfter = player.allies.reduce((sum, ally) =>
+                                sum + (ally ? _ffAllyProgress(ally) : 0), 0);
+                            allyGain = Math.max(0, allyAfter - bossAllyBefore);
+                        }
+                    } catch (e) {}
+                    try {
+                        _offlineRecordBossKill(mob, map, expGain, goldGain, petGain, allyGain, now);
+                    } catch (e) {
+                        try { console.warn('[offline] boss profile update failed', e); } catch (_) {}
+                    }
+                } else {
+                    _offlineRecordKill(mob, map, expGain, goldGain, partyExp.pet, partyExp.ally, now);
+                }
+            }
+            return result;
+        };
+    }
+
+    function _offlineRecordSurvivalDeath(now) {
+        if (!_offlineSurvivalTrackable()) return;
+        let map = String(mapState.current || '');
+        let rt = _offlineEnsureSurvivalRuntime(map);
+        let tickNo = Number(state && state.ticks) || 0;
+        if (rt.deathTick === tickNo) return;
+        let hp = Math.max(0, Number(player.hp) || 0);
+        if (rt.lastTick !== tickNo) {
+            let directHealing = _offlineSurvivalTickCtx && _offlineSurvivalTickCtx.rt === rt ? _offlineSurvivalTickCtx.directHealing : 0;
+            rt.damage += Math.max(0, rt.lastHp + directHealing - hp);
+            rt.activeMs += TICK_MS;
+            rt.lastTick = tickNo;
+        }
+        rt.lastHp = hp;
+        rt.minHpPct = 0;
+        rt.deaths++;
+        rt.deathTick = tickNo;
+        let st = _offlineEnsureState();
+        if (!st) return;
+        let previous = _offlineProfileForMap(st, map) || {
+            map: map, mapName: _offlineMapName(map), expPerMin: 0, goldPerMin: 0,
+            killsPerMin: 0, petExpPerMin: 0, allyExpPerMin: 0, sampleMs: 0,
+            mobs: [], bosses: [], sampleKills: 0, updatedAt: 0
+        };
+        let survival = _offlineSurvivalSnapshot(map, previous.survival, now, true);
+        _offlineRememberProfile(st, Object.assign({}, previous, { survival: survival, updatedAt: now }));
+    }
+
+    function _offlineLockAfterDeath() {
+        let st = _offlineEnsureState();
+        if (!st) return false;
+        let changed = st.bossUnlocked !== false;
+        let now = _offlineNow();
+        st.bossUnlocked = false;
+        st.bossUnlockedAt = 0;
+        st.eligible = false;
+        st.awaySince = now;
+        st.map = '';
+        st.mapName = '';
+        _offlineWriteJson(_offlineStoreKey('checkpoint'), {
+            v: OFFLINE_VERSION,
+            lastActive: now,
+            snapshot: JSON.parse(JSON.stringify(st))
+        });
+        return changed;
+    }
+
+    const _offlineOriginalKillPlayer = window.killPlayer;
+    if (typeof _offlineOriginalKillPlayer === 'function') {
+        window.killPlayer = function () {
+            _offlineRecordSurvivalDeath(_offlineNow());
+            let changed = _offlineLockAfterDeath();
+            let result = _offlineOriginalKillPlayer.apply(this, arguments);
+            if (changed && typeof logSys === 'function') {
+                logSys('<span class="text-amber-300 font-bold">死亡使離線掛機資格失效，需再次擊敗任一頭目才能解鎖。</span>');
             }
             return result;
         };
@@ -1081,6 +1726,7 @@
     const _offlineOriginalLoadGame = window.loadGame;
     if (typeof _offlineOriginalLoadGame === 'function') {
         window.loadGame = function () {
+            _offlineRoleDetached = false;
             _offlineLoading = true;
             let result;
             try {
@@ -1094,8 +1740,32 @@
         };
     }
 
+    const _offlineOriginalStartGame = window.startGame;
+    if (typeof _offlineOriginalStartGame === 'function') {
+        window.startGame = function () {
+            _offlineRoleDetached = false;
+            return _offlineOriginalStartGame.apply(this, arguments);
+        };
+    }
+
+    window.offlinePrepareCharacterSelect = function () {
+        if (typeof player === 'undefined' || !player || !player.cls || _offlineLoading || _offlineSettling) return false;
+        let now = _offlineNow();
+        _offlineRememberPendingCatchup(now);
+        let snapshot = _offlinePrepareSnapshot(now, true);
+        _offlineInternalSave = true;
+        window.__fb5CloseFlush = true;
+        try { _offlineOriginalSaveGame(); } catch (e) {}
+        finally {
+            _offlineInternalSave = false;
+            window.__fb5CloseFlush = false;
+            _offlineRoleDetached = true;
+        }
+        return !!(snapshot && snapshot.eligible === true);
+    };
+
     function _offlinePauseAndSave() {
-        if (typeof player === 'undefined' || !player || !player.cls || _offlineLoading || _offlineSettling) return;
+        if (_offlineRoleDetached || typeof player === 'undefined' || !player || !player.cls || _offlineLoading || _offlineSettling) return;
         _offlinePrepareSnapshot(_offlineNow());
         _offlineInternalSave = true;
         try { _offlineOriginalSaveGame(); } catch (e) {}
@@ -1103,17 +1773,19 @@
     }
 
     function _offlineCloseAndSave() {
-        if (typeof player === 'undefined' || !player || !player.cls || _offlineLoading || _offlineSettling) return;
+        if (_offlineRoleDetached || typeof player === 'undefined' || !player || !player.cls || _offlineLoading || _offlineSettling) return;
         let now = _offlineNow();
         _offlineRememberPendingCatchup(now);
         _offlinePrepareSnapshot(now, true);
         _offlineInternalSave = true;
+        window.__fb5CloseFlush = true;   // 🔚 v3.7.31 關頁最終存檔＝final flush：繞過 js/13 的補跑存檔延後閘（背景節流喚醒間 _tickDebt 常 ≥100ms，不繞過＝最終進度不落地）
         try { _offlineOriginalSaveGame(); } catch (e) {}
-        finally { _offlineInternalSave = false; }
+        finally { _offlineInternalSave = false; window.__fb5CloseFlush = false; }
     }
 
     if (typeof document !== 'undefined' && document.addEventListener) {
         document.addEventListener('visibilitychange', function () {
+            if (_offlineRoleDetached) return;
             if (document.hidden) {
                 if (!_offlineHiddenAt) _offlineHiddenAt = _offlineNow();
                 _offlinePauseAndSave();
@@ -1134,6 +1806,7 @@
         });
         window.addEventListener('beforeunload', _offlineCloseAndSave);
         window.addEventListener('pageshow', function (ev) {
+            if (_offlineRoleDetached) return;
             if (document.hidden) return;
             _offlineHiddenAt = 0;
             if (ev && ev.persisted) {

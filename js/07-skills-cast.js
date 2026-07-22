@@ -75,6 +75,7 @@ function summonAttack(sm, owner) {
         let r = roll(1, 20);
         if(!((r === 20) || (r !== 1 && hv >= r))) { if (typeof vfxMiss === 'function') vfxMiss(t); logCombat(`${sm.n} 的攻擊未命中。`, 'miss'); return; }
         let dmg = Math.max(1, roll(sm.dmgDice[0], sm.dmgDice[1]) + cha + _sgb.dmg + (_teamAtk ? _teamAtk.ed : 0) - (t.dr || 0));
+        dmg += traumaPhysicalBonus(t);
         markBossPhysicalHit(t);
         t.justHit = 'normal'; t.curHp -= dmg; mobWake(t);
         logCombat(`<span class="text-purple-300">${sm.n}</span> 攻擊 <span class="${getMobColor(t.lv)}">${t.n}</span>，造成 ${dmg} 點傷害。`, 'player');
@@ -102,6 +103,7 @@ function summonAttack(sm, owner) {
             let hardSkin = Math.floor(mobHardSkin(t) * (1 - (sm.hardSkinPen || 0)));
             let raw = (roll(sm.dmgDice[0], sm.dmgDice[1]) + flat + _sgb.dmg + (_teamAtk ? _teamAtk.ed : 0)) * summonDamageMult(sm, owner, false);
             dmg = Math.max(1, Math.floor(raw) - (t.dr || 0) - hardSkin);
+            dmg += traumaPhysicalBonus(t);
             t.justHit = 'normal';
             markBossPhysicalHit(t);
         }
@@ -223,6 +225,7 @@ function illuSummonTick(owner) {
             let r = roll(1, 20);
             if (!(r === 20 || (r !== 1 && hv >= r))) { if (typeof vfxMiss === 'function') vfxMiss(t); logCombat(`<span class="text-purple-300 font-bold">【幻覺：${c.n}】</span> 的攻擊未命中。`, 'miss', 'summon'); continue; }
             dmg = Math.max(1, Math.floor(base) - (t.dr || 0));
+            dmg += traumaPhysicalBonus(t);
         }
         dmg = Math.max(1, Math.floor(dmg * fragileMult(t) * illuLvMult(owner)));   // 🔮 幻覺召喚物：幻術士等級加成 ×(1+等級/50)
         t.curHp -= dmg; t.justHit = (c.kind === 'magic') ? 'magic' : 'none'; mobWake(t);
@@ -388,8 +391,7 @@ function castSkillInner(skId) {
     let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && (needLv === undefined || player.lv < needLv)) return false;
-    //if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符 🔓 四屬性解除
-    //if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性 🔓 四屬性解除
+    // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
 
     // 🏺 烈焰巫師的正式長袍：燃燒的火球→爆裂的火球。
     // ⚠️ v3.6.65 必須放在**等級/屬性閘之後**：爆裂的火球是「非可學技能」（無 reqM/reqE），

@@ -1924,6 +1924,26 @@
         return '<div class="m-wiki-kv"><b>' + esc(itemName(r.result)) + '</b>在 ' + lmWhere + ' 製作　材料：' + esc(mats) + '（會繼承來源戰士團裝備的強化值／詞綴／席琳套裝）</div>';
       }).join('');
     }
+    // 🏺 歐西里斯／庫庫爾坎寶箱掉落說明
+    html += '<div class="m-wiki-desc" style="margin-top:8px;">・歐西里斯／庫庫爾坎寶箱由<b>巴特爾</b>合成，開啟需<b>龜裂之核</b>（由巴特爾製作）。龜裂之核材料：傲慢之塔各層掉落的<b>傲慢之碎片</b>。</div>';
+    html += '<div class="m-wiki-sub">🏛️ 歐西里斯寶箱 掉落內容</div>';
+    html += '<table class="m-wiki-tbl"><tr><th>物品</th><th>初級</th><th>高級</th></tr>';
+    html += '<tr><td>傳說武器（矛/杖/劍/弓）</td><td>0.25%</td><td>0.75%</td></tr>';
+    html += '<tr><td>武器強化卷軸</td><td>5%</td><td>10%</td></tr>';
+    html += '<tr><td>防具強化卷軸</td><td>5%</td><td>10%</td></tr>';
+    html += '<tr><td>寶石</td><td>10%</td><td>15%</td></tr>';
+    html += '<tr><td>品質寶石</td><td>5%</td><td>10%</td></tr>';
+    html += '</table>';
+    html += '<div class="m-wiki-desc">備註：惡魔之吻 4% 觸發、腰帶/戒指為頭目專屬不掉箱。</div>';
+    html += '<div class="m-wiki-sub">🐍 庫庫爾坎寶箱 掉落內容</div>';
+    html += '<table class="m-wiki-tbl"><tr><th>物品</th><th>初級</th><th>高級</th></tr>';
+    html += '<tr><td>傳說裝備（矛/鐵手甲/盾/面具）</td><td>0.25%</td><td>0.75%</td></tr>';
+    html += '<tr><td>武器強化卷軸</td><td>5%</td><td>10%</td></tr>';
+    html += '<tr><td>防具強化卷軸</td><td>5%</td><td>10%</td></tr>';
+    html += '<tr><td>寶石</td><td>10%</td><td>15%</td></tr>';
+    html += '<tr><td>品質寶石</td><td>5%</td><td>10%</td></tr>';
+    html += '</table>';
+    html += '<div class="m-wiki-desc">備註：詛咒稻草人 4% 疊加（矛/鐵手甲限定），祭壇鑰匙由提卡爾尼荷斯掉落。</div>';
     return html;
   }
 

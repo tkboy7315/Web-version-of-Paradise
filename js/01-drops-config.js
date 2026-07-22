@@ -1231,7 +1231,7 @@ const MERC_EXP_SHARE = 0.5;          // ⚠️v3.0.86 已停用：傭兵經驗�
 // 🤝 Phase4：設為「全體」的怪物攻擊技能名（依 mag.skn 比對·同名全部生效）→ 同時打玩家＋全部非倒地傭兵。其餘怪物傷害/狀態魔法仍可依仇恨權重隨機打單一目標(玩家或某傭兵)。
 const MOB_PARTY_AOE_SKILLS = new Set(['闇黑波動','毒霧','鐮刀波動','火焰之舞','燃燒的火球','火焰之陣','地面震裂','跳躍波動','冰雪暴','震裂術','咆哮','燃燒立方','火焰噴吐','流星雨','火牢','寒冰噴吐','巨水炮','大地怒吼','毒氣風暴','閃電風暴','火焰雨','寒冰吐息','地獄犬噴吐','火風暴','龍捲風','爆炎的火球','噴火','漩渦','防身電擊','震裂踏擊','火焰放射','黑霧','火焰氣息','黑暗流星雨','放射斬','迴旋鞭打','衝擊波動','千刃破軍','靈魂波動','火焰爆發','迴旋斬','龍的一擊','地獄火','黑魔法力場','鐮刀劍氣斬','腐蝕之血','冰錐流星雨','水氣爆裂','集體衝暈','巨石爆裂','地面障礙','邪靈之氣','血夜月彎刀','夜魔飛襲','幻象光線','集體相消','劇毒龍捲風','麻痺蜘蛛網','雷霆風暴','沙塵暴','震裂重擊','冰雪颶風','衝擊之暈','岩漿流星雨','火焰散落','鎌鼬旋風','寒冰氣息','妖狐之火','牛鬼突進','大地崩裂','幽魂怨念','枯竭詛咒']);   // 🐍 提卡爾杰弗雷庫雙BOSS 全體技能；🌑 v3.3.33 聖地；🌅 枯竭詛咒對每位玩家/傭兵各自以 MR 判定藥水霜化
 let _loopLast = null;                // 上次主迴圈時間戳 (performance.now)
-let _tickDebt = 0;                   // 前景未滿一個 tick 的時間餘量；完整逾期 tick 不保留
+let _tickDebt = 0;                   // 尚待逐 tick 真實補跑的時間債務（含切分頁／縮小的背景時間）
 let _ffSavePending = false;          // 補跑期間收到的存檔要求：還清後只補存一次，避免半套進度覆蓋 checkpoint
 let _gameLoopId = null;              // 主迴圈 setInterval id（用於避免重複註冊）
 let _saveLoopId = null;             // 自動存檔 setInterval id
@@ -1261,31 +1261,24 @@ function queueCatchupMs(ms) {
     if (!Number.isFinite(ms) || ms <= 0 || !state || !state.running || !player || !player.cls || player.dead) return false;
     _loopLast = _perfNow();
     _tickDebt += ms;
+    if (typeof _ffScheduleNext === 'function') _ffScheduleNext();
     return true;
 }
 
-// 背景分頁回前景改走一次性結算，不把數小時重新拆成數萬個戰鬥 tick。
+// 背景分頁回前景：把整段時間排入真實 tick 補跑；分批執行以維持畫面可操作。
 function settleBackgroundMs(ms, reason) {
     ms = Math.max(0, Number(ms) || 0);
-    _loopLast = _perfNow();
-    _tickDebt = 0;
-    _ffSavePending = false;
     if (ms < TICK_MS) return true;
-    if (typeof window !== 'undefined' && typeof window.offlineSettleCatchup === 'function') {
-        try {
-            if (window.offlineSettleCatchup(ms, reason || 'visibility') !== false) return true;
-        }
-        catch (e) { console.warn('background batch settlement failed', e); }
-    }
-    // 模組異常時不恢復逐 tick 長時間補跑，避免再次讓分頁卡住。
+    if (queueCatchupMs(ms)) return true;
     if (typeof logSys === 'function') {
-        logSys('背景補幀已關閉，未進行補跑。');
+        logSys('<span class="text-red-400 font-bold">掛機補跑排程失敗，本次未進行補跑，請重新整理後再試。</span>');
     }
     return false;
 }
 
 // 統一啟動遊戲計時器：先清除既有的，再重新註冊，確保整個工作階段只會有一組計時器
 function startGameTimers() {
+    if (typeof _ffCancelScheduledLoop === 'function') _ffCancelScheduledLoop();
     if (_gameLoopId !== null) clearInterval(_gameLoopId);
     if (_saveLoopId !== null) clearInterval(_saveLoopId);
     _loopLast = null; _tickDebt = 0; _ffSavePending = false;
@@ -1298,39 +1291,80 @@ function startGameTimers() {
     if (typeof _initTabGuard === 'function') _initTabGuard();           // 🚀 綁定分頁面板點擊保護＋重繪節流（避免狩獵時 賣出/強化 按鈕卡頓、點擊失效）
 }
 
+function stopGameTimers() {
+    if (typeof _ffCancelScheduledLoop === 'function') _ffCancelScheduledLoop();
+    if (typeof resetCatchupForRoleSwitch === 'function') resetCatchupForRoleSwitch();
+    if (_gameLoopId !== null) clearInterval(_gameLoopId);
+    if (_saveLoopId !== null) clearInterval(_saveLoopId);
+    _gameLoopId = null;
+    _saveLoopId = null;
+    _loopLast = null;
+    _tickDebt = 0;
+    _ffSavePending = false;
+    _ffHiddenAt = 0;
+}
+
 function _perfNow() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
-function _resetGameLoopClock() { _loopLast = _perfNow(); _tickDebt = 0; _ffSavePending = false; }
-// 背景時間錨點：切到背景記下時刻，回前景交給 js/27 以 100% 實戰取樣率一次結算。
-// 不依賴背景中可能被 Chrome 節流或凍結的 setInterval，也不再逐 tick 重播動畫與戰鬥。
+function _resetGameLoopClock() { if (typeof _ffCancelScheduledLoop === 'function') _ffCancelScheduledLoop(); _loopLast = _perfNow(); _tickDebt = 0; _ffSavePending = false; }
+// 背景期間由被 Chrome 降頻後仍能執行的 gameLoop 先增量補跑；回前景只補最後一次 callback 後的剩餘差額。
+// _loopLast 會在每次背景 gameLoop 更新，因此不能再用整段 hidden 時間入帳，否則會把已處理部分重複計算。
 let _ffHiddenAt = (typeof document !== 'undefined' && document.hidden) ? _perfNow() : 0;
+function _resumeIncrementalBackground(reason) {
+    let _now = _perfNow();
+    let _anchor = (Number.isFinite(_loopLast) && _loopLast > 0) ? _loopLast : _ffHiddenAt;
+    _ffHiddenAt = 0;
+    _loopLast = _now;
+    if (_anchor > 0 && typeof state !== 'undefined' && state.running && typeof player !== 'undefined' && player && player.cls && !player.dead) {
+        settleBackgroundMs(Math.max(0, _now - _anchor), reason);
+    }
+    // 若背景已完全追平而只剩摘要待結束，這次零差額 gameLoop 會負責統一重繪與顯示。
+    if (typeof gameLoop === 'function') gameLoop();
+}
 if (typeof document !== 'undefined' && document.addEventListener) {
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) { if (!_ffHiddenAt) _ffHiddenAt = _perfNow(); return; }
-        let _now = _perfNow();
-        let _anchor = _ffHiddenAt; _ffHiddenAt = 0;
-        _loopLast = _now;
-        if (_anchor > 0 && typeof state !== 'undefined' && state.running && typeof player !== 'undefined' && player && player.cls && !player.dead) {
-            settleBackgroundMs(Math.max(0, _now - _anchor), 'visibility');
-        }
+        _resumeIncrementalBackground('visibility');
     });
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('pageshow', function (ev) {
-        // bfcache 的頁面與 JS 記憶體仍存在，視為背景掛機並一次結算。
+        // bfcache 完全凍結期間沒有 callback：以最後一次 gameLoop 為錨，只補尚未執行的尾段。
         if (ev && ev.persisted) {
-            let _now = _perfNow();
-            let _anchor = _ffHiddenAt;
-            _ffHiddenAt = 0;
-            _loopLast = _now;
-            if (_anchor > 0 && typeof state !== 'undefined' && state.running && typeof player !== 'undefined' && player && player.cls && !player.dead) {
-                settleBackgroundMs(Math.max(0, _now - _anchor), 'bfcache');
-            }
+            _resumeIncrementalBackground('bfcache');
             return;
         }
         _ffHiddenAt = 0;
         _resetGameLoopClock();
     });
 }
+
+// 🧵 v3.7.33 背景全速心跳：主執行緒計時器在背景分頁會被 Chrome 節流（最壞每分鐘一拍），
+//    但 Web Worker 的計時器不受分頁節流影響——由 Worker 每秒 postMessage 喚醒主執行緒跑一次 gameLoop，
+//    上方的背景增量補跑便以近即時速率持續執行：切分頁／縮小視窗也完整照跑不停止。
+//    前景不走此路徑（100ms 主迴圈負責）；Worker 建立失敗時自動退回既有的節流喚醒＋回前景差額補跑。
+//    file:// 下外部 Worker 檔會被擋，須用 Blob URL 建立。
+//    ⚠️限制：分頁被瀏覽器整個凍結／丟棄（省電模式、記憶體回收）時 message 也不會送達，
+//    該情境仍由回前景差額補跑與 js/27 離線結算兜底。
+let _bgHeartbeatWorker = null;
+(function _initBgHeartbeat() {
+    if (typeof window === 'undefined' || typeof Worker === 'undefined' || typeof Blob === 'undefined'
+        || typeof URL === 'undefined' || !URL.createObjectURL) return;
+    try {
+        let _u = URL.createObjectURL(new Blob(['setInterval(function(){postMessage(1);},1000);'], { type: 'text/javascript' }));
+        _bgHeartbeatWorker = new Worker(_u);
+        URL.revokeObjectURL(_u);
+        _bgHeartbeatWorker.onmessage = function () {
+            if (typeof document === 'undefined' || !document.hidden) return;   // 前景由 100ms 主迴圈驅動
+            if (typeof gameLoop !== 'function' || !state.running) return;
+            gameLoop();
+            // 背景中被延後的存檔（每 5 分鐘自動存檔會進 deferCatchupSave）：趁債務已還清的空檔補寫入，
+            // 降低背景掛機中分頁被瀏覽器回收時的進度損失；js/27 的 checkpoint 凍結不受影響，仍錨在切出當下。
+            if (_tickDebt < TICK_MS && takeCatchupSaveRequest() && typeof saveGame === 'function') {
+                try { saveGame(); } catch (e) {}
+            }
+        };
+    } catch (e) { _bgHeartbeatWorker = null; }
+})();
 
 let player = {
     cls: null, name: null, lv: 1, exp: 0, gold: 1000, hp: 0, mhp: 0, mp: 0, mmp: 0, alignmentValue: 0, pvpOn: false, pvpRevengeList: [],
@@ -1897,11 +1931,11 @@ Object.assign(ITEM_WEIGHTS, {"魔法娃娃：雪人":1,"魔法娃娃：野狼寶
 // 🏺 遺物 第十四批（v3.3.0·14 件·單一怪物 0.0001% 掉落）
 Object.assign(ITEM_WEIGHTS, {"與歐林的定情之戒":3,"馴獸師的飼料袋":3,"地元素屏障":50,"水元素屏障":50,"火元素屏障":50,"風元素屏障":50,"兇殘惡鬼的毒牙":40,"殘暴骸骨的破片":40,"屍毒之針":50,"不定形的變幻劍":110,"巨大鱷魚的皮革盔甲":180,"妖鬼王的畸形背瘤":50,"傳說海賊的迷幻雙刀":30,"熔岩灼燒的雙拳":50});
 Object.assign(ITEM_WEIGHTS, {"魔力阻抗襯衫":15,"火精靈王的爆焰":150,"水精靈王的撫摸":40,"風精靈王的狂嘯":30,"地精靈王的抗拒":40,"純潔少女的憐愛":5,"破岩法師的秘術":30,"將軍愛用的握劍護腕":30});   // 🏺 遺物 第十五批重量（依規格）
-[['西瑪','relic_orin_ring'],['拉斯塔巴德馴獸師','relic_tamer_feedbag'],['地元素守護者','relic_earth_barrier'],['水元素守護者','relic_water_barrier'],['火元素守護者','relic_fire_barrier'],['風元素守護者','relic_wind_barrier'],['殘暴的食屍鬼','relic_ghoul_fang'],['殘暴的史巴托','relic_sparto_shard'],['受詛咒的妖魔殭屍','relic_corpse_needle'],['遺忘之島變形怪','relic_morph_blade'],['遺忘之島巨大鱷魚','relic_croc_leather'],['遺忘之島卡司特王','relic_kasta_hump'],['德雷克','relic_pirate_dual'],['熔岩高崙','relic_lava_fists']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+[['西瑪','relic_orin_ring'],['拉斯塔巴德馴獸師','relic_tamer_feedbag'],['地元素守護者','relic_earth_barrier'],['水元素守護者','relic_water_barrier'],['火元素守護者','relic_fire_barrier'],['風元素守護者','relic_wind_barrier'],['殘暴的食屍鬼','relic_ghoul_fang'],['殘暴的史巴托','relic_sparto_shard'],['受詛咒的妖魔殭屍','relic_corpse_needle'],['遺忘之島變形怪','relic_morph_blade'],['遺忘之島巨大鱷魚','relic_croc_leather'],['遺忘之島卡司特王','relic_kasta_hump'],['德雷克','relic_pirate_dual'],['熔岩高崙','relic_lava_fists']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 // 🏺 遺物 第十六批重量（依規格·寵物防具/武器不計負重故不列）
 Object.assign(ITEM_WEIGHTS, {"奴隸粗布衫":30,"地獄犬三頭釵":30,"巨魔的再生戒指":5,"烈焰巫師的正式長袍":30,"負重的堅忍巨臂":50,"笨重的鋼鐵石盾":250,"魔力泉源長靴":15,"暗黑的金屬棍棒":30,"召喚儀式的魔術布":10,"斷裂的昆蟲巨鉗":120,"魔力塑造的海洋水晶球":30,"燃燒殆盡的灰燼之拳":10,"死神的鐮刀破片":40,"巨靈的承諾":3,"被差遣的迷你闇精靈":10,"復仇者的十字弩弓":40});
 // 🏺 遺物 第十六批掉落（單一怪物 0.0001%；地獄奴隸＝聖地版 sanct_hellslave·同名鍵）
-[['受詛咒的馴獸師','relic_tamer_petarm'],['地獄奴隸','relic_slave_shirt'],['恐怖的地獄犬','relic_cerberus_pin'],['遺忘之島多羅','relic_troll_regen_ring'],['卡士柏','relic_flamemage_robe'],['底比斯 尖碑石奴(黑)','relic_burden_gauntlet'],['小惡魔','relic_imp_fang'],['恐怖的鋼鐵高崙','relic_iron_stone_shield'],['火焰之魔法師','relic_mana_spring_boots'],['暗黑萊肯','relic_dark_metal_club'],['炎魔的小惡魔','relic_summon_cloth'],['巨大守護螞蟻','relic_ant_pincer'],['馬庫爾','relic_ocean_orb'],['阿西塔基奧','relic_ash_fist'],['死神','relic_reaper_scythe'],['伊弗利特','relic_djinn_promise'],['黑暗精靈使','relic_mini_darkelf'],['黑暗復仇者','relic_avenger_crossbow']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+[['受詛咒的馴獸師','relic_tamer_petarm'],['地獄奴隸','relic_slave_shirt'],['恐怖的地獄犬','relic_cerberus_pin'],['遺忘之島多羅','relic_troll_regen_ring'],['卡士柏','relic_flamemage_robe'],['底比斯 尖碑石奴(黑)','relic_burden_gauntlet'],['小惡魔','relic_imp_fang'],['恐怖的鋼鐵高崙','relic_iron_stone_shield'],['火焰之魔法師','relic_mana_spring_boots'],['暗黑萊肯','relic_dark_metal_club'],['炎魔的小惡魔','relic_summon_cloth'],['巨大守護螞蟻','relic_ant_pincer'],['馬庫爾','relic_ocean_orb'],['阿西塔基奧','relic_ash_fist'],['死神','relic_reaper_scythe'],['伊弗利特','relic_djinn_promise'],['黑暗精靈使','relic_mini_darkelf'],['黑暗復仇者','relic_avenger_crossbow']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 // 🏺 遺物 第十七批重量（依規格）
 Object.assign(ITEM_WEIGHTS, {"重戰士的鏈鎖腰帶":150,"殘暴的骸骨意志之弓":40,"鬥士的決戰服裝":50,"幼龍的爪印":50,"滲透紅光的背後靈":5,"法師的護身短刀":30});
 // 🌅 日出之國 傳說／體力戒指／16 遺物重量（依《日出之國.md》規格）
@@ -1909,25 +1943,33 @@ Object.assign(ITEM_WEIGHTS, {"重戰士的鏈鎖腰帶":150,"殘暴的骸骨意�
 Object.assign(ITEM_WEIGHTS, {"滅魔的 金屬盔甲":170,"滅魔的 披肩":20,"滅魔的 鱗甲":120,"滅魔的 小藤甲":100});
 Object.assign(ITEM_WEIGHTS, {"陰陽師的扇子":15,"巨型骷髏之指環":30,"體力戒指":3,"沸騰蒸氣的鍋蓋":30,"鐮鼬的藥壺":5,"長首妖怪的圍巾":3,"老舊的百年唐傘":10,"沸騰蒸氣的巨釜":250,"鐮鼬的尾刃":120,"河童的尻子玉":10,"赤鬼的內褲":10,"青鬼的虎皮衫":100,"毒鵺的黑尾":120,"天狗的羽扇":50,"阿修羅的武神技":15,"九尾妖狐的怒火":15,"牛鬼的斷角":20,"牛鬼之子的黑戒":5,"巨大骷髏的頭骨":150});
 // 🏺 遺物 第十七批掉落（單一怪物 0.0001%）
-[['歐姆戰士','relic_heavy_belt'],['殘暴的骷髏神射手','relic_bone_bow'],['殘暴的骷髏鬥士','relic_fighter_armor'],['幼龍','relic_drake_pawprint'],['火焰之靈魂(紅)','relic_red_wraith'],['受詛咒的艾爾摩法師','relic_mage_dagger']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+[['歐姆戰士','relic_heavy_belt'],['殘暴的骷髏神射手','relic_bone_bow'],['殘暴的骷髏鬥士','relic_fighter_armor'],['幼龍','relic_drake_pawprint'],['火焰之靈魂(紅)','relic_red_wraith'],['受詛咒的艾爾摩法師','relic_mage_dagger']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 // 🏺 v3.6.44 遺物 第十九批掉落（15 件·各 0.0001%·「墳墓守護者」拆法師＋騎士兩隻同率）
-[['深淵弓箭手','relic_marksman_corset'],['地靈之主','relic_earthshatter_sword'],['風靈之主','relic_gale_fistblade'],['火靈之主','relic_hellfire_hammer'],['墳墓守護者法師','relic_pet_devotion'],['墳墓守護者騎士','relic_pet_devotion'],['血色術士','relic_blood_ritual_dagger'],['恐怖的伊弗利特','relic_genie_wishes'],['火焰之靈魂(藍)','relic_cold_blueflame'],['火焰烈炎獸','relic_scorch_greatsword'],['底比斯 斯芬克斯','relic_guardian_riddle'],['闇黑君王','relic_mana_array_boots'],['血騎士','relic_bloodknight_dual'],['骨龍','relic_cursed_egg'],['受詛咒的艾爾摩士兵','relic_elmo_spear'],['遺忘之島亞力安','relic_petrify_essence']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+[['深淵弓箭手','relic_marksman_corset'],['地靈之主','relic_earthshatter_sword'],['風靈之主','relic_gale_fistblade'],['火靈之主','relic_hellfire_hammer'],['墳墓守護者法師','relic_pet_devotion'],['墳墓守護者騎士','relic_pet_devotion'],['血色術士','relic_blood_ritual_dagger'],['恐怖的伊弗利特','relic_genie_wishes'],['火焰之靈魂(藍)','relic_cold_blueflame'],['火焰烈炎獸','relic_scorch_greatsword'],['底比斯 斯芬克斯','relic_guardian_riddle'],['闇黑君王','relic_mana_array_boots'],['血騎士','relic_bloodknight_dual'],['骨龍','relic_cursed_egg'],['受詛咒的艾爾摩士兵','relic_elmo_spear'],['遺忘之島亞力安','relic_petrify_essence']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 Object.assign(ITEM_WEIGHTS, {"精銳射手的戰鬥束衣":50,"大地碎裂劍":120,"疾風拳刃":60,"業火鍛造鎚":120,"珍愛夥伴的執念":5,"血祭儀式短刀":30,"巨靈的三個願望":3,"凜冽的青色火炎":120,"烈炎燒灼的滾燙巨劍":150,"守護獸的難題":10,"魔力凝聚的法陣":15,"嗜血騎士的雙刀":30,"充滿詛咒氣息的蛋":5,"艾爾摩尖頭槍":120,"石化魔法的精髓":60});   // 🏺 遺物重量（依名稱·v3.6.44 +15 件·蛋未給重量暫定 5）
 // 🏺 v3.6.47 遺物 第二十批掉落（3 件·各 0.0001%）
-[['烈炎獸','relic_lava_nozzle'],['飛龍','relic_doom_egg'],['重裝歐姆戰士','relic_crusher_hammer']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+[['烈炎獸','relic_lava_nozzle'],['飛龍','relic_doom_egg'],['重裝歐姆戰士','relic_crusher_hammer']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 Object.assign(ITEM_WEIGHTS, {"火山怪獸的熔岩噴嘴":120,"充滿厄運氣息的蛋":5,"重裝戰士的粉碎鎚":250});   // 🏺 遺物重量（依名稱·v3.6.47 +3 件·蛋未給重量比照詛咒蛋暫定 5）
 // 🥚 v3.6.62 遺物 第二十一批掉落（2 件·各 0.0001%）：破滅蛋／災厄蛋＝補完四蜥蜴取得管道
-[['遺忘之島飛龍','relic_doomsday_egg'],['深淵地靈','relic_calamity_egg']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.1]));
+[['遺忘之島飛龍','relic_doomsday_egg'],['深淵地靈','relic_calamity_egg']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
 Object.assign(ITEM_WEIGHTS, {"充滿破滅氣息的蛋":5,"充滿災厄氣息的蛋":5});   // 🏺 遺物重量（依名稱·v3.6.62 +2 件·蛋未給重量比照前兩顆蛋暫定 5）
+// 🏺 v3.7.20 遺物 第二十二批掉落（18 件·各 0.0001%·push 追加安全·⚠️怪鍵=顯示名·含半形空格「底比斯 斯芬克斯(黑)」）
+[['遺忘之島巨大牛人','relic_maze_demon_glare'],['拉斯塔巴德近衛隊','relic_lining_chainshirt'],['冷酷冰原老虎','relic_icefang_armguard'],
+ ['暗黑火焰弓箭手','relic_powder_arrow'],['遺忘之島邪惡蜥蜴','relic_lizardlord_crown'],['墳墓守護者法師','relic_steelmonk_staff'],
+ ['黑長者','relic_elder_obsidian_orb'],['變形怪首領','relic_myriad_avatar'],['巴風特','relic_unsealed_baphomet_wand'],
+ ['底比斯 斯芬克斯(黑)','relic_sphinx_black_wing'],['底比斯 尼荷斯','relic_overlook_thunder'],['受詛咒的艾爾摩將軍','relic_elmore_greatsword'],
+ ['暗黑火焰戰士','relic_warrior_blackblade'],['遺忘之島獨眼巨人','relic_cyclops_dollsuit'],['西斯','relic_beheading_scythe'],
+ ['曼波兔','relic_treasured_carrot'],['墳墓守護者騎士','relic_cross_tombshield'],['象牙塔紙人','relic_mage_scrap_note']].forEach(r => (MOB_DROPS[r[0]] = MOB_DROPS[r[0]] || []).push([r[1], 0.0001]));
+Object.assign(ITEM_WEIGHTS, {"迷宮惡魔的瞥視":130,"盔甲內襯鎖鏈衣":30,"冰牙虎臂甲":15,"無限火藥爆裂矢":10,"蜥蜴領主的王冠":15,"鋼鐵僧侶的錫杖":80,"長老的黑曜水晶球":30,"百變化身":15,"解除封印的巴風特魔杖":15,"人面獅身的漆黑羽翼":10,"俯瞰大地的雷電":5,"艾爾摩古戰場巨劍":150,"戰士的漆黑之劍":120,"獨眼巨人的手製娃娃裝":30,"斬首的巨大鐮刀":150,"珍藏的巨大胡蘿蔔":50,"十字墓碑盾":250,"古代法師的隨手小抄":3});   // 🏺 遺物重量（依名稱·v3.7.20 +18 件·規格書指定值）
 // ⚖️ 負重顯示色：0～49% 暖白、50～81% 介面金黃、82%以上介面紅（loadTier 0/1/2～3）。
 function getLoadColor(tier){ return Number(tier) >= 2 ? 'load-tone-danger' : (Number(tier) >= 1 ? 'load-tone-warning' : 'load-tone-normal'); }
 // 🪆 取目前裝備之魔法娃娃的某 % 欄位值（expBonus/goldBonus/potionBonus…；未裝娃娃→0）
 function dollFieldVal(field){ let e = player.eq && player.eq.doll; let dd = e ? DB.items[e.id] : null; return (dd && dd[field]) || 0; }
 
-// ===== 🔧 強化系統：上限與分段加成（武器+15 / 防具+15 / 飾品+5）=====
+// ===== 🔧 強化系統：上限與分段加成（武器+30 / 防具+20 / 飾品+15）=====
 //  +0~+10 維持原本「每階 +1」線性；+11 起在「+10 的量」之上再加下表（表值＝超過 +10 的額外部分）。
-//  名稱一律顯示 +N（夾擠至上限：武器+15/防具+15/飾品+5；過往超過上限資料以上限顯示與套用，見 getItemFullName / capEn）。
-//  ⚠️ v3.0.75 用戶：武器上限 +20→+15，既有 >+15 武器一律以 +15 計（顯示 capEn／能力 capWpnEn／最終傷害倍率 enhanceWpnFinalMult 皆已夾至此上限；loadGame 另做一次性實體降級）。
+//  名稱一律顯示 +N（夾擠至上限：武器+30/防具+20/飾品+15；過往超過上限資料以上限顯示與套用，見 getItemFullName / capEn）。
+//  ⚠️ 強化上限放寬：武器 +15→+30、防具 +15→+20、飾品 +5→+15。
 const ENHANCE_CAP = { wpn: 30, arm: 20, acc: 15 };
 function enhanceCap(d) { return (d && (d.maxEn || ENHANCE_CAP[d.type])) || 10; }             // 依物品類型取強化上限（maxEn 可逐物品覆蓋·寵物防具+5）
 function isMaxEnhanced(item) { let d = DB.items[item.id]; return !!d && (Number(item.en) || 0) >= enhanceCap(d); }
@@ -1947,7 +1989,7 @@ function _relicPetSkillMult() {
 // 🔧 強化值上限夾擠：凡「隨強化提升」的基本能力與特效（額外傷害/命中、MP自然恢復、吸取MP、觸發機率、特效傷害…）
 //    一律以淬鍊上限計算——武器超過 +15 以 +15 計、防具超過 +15 以 +15 計、飾品超過 +5 以 +5 計。
 function capEn(en, d) { return Math.min(Math.max(0, Number(en) || 0), enhanceCap(d)); }
-function capWpnEn(en) { return Math.min(Math.max(0, Number(en) || 0), ENHANCE_CAP.wpn); }   // 武器專用（上限 +15）
+function capWpnEn(en) { return Math.min(Math.max(0, Number(en) || 0), ENHANCE_CAP.wpn); }   // 武器專用（上限 +30）
 // ===== 🏰 天堂經典衝裝規則（v3.0.76 強化規則變更·機率單一真相：js/08 doEnhance／js/10 executeAutoSafeEnhance／js/10 _quickEnhanceUnit 共用）=====
 //  安定值內(en < safe)：100% 成功（含負值——詛咒卷軸降至 -1 後再衝必成，即「紅變」技巧）。達到/超過安定值後：
 //   武器：+9 前 1/3 成功、2/3 爆裝；+9 起 1/6 成功、1/6 無事發生、4/6 爆裝
@@ -1987,21 +2029,21 @@ function sanitizeState() {
     if (player.eq) for (let k in player.eq) clampEn(player.eq[k]);
 }
 // 武器強化 → { dmg:額外傷害, hit:額外命中 }
-//  額外傷害：+0~+20 每階+1（實務受 ENHANCE_CAP.wpn=15 夾擠，最高 +15）；
+//  額外傷害：+0~+30 每階+1（實務受 ENHANCE_CAP.wpn=30 夾擠，最高 +30）；
 //  額外命中：+0~+10 每階+1，+10 之後依 WPN_EN_HIT_OVER10 累加。
-const WPN_EN_HIT_OVER10 = { 11:1, 12:2, 13:4, 14:6, 15:8, 16:11, 17:14, 18:17, 19:21, 20:25, 21:30, 22:35, 23:40, 24:46, 25:52, 26:58, 27:65, 28:72, 29:80, 30:88 };
+const WPN_EN_HIT_OVER10 = { 11:1, 12:2, 13:4, 14:6, 15:8, 16:10, 17:12, 18:14, 19:16, 20:18, 21:20, 22:22, 23:24, 24:26, 25:28, 26:30, 27:32, 28:34, 29:36, 30:38 };   // +11~+30 額外命中
 function enhanceWpnBonus(en) {
     en = Math.max(0, Number(en) || 0);
     let base = Math.min(en, 10);                                                            // +10 以內：每階 +1
     let hitOver = (en > 10) ? (WPN_EN_HIT_OVER10[Math.min(en, 30)] || 0) : 0;               // +11~+30：額外命中累積
-    return { dmg: Math.min(en, 30), hit: base + hitOver };
+    return { dmg: Math.min(en, 30), hit: base + hitOver };                                  // 🔧 額外傷害每階+1（實務受武器強化上限 +30 夾擠）；額外命中+1~+10後依表續加
 }
 // 武器強化 → 最終傷害倍率（一般物理攻擊）；+1~+20「取該階段數值」（非累加），+0 為 1.0
 // 基準曲線（最高檔）：+1 ×1.02（平緩）→ +10 ×1.37 → +20 ×2.50（爆發）；總數值 100→250 對應的倍率（總數值/100）。
 const WPN_EN_FINALMULT = {
     1:1.02, 2:1.04, 3:1.06, 4:1.09, 5:1.12, 6:1.15, 7:1.19, 8:1.24, 9:1.30, 10:1.37,
-    11:1.45, 12:1.53, 13:1.62, 14:1.72, 15:1.83, 16:1.95, 17:2.08, 18:2.21, 19:2.35, 20:2.50,
-    21:2.66, 22:2.83, 23:3.01, 24:3.20, 25:3.40, 26:3.61, 27:3.83, 28:4.06, 29:4.30, 30:4.55
+    11:1.45, 12:1.53, 13:1.62, 14:1.72, 15:1.83, 16:1.88, 17:1.93, 18:1.98, 19:2.03, 20:2.08,
+    21:2.13, 22:2.18, 23:2.23, 24:2.28, 25:2.33, 26:2.38, 27:2.43, 28:2.48, 29:2.53, 30:2.58
 };
 // 🔧 v2.6.65：+20 上限依「潘朵拉權重」分五級（曲線形狀相同·bonus 部分等比縮放）
 //    分級用「未加倍」權重：js/14 initGachaWeights 對權重≥50 一律×2（提高低稀有度出現率）→ runtime≥100 者先還原÷2 再分級
@@ -2021,11 +2063,10 @@ function wpnEnCurveMax(def) {
 }
 function enhanceWpnFinalMult(en, def) {
     en = Math.max(0, Number(en) || 0);
-    if (en < 1) return 1;
-    let base = WPN_EN_FINALMULT[Math.min(en, ENHANCE_CAP.wpn)] || 1;
-    let mx = wpnEnCurveMax(def);
-    if (mx === 2.5) return base;
-    return Math.round((1 + (base - 1) * (mx - 1) / 1.5) * 100) / 100;
+    if (en <= 0) return 1;
+    let base = WPN_EN_FINALMULT[Math.min(en, 30)] || 1;
+    let cap = wpnEnCurveMax(def);
+    return Math.min(base, cap);
 }
 function wpnEnFinalMult(wpnInst) { return enhanceWpnFinalMult(wpnInst && wpnInst.en, wpnInst && DB.items[wpnInst.id]); }      // 由武器實例取倍率（未裝備→1）
 

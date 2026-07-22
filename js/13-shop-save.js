@@ -312,8 +312,46 @@ function _slotOfflineMeta(n, sum){
     let id = encodeURIComponent(String(sum.enSeed || (n + '|' + (sum.name || '') + '|' + sum.rawCls)));
     return { roleFp: sum.roleFp || '', offlineId: id, savedHunt: sum.offlineHunt || null };
 }
-function _slotOfflineIdleNow(meta, activeRoleFps){
-    return false;   // 已關閉內建離線結算（27-offline-rewards.js），改用自定義 afk-offline.js，不需要此徽章
+function _slotOfflineStatusNow(meta, activeRoleFps){
+    if(!meta) return null;
+    if(meta.roleFp && activeRoleFps && activeRoleFps.has(String(meta.roleFp))) return null;   // 有分頁正在玩＝補幀軌，不是離線掛機
+    let src = meta.savedHunt;
+    let since = src ? (Number(src.awaySince) || 0) : 0;
+    try {
+        let cp = JSON.parse(_lsGet('lineage_idle_offline_v1_checkpoint_' + meta.offlineId) || 'null');
+        if(cp && typeof cp === 'object' && cp.snapshot && typeof cp.snapshot === 'object'
+            && (Number(cp.lastActive) || 0) >= ((src && Number(src.awaySince)) || 0)) {
+            src = cp.snapshot;
+            since = Math.max(Number(src.awaySince) || 0, Number(cp.lastActive) || 0);
+        }
+    } catch(e){}
+    if(!src || src.eligible !== true || src.bossUnlocked === false || !src.map) return null;
+    let prof = src.profile;
+    if(!prof || String(prof.map || '') !== String(src.map) || !(Number(prof.killsPerMin) > 0)) return null;
+    return {
+        bossRoom: prof.bossRoom === true,
+        elapsedMs: Math.max(0, Date.now() - Math.max(0, since || Number(src.awaySince) || 0)),
+        mapName: String(src.mapName || prof.mapName || src.map || '狩獵區'),
+        expPer10: Math.max(0, Math.floor((Number(prof.expPerMin) || 0) * 10 * 0.70 + 1e-7)),
+        goldPer10: Math.max(0, Math.floor((Number(prof.goldPerMin) || 0) * 10 * 0.70 + 1e-7))
+    };
+}
+function _slotOfflineDuration(ms){
+    let totalSec = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+    if(totalSec < 60) return totalSec + '秒';
+    let totalMin = Math.floor(totalSec / 60), days = Math.floor(totalMin / 1440);
+    let hours = Math.floor((totalMin % 1440) / 60), mins = totalMin % 60;
+    if(days > 0) return days + '天' + (hours ? hours + '時' : '');
+    if(hours > 0) return hours + '時' + (mins ? mins + '分' : '');
+    return totalMin + '分';
+}
+function _slotOfflineStatusHtml(status){
+    if(!status) return '';
+    let fmt = n => Math.max(0, Math.floor(Number(n) || 0)).toLocaleString('zh-TW');
+    return `<span class="load-offline-status">`
+        + `<span class="load-offline-badge"><strong>${status.bossRoom ? '[BOSS] ' : ''}掛機中</strong><small>${_slotOfflineDuration(status.elapsedMs)}</small></span>`
+        + `<span class="load-offline-detail"><small>離線 / 10分</small><strong><b class="load-offline-exp">經 ${fmt(status.expPer10)}</b><b class="load-offline-gold">金 ${fmt(status.goldPer10)}</b></strong><em>${loadEsc(status.mapName)}</em></span>`
+        + `</span>`;
 }
 
 function _summaryFromRaw(s){
@@ -411,22 +449,7 @@ function _roleSaveAllowed(){
     return !stored || _roleFingerprint(stored) === fp;
 }
 setInterval(_roleSessionHeartbeat, 2000);
-// 🔄 登入畫面「掛機中」徽章活刷（v3.6.97）：其他分頁關頁除名／checkpoint 更新／TTL 過期都要即時反映在畫面上。
-//    只重算徽章、原地增刪 span——不整頁重繪（不打斷選取與立繪動畫），存檔面資料用 _loadSlotMeta 快取。
-setInterval(function(){
-    let panel = document.getElementById('load-select-panel');
-    if(!panel || panel.classList.contains('hidden')) return;
-    let grid = document.getElementById('load-slot-grid');
-    if(!grid) return;
-    const fps = new Set();
-    try { _roleOtherActiveSessions().forEach(s => { if(s && s.fp) fps.add(String(s.fp)); }); } catch(e){}
-    grid.querySelectorAll('.load-slot-card[data-slot]').forEach(btn => {
-        let on = _slotOfflineIdleNow(_loadSlotMeta[Number(btn.getAttribute('data-slot'))], fps);
-        let badge = btn.querySelector('.load-offline-badge');
-        if(on && !badge){ badge = document.createElement('span'); badge.className = 'load-offline-badge'; badge.textContent = '掛機中'; btn.appendChild(badge); }
-        else if(!on && badge) badge.remove();
-    });
-}, 2000);
+// 🔄 登入畫面「掛機中」徽章已停用（js/27 離線系統已移除）
 if(typeof window !== 'undefined') window.addEventListener('beforeunload', _roleSessionForget);
 if(typeof window !== 'undefined') window.addEventListener('pagehide', _roleSessionForget);   // beforeunload 在背景分頁被關閉時常不觸發；bfcache 還原後心跳 2 秒內自動重新註冊
 
@@ -778,6 +801,45 @@ function loadBackToMenu(){
     if(load) load.classList.add('hidden');
     if(main) main.classList.remove('hidden');
 }
+
+function returnToCharacterSelect(){
+    if(typeof player === 'undefined' || !player || !player.cls) return false;
+    let offlineEligible = false;
+    try {
+        if(typeof window.offlinePrepareCharacterSelect === 'function') {
+            offlineEligible = window.offlinePrepareCharacterSelect() === true;
+        } else if(typeof saveGame === 'function') {
+            saveGame();
+        }
+    } catch(e) {
+        try { if(typeof saveGame === 'function') saveGame(); } catch(_) {}
+    }
+
+    if(typeof stopGameTimers === 'function') stopGameTimers();
+    if(typeof state !== 'undefined' && state) state.running = false;
+    try { _roleSessionForget(); } catch(e) {}
+    try { if(typeof _vfxClearAll === 'function') _vfxClearAll(); } catch(e) {}
+
+    const game = document.getElementById('game-screen');
+    const creationScreen = document.getElementById('creation-screen');
+    const main = document.getElementById('main-menu');
+    const creation = document.getElementById('creation-panel');
+    const load = document.getElementById('load-select-panel');
+    if(game) game.classList.add('hidden');
+    if(creationScreen) creationScreen.classList.remove('hidden');
+    if(main) main.classList.add('hidden');
+    if(creation) creation.classList.add('hidden');
+    if(load) load.classList.remove('hidden');
+    document.body.classList.remove('game-bg-dim', 'sherine-world', 'sherine-mad');
+
+    _loadLastClickSlot = 0;
+    _loadLastClickAt = 0;
+    _loadPage = currentSlot > 4 ? 1 : 0;
+    _loadSelectedSlot = currentSlot;
+    renderLoadSelect();
+    try { if(typeof _bgmTick === 'function') { _bgmScene = null; _bgmTick(); } } catch(e) {}
+    return offlineEligible;
+}
 function renderLoadSelect(){
     const grid = document.getElementById('load-slot-grid');
     if(!grid) return;
@@ -794,11 +856,10 @@ function renderLoadSelect(){
         const empty = !sum;
         const frame = loadFirstFrame(key);
         _loadSlotMeta[n] = _slotOfflineMeta(n, sum);
-        const offline = _slotOfflineIdleNow(_loadSlotMeta[n], activeRoleFps);
+        const offline = _slotOfflineStatusNow(_loadSlotMeta[n], activeRoleFps);
         const title = sum ? `角色 ${n} ${sum.cls} Lv.${sum.lv}` : `角色 ${n} 空`;
         html += `<button type="button" onclick="loadSelectSlot(${n})" data-slot="${n}" data-key="${key}" class="load-slot-card ${selected ? 'selected' : ''} ${empty ? 'empty' : 'filled'}" title="${loadEsc(title)}">`
             + `<img src="${loadFrameSrc(key, frame)}" alt="${loadEsc(title)}" draggable="false">`
-            + (offline ? `<span class="load-offline-badge">掛機中</span>` : '')
             + `</button>`;
     }
     grid.innerHTML = html;
@@ -1341,6 +1402,12 @@ function saveGame() {
     //    這些背景觸發會把空殼 player 寫進 currentSlot（預設 1）→ 毀掉該格真正的角色（顯示為 null／Lv.1／預設王族／資料不完整）。
     //    無 cls＝不是進行中的遊戲角色 → 一律拒寫，確保空殼永遠不覆蓋既有存檔。（真正的角色必有職業；創角於選職業後才 saveGame，不受影響。）
     if (!player || !player.cls) return false;
+    // ⏩ v3.7.30 補跑存檔延後（接上 v3.7.25 就設計好但漏接線的 deferCatchupSave）：真補跑會殺 BOSS（v3.7.24），
+    //    killMob 的頭目存檔點每殺必全量存檔（sanitize＋LZ＋寫入）拖慢補跑並造成卡頓尖峰；
+    //    補跑期間一律改記 _ffSavePending，還清後由 gameLoop 收尾的 takeCatchupSaveRequest 統一補存一次。
+    if (typeof catchupActive === 'function' && catchupActive() && typeof deferCatchupSave === 'function'
+        && !(typeof window !== 'undefined' && window.__fb5CloseFlush)) return deferCatchupSave();   // 🔚 v3.7.31 __fb5CloseFlush＝關頁最終存檔（js/27 _offlineCloseAndSave）不延後
+
     if (!_roleSaveAllowed()) {
         if(!_saveFailureNotified && typeof logSys === 'function') {
             _saveFailureNotified = true;
@@ -1486,10 +1553,6 @@ function loadGame() {
         if (!player.enSeed) player.enSeed = 'es' + _seedHash((player.name || '') + '|' + (player.cls || '') + '|lz').toString(36);   // 🎲 舊存檔無強化種子：由角色名+職業決定論衍生（重匯入同一份舊檔也得相同種子→不能靠重匯入重洗強化）
         if (typeof sanitizeState === 'function') sanitizeState();   // 🛡️ 讀檔後合理性夾擠（抓改過/竄改的存檔：等級>100、強化值超上限、負金幣等）
         state.ticks = d.ticks || 0;   // 🔧 還原 tick 計數：讓召喚物/迷魅以絕對 tick 記錄的 endTick 在重載後仍然有效
-        { let se = document.getElementById('speed-select'); if(se) se.value = state.spd;
-          let ee = document.getElementById('exp-select'); if(ee) ee.value = state.expMult;
-          let ge = document.getElementById('gold-select'); if(ge) ge.value = state.goldMult;
-          let de = document.getElementById('drop-select'); if(de) de.value = state.dropMult; }
         // 修復：自動存檔可能在「死亡放置」期間把 player.dead=true 寫入存檔。
         // 讀檔一律以「在村莊甦醒、存活」載入，否則 tick() 會因 player.dead 提早 return，
         // 導致載入後不出怪、且無復活按鈕可按而卡死。後續進村流程會補滿 HP/MP 並清除異常狀態。
