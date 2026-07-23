@@ -28,14 +28,15 @@
   //   值小→讓出多、畫面順但等影格開銷大、結算慢;值大→相反。故依「要補跑的時間長短」動態取值:
   //   短離線(本來就快)用小值求順,長離線(才需要快)用大值求速度,中間線性漸變 → 兼顧順暢與速度。
   var SLICE_MIN_MS     = 28;                    // 短離線:接近一個影格(~16ms),畫面順
-  var SLICE_MAX_MS     = 250;                   // 長離線:讓出少、結算快
+  var SLICE_MAX_MS     = 1000;                  // 長離線:讓出少、結算快(24h+用1500)
   var SLICE_SHORT_TICK = 3000;                  // ≤5 分鐘(=遮罩門檻)以下一律用最小值(順)
   var SLICE_LONG_TICK  = 36000;                 // ≥1 小時一律用最大值(快);兩者之間線性內插
   function sliceFor(totalTicks) {
     if (totalTicks <= SLICE_SHORT_TICK) return SLICE_MIN_MS;
-    if (totalTicks >= SLICE_LONG_TICK) return SLICE_MAX_MS;
+    var maxMs = totalTicks >= 86400 ? 1500 : SLICE_MAX_MS;   // 24h+用1500ms,1h~24h用1000ms
+    if (totalTicks >= SLICE_LONG_TICK) return maxMs;
     var f = (totalTicks - SLICE_SHORT_TICK) / (SLICE_LONG_TICK - SLICE_SHORT_TICK);
-    return Math.round(SLICE_MIN_MS + f * (SLICE_MAX_MS - SLICE_MIN_MS));
+    return Math.round(SLICE_MIN_MS + f * (maxMs - SLICE_MIN_MS));
   }
   // tick 數 → 友善時間字串(進度遮罩顯示「已結算 X / 共 Y」用)
   function fmtCatchupTime(ticks) {
@@ -150,7 +151,7 @@
   function pace(sliceMs) {
     var hidden = (typeof document !== 'undefined' && document.visibilityState === 'hidden');
     if (!hidden) return raf();
-    var gap = Math.max(16, Math.round((sliceMs || 60) * 0.6));   // 背景空隙≈算一段的 0.6 倍 → 約 6 成工作週期(溫和)
+      var gap = Math.max(16, Math.round((sliceMs || 60) * 0.4));   // 背景空隙≈算一段的 0.4 倍 → 約 4 成工作週期(更積極)
     return workerGap(gap);
   }
 
@@ -505,13 +506,13 @@
     // 消耗品斷貨且自動購買補不上(戰局質變)→ 不永久退出:改「重新取樣+固定 70% 血量門檻」重新評估新戰局
     //   (沒藥還撐得穩就回快速;撐不穩維持真模擬保住撞死即停。2026-07-10 起,先前是永久退回全模擬)。
     // 升級 → 戰力變了殺速會變 → 退回真模擬重新取樣。HP/MP 軌跡不用模擬:結算存活本就補滿(見下方落點)。
-    var FAST_SAMPLE_TICKS = 3000;     // 首次取樣:5 分鐘(3000 拍)
-    var FAST_RESAMPLE_TICKS = 1200;   // 升級後重取樣:2 分鐘
+    var FAST_SAMPLE_TICKS = 1000;     // 首次取樣:~1.7 分鐘(1000 拍)
+    var FAST_RESAMPLE_TICKS = 600;    // 升級後重取樣:1 分鐘
     var FAST_MIN_KILLS = 8;           // 取樣至少殺 8 隻,平均殺速才勉強可信(低於此→延長,仍不足→全模擬)
-    var FAST_GOOD_KILLS = 60;         // 樣本殺數低於此 → 平均殺速統計誤差偏大(~±13%),延長取樣一次收斂
-    var FAST_MIN_HP_PCT = 70;         // 血量安全門檻起點 %(取樣 + BOSS safe 共用):真模擬 done=0 時的門檻
+    var FAST_GOOD_KILLS = 30;         // 樣本殺數低於此 → 平均殺速統計誤差偏大,延長取樣一次收斂
+    var FAST_MIN_HP_PCT = 60;         // 血量安全門檻起點 %(取樣 + BOSS safe 共用):真模擬 done=0 時的門檻
     var HP_FLOOR_ZERO_TICKS = 12000;  // 血量門檻「線性降到 0」的時點:真模擬連續存活滿 20 分鐘(12000 拍)沒死 → 門檻歸 0(之後一律切快速、BOSS 一律 safe)。撐過這段=打得過→完全信任;死了外層撞死即停,根本走不到門檻歸 0。
-    var FAST_MIN_REMAIN = 6000;       // 取樣後剩不到 10 分鐘 → 全模擬本來就快,不值得切
+    var FAST_MIN_REMAIN = 3000;       // 取樣後剩不到 5 分鐘 → 全模擬本來就快,不值得切
     // 🏝️ 遺忘之島「本島」納入快速(2026-07-10 使用者提議):本島=無限刷怪圖、無後續推進,與一般圖同等待遇;
     //   「途中」(travel)維持全模擬——它是「打倒傳送門 BOSS 才進本島」的過場,怪組與本島不同、取樣不能混用。
     // ⚔ 軍王之室維持全模擬(2026-07-10 實測後決定):曾實作納入快速並 A/B(真實存檔 Lv96 法師,6h)——
