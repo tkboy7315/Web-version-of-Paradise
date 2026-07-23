@@ -13,6 +13,13 @@
 
     <title>放置天堂 - 日出之國</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">   <!-- 🖼️ 瀏覽器分頁圖示(favicon)：把你的圖放到 assets/favicon.png 即生效；可改 href 路徑或副檔名(.ico/.svg) -->
+    <!-- PWA:安裝成 APP + 離線快取 -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="pwa-icon-192.png">
+    <meta name="theme-color" content="#0f141d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="放置天堂 - 日出之國">
 
     <link rel="stylesheet" href="css/style.css?v=v3.7.39-offline-boss-status">
     <link rel="stylesheet" href="css/floating-ui.css?v=v3.5.100-audit-tail">
@@ -613,6 +620,9 @@
     <script src="js/26-world-channel.js?v=v3.7.43-trash-talk-line"></script>
 
 <script src="js/28-pvp-arena.js?v=v3.7.17-duel-no-potion"></script>
+<script src="afk-sw.js"></script>
+<script src="afk-ui.js"></script>
+<script src="afk-pwa.js"></script>
 <script src="afk-offline.js"></script>
 <script src="offline/afk-history.js"></script>
 <script src="plugins/afk-wiki.js?v=1"></script>
