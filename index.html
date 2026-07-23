@@ -350,6 +350,7 @@
                 <!-- 第五排：裝備說明 / 物品掉落 / 小百科 -->
                 <button id="btn-search" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #3a1a5e 0%, #7c3aed 28%, #2e144d 52%, #6d28d9 76%, #220f3a 100%); color: #ddd6fe; border-color: #8b5cf6;" onclick="switchTab('search', this)">🔍 物品掉落</button>
                 <button id="btn-wiki" class="btn text-base py-2 font-bold px-0" style="background: linear-gradient(135deg, #14362a 0%, #16a34a 28%, #0f2920 52%, #15803d 76%, #0c1f15 100%); color: #bbf7d0; border-color: #22c55e;" onclick="AFK_WIKI_API.goto()">📚 小百科</button>
+                <button type="button" class="btn text-base py-2 font-bold px-0" onclick="returnToCharacterSelect()">回選角</button>
             </div>
 
             <div id="tab-content-panel" class="panel flex-1 flex flex-col overflow-hidden relative">
@@ -421,7 +422,7 @@
                 <!-- 🔧 v2.6.74 自動化設定改「分頁內嵌」（原 v2.6.73 浮動視窗取消）：與 能力/技能 同框架，switchTab(automation) 切換；set-* 控制項恆在 DOM 供 saveGame/自動化讀取 -->
                 <div id="tab-automation" class="p-4 text-base overflow-y-auto h-full hidden">
                     <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 flex flex-col gap-2">
-                        <button type="button" class="btn w-24 py-1 mb-2 text-sm font-bold bg-slate-700 hover:bg-slate-600 border-slate-500 text-slate-100" onclick="returnToCharacterSelect()">回選角</button>
+
                         <div class="flex items-center justify-between gap-3">
                             <label class="cursor-pointer flex items-center gap-2"><input type="checkbox" id="set-sfx-on" class="w-4 h-4" onchange="try{setSfxOn(this.checked)}catch(e){}"><span class="text-sm text-amber-200 font-bold">🔊 戰鬥音效</span></label>
                             <input type="range" id="set-sfx-vol" min="0" max="100" value="50" step="5" class="flex-1 max-w-[150px]" oninput="try{setSfxVol(this.value)}catch(e){}" title="音效音量">
