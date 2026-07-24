@@ -391,6 +391,14 @@ function _wcTrial50Source(itemId) {
 function _wcItemSourceAnswers(itemId) {
     let d = DB.items[itemId];
     if (!d) return WC_UNKNOWN_LINES;
+    // 🐉 v3.7.56 幼龍蛋特例：掉落走 js/05 硬編碼（四大龍各 10%·不在 MOB_DROPS）→ 資料表反查不到，必須硬寫；「頑皮龍怎麼獲得」也會被模糊搜尋帶到這裡，答案順便講孵化。
+    if (itemId === 'item_dragon_egg' || itemId === 'item_dragon_egg2') {
+        let _pet = d.eggPet || '幼龍';
+        return [
+            `${d.n}要打四大龍：安塔瑞斯、法利昂、巴拉卡斯、林德拜爾，擊敗時有機率拾獲。用掉就孵出${_pet}，可以存倉庫；身上帶著蛋在野外還有極低機率引來林德拜爾。`,
+            `想要${d.n}就去挑戰安塔瑞斯／法利昂／巴拉卡斯／林德拜爾，擊敗有機率掉。孵出來固定是${_pet}；帶在身上野外小心風龍找上門。`
+        ];
+    }
     let k = _wcBuildKnowledge();
     let rows = (k.itemDrops[itemId] || []).slice().sort((a, b) => (b.rate || 0) - (a.rate || 0));
     let owner = _wcTrialOwnerText(itemId);
@@ -456,10 +464,10 @@ function _wcBuildPetSources() {
     try {
         for (let base in PET_BOOK) { let evo = PET_BOOK[base] && PET_BOOK[base].evo; if (evo) push(evo, `由 ${base} 練到 Lv30 後用進化果實進化`); }
     } catch (e) {}
-    // ④ 兩條特例管道（無法從資料表推導·硬寫）：頑皮幼龍蛋隨機孵 淘氣龍/頑皮龍；勝利果實把任一「一般型態」直接進化成 黃金龍
+    // ④ 兩條特例管道（無法從資料表推導·硬寫）：幼龍蛋定向孵化（v3.7.56 四大龍掉蛋·頑皮蛋→頑皮龍、淘氣蛋→淘氣龍）；勝利果實把任一「一般型態」直接進化成 黃金龍
     try {
-        let eggRows = (k.itemDrops['item_dragon_egg'] || []).slice(0, 3).map(r => _wcDropPlace(r));
-        ['淘氣龍', '頑皮龍'].forEach(p => push(p, `使用「頑皮幼龍蛋」隨機孵化（兩種各半）${eggRows.length ? `，蛋打 ${eggRows.join('、')}` : ''}`));
+        push('頑皮龍', '使用「頑皮幼龍蛋」孵化，蛋是擊敗 安塔瑞斯／法利昂／巴拉卡斯／林德拜爾 時有機率拾獲');
+        push('淘氣龍', '使用「淘氣幼龍蛋」孵化，蛋是擊敗 安塔瑞斯／法利昂／巴拉卡斯／林德拜爾 時有機率拾獲');
     } catch (e) {}
     push('黃金龍', '任一「一般型態」寵物 Lv30 後改用勝利果實進化（與高等型態二選一）');
     _wcPetSourceIdx = idx;
@@ -749,8 +757,8 @@ const WC_TOPICS = [
         key: 'affix', kw: ['詞綴', '祝福', '祝福嗎', '有祝福', '祝福裝', '遠古裝', '遠古詞', '屬性武器', '武器屬性', '屬性詞', '碧恩', '賦予屬性', '屬性強化', '上屬性', '洗屬性', '五階屬性', '屬性魔法', '附加魔法', '重抽魔法', '觸發技能'],
         gen: function () {
             return [
-                '現行掉落、製作、潘朵拉與血盟管道只會隨機出現「祝福的」詞綴，機率 1%；屬性與遠古詞綴要去象牙塔找碧恩處理。',
-                '別再照舊攻略 SL 三詞綴了，現在隨機來源只有 1% 祝福；武器屬性跟遠古能力是碧恩那條系統。',
+                '現行一般頭目掉落與製作裝備有 10% 機率出現「祝福的」詞綴；席琳頭目 20%，瘋狂席琳頭目 30%，其他管道維持原設定。',
+                '別再照舊攻略 SL 三詞綴了，一般頭目與製作是 10% 祝福，席琳頭目 20%、瘋狂席琳頭目 30%；屬性跟遠古能力要找碧恩。',
                 '祝福是取得裝備時的隨機驚喜，屬性和遠古不是同一個抽法。想洗那兩種就去象牙塔，別在掉落畫面跟自己過不去。',
                 '五階屬性武器還能拿同屬性卷軸找碧恩附加或重抽屬性魔法；遺物武器、本身就有非屬性卷觸發技能的武器不能附加。',
                 '古老的劍跟古老的巨劍雖然無法強化，但碧恩照樣能賦予屬性，而且免 +10/+11 門檻、可以直接衝到第五階。'
@@ -762,7 +770,7 @@ const WC_TOPICS = [
         gen: function () {
             return [
                 '傷害技能放在攻擊技能設定；火牢、冰雪颶風這種持續型是輔助／狀態技能，要在自動化的增益區勾選，不會出現在攻擊技能下拉。',
-                '傭兵會讀來源角色存檔的技能與自動化設定。先切回那隻角色勾好、存檔，再重新招募或更新快照。',
+                '傭兵會讀來源角色存檔的技能與自動化設定。先切回那隻角色勾好、存檔，換回隊長再進一次安全區就會自動刷新隊員資料。',
                 '技能沒放先檢查四件事：有沒有學、MP或HP夠不夠、自動化有沒有勾、技能是否被分在攻擊／治療／輔助的另一欄。'
             ];
         }
@@ -792,7 +800,8 @@ const WC_TOPICS = [
                 '召喚物走另一套，召喚控制戒指可以指定要召什麼，別用預設的。',
                 '傭兵攻擊技能如果 MP/HP 不夠或條件不符，現在會回普攻節奏，不會假裝施法成功又吃冷卻卡住。',
                 '王族魅力夠可以帶到 7 名傭兵，場上都會顯示外觀；傭兵吃來源角色的等級、裝備、自動技能與變身能力快照。',
-                '古魯丁村莊也開了傭兵公會，港口那邊就能招人，不用特地跑回海音或歐瑞。'
+                '古魯丁村莊也開了傭兵公會，港口那邊就能招人，不用特地跑回海音或歐瑞。',
+                '同一個角色同時只能被一位僱主招募，已經被別人招走的存檔在名單上會標「已受僱於某某」、沒有召喚鈕，要先叫現任僱主解散。'   // 🧑‍🤝‍🧑 v3.7.93 傭兵獨佔
             ];
         }
     },
@@ -1010,7 +1019,7 @@ const WC_TOPICS = [
             return [
                 '角色管理在登入畫面：要先刪除角色才能創新或匯入，匯出進度也在那邊，記得定期備份。',
                 '版本更新後畫面怪怪的、圖沒換新，就按 Ctrl+Shift+R 硬重載，把快取的舊檔清掉。',
-                '分頁切到背景後，回到遊戲會逐 tick 真實補跑戰鬥；真正關閉網頁則在累積實戰樣本、離線滿 1 分鐘後結算，最多 12 小時，可取得裝備、卡片與曾實際擊敗過的隨機頭目獎勵，但不模擬 PVP 或活動事件。',
+                '分頁切到背景（切分頁／縮小視窗）遊戲照跑，回到前景還會把被節流掉的時間逐 tick 真實補跑回來；但真正關掉網頁就完全停住了，沒有離線收益這種東西，想掛就把分頁開著。',
                 '存檔會自動進行，也可以手動點儲存；角色突然不見先確認瀏覽器沒清除網站資料，有匯出檔就能救回來。',
                 '倉庫搜尋輸入兩個字以上就會做模糊搜尋，名字記不完整也找得到。',
                 '匯出會帶角色、倉庫跟龍之鑽石；匯入時照選項還原倉庫與寵物資料，隊伍狀態會整理避免跨角色出戰錯亂。',
@@ -1748,6 +1757,59 @@ function _wcPickIdleChatLine() {
     }
     return _wcRememberChatLine(_wcPick(fresh.length ? fresh : pool));
 }
+function _wcLogOptionalNpcLine(id, npc, kind, question, fallback, className) {
+    fallback = String(fallback || '').trim();
+    let token = 'wc-local-ai-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+    logWorld(`<span class="${className}">${_wcNameHtml(id)}：<span id="${token}">${_wcEsc(fallback)}</span></span>`);
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    if (!language || typeof language.rewrite !== 'function') return;
+    Promise.resolve(language.rewrite({
+        kind: kind,
+        npcName: npc && npc.name ? npc.name : '',
+        persona: npc && npc.persona ? npc.persona : '',
+        question: question || '',
+        fallback: fallback
+    }, 9000)).then(function (rewritten) {
+        rewritten = String(rewritten || '').trim();
+        if (!rewritten || rewritten === fallback) return;
+        let target = document.getElementById(token);
+        if (target) target.textContent = rewritten;
+    }).catch(function () {});
+}
+
+function syncNpcLanguageSetting() {
+    let checkbox = document.getElementById('set-npc-language-on');
+    let control = document.getElementById('npc-language-setting');
+    if (!checkbox) return;
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    let status = null;
+    try {
+        status = language && typeof language.getStatus === 'function'
+            ? language.getStatus()
+            : null;
+    } catch (e) {}
+    let available = !!(language && typeof language.setEnabled === 'function' && status && status.installed);
+    checkbox.disabled = !available;
+    checkbox.checked = !!(available && status.enabled);
+    if (control) {
+        control.classList.toggle('opacity-50', !available);
+        control.classList.toggle('cursor-not-allowed', !available);
+        control.classList.toggle('cursor-pointer', available);
+        control.title = !language
+            ? '僅限 Idle Lineage 安裝版'
+            : (!available ? '本機 NPC AI 模型未安裝' : (checkbox.checked ? 'NPC AI 對話已開啟' : 'NPC AI 對話已關閉'));
+    }
+}
+
+function setNpcLanguageEnabled(enabled) {
+    let language = (typeof window !== 'undefined') ? window.idleLineageNpcLanguage : null;
+    try {
+        if (language && typeof language.setEnabled === 'function')
+            language.setEnabled(enabled === true);
+    } catch (e) {}
+    syncNpcLanguageSetting();
+}
+
 function _wcCanIdleChat() {
     if (typeof document === 'undefined') return false;
     let game = document.getElementById('game-screen');
@@ -1764,7 +1826,7 @@ function _wcPostIdleChat() {
         setTimeout(function() {
             if (!_wcCanIdleChat()) return;
             let id = _wcSpawnNpc();
-            logWorld(`<span class="wc-answer wc-idle-chat">${_wcNameHtml(id)}：${_wcEsc(_wcPickIdleChatLine())}</span>`);
+            _wcLogOptionalNpcLine(id, _wcNpcs[id], 'chat', '', _wcPickIdleChatLine(), 'wc-answer wc-idle-chat');
         }, i * (650 + Math.floor(Math.random() * 450)));
     }
 }
@@ -2059,9 +2121,9 @@ function worldChannelAsk() {
                         let tone = WC_TONE[npc.persona] || WC_TONE.helpful;
                         logWorld(`<span class="wc-answer">${_wcNameHtml(id)}：${_wcEsc(_wcPick(tone.open) + core + _wcPick(tone.end))}</span>`);
                     } else if (kind === 'chat') {
-                        logWorld(`<span class="wc-answer">${_wcNameHtml(id)}：${_wcEsc(_wcPickIdleChatLine())}</span>`);
+                        _wcLogOptionalNpcLine(id, npc, 'chat', q, _wcPickIdleChatLine(), 'wc-answer');
                     } else {
-                        logWorld(`<span class="wc-mock">${_wcNameHtml(id)}：${_wcEsc(_wcPick(WC_MOCK_LINES))}</span>`);
+                        _wcLogOptionalNpcLine(id, npc, 'mock', q, _wcPick(WC_MOCK_LINES), 'wc-mock');
                     }
                 } catch (e) {}
             }, delay);
@@ -2238,6 +2300,7 @@ function _wcAddGrudge(npc, opts) {
         }
         if (typeof initWorldLogLock === 'function') initWorldLogLock();
         if (!_wcIdleTimer) _wcIdleTimer = setInterval(_wcPostIdleChat, 60 * 1000);
+        if (typeof syncNpcLanguageSetting === 'function') syncNpcLanguageSetting();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
     else bind();

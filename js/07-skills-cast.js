@@ -268,6 +268,7 @@ function manualCast(skId) {
         if(KING_ROOMS[mapState.current]) { logSys('<span class="text-red-400">軍王之室的封印之力壓制了傳送術，無法生效。</span>'); return; }
         if(prideTeleportBlocked()) { logSys('<span class="text-red-400">' + (state.riftRun ? '時空裂痕中無法使用傳送術。' : (state.prideRanked ? '排名挑戰中無法使用傳送術。' : '在此樓層需持有對應的傲慢之塔支配符才能使用傳送術。')) + '</span>'); return; }
         if(state.oblivion) { logSys('<span class="text-red-400">遺忘之島的迷霧壓制了傳送術，無法生效。</span>'); return; }
+        if(state.antharas) { logSys('<span class="text-red-400">侵蝕的龍氣壓制了傳送術，無法生效。</span>'); return; }   // 🐉 v3.7.57 侵蝕的安塔瑞斯巢穴：禁傳送術
         // 🌀 v3.0.102 傳送術特效＋玩家 sprite 暫隱已移入 doTeleport / enterHiddenArea（涵蓋技能與瞬移卷軸所有路徑）
         if (HIDDEN_AREA_PARENT[mapState.current]) {   // 🏛️ 對應地圖手動施放傳送術→進入隱藏狩獵區域（MP 已扣、冷卻照走）
             enterHiddenArea(HIDDEN_AREA_PARENT[mapState.current]);
@@ -391,7 +392,8 @@ function castSkillInner(skId) {
     let __granted = player.grantedSkills && player.grantedSkills.includes(skId);
     let needLv = skillReqLv(sk, skId);   // 🏅 集中化：含魔導精通特例
     if(!__granted && (needLv === undefined || player.lv < needLv)) return false;
-    // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
+    // if(!__granted && sk.reqEle && player.elfEle !== sk.reqEle) return false;      // 屬性不符（已解除限制）
+    // if(!__granted && sk.reqEleAny && !player.elfEle) return false;                 // 尚未選擇屬性（已解除限制）
 
     // 🏺 烈焰巫師的正式長袍：燃燒的火球→爆裂的火球。
     // ⚠️ v3.6.65 必須放在**等級/屬性閘之後**：爆裂的火球是「非可學技能」（無 reqM/reqE），
@@ -527,6 +529,7 @@ function castSkillInner(skId) {
                 let _after = (typeof _supHp === 'function') ? _supHp(c) : (c === player ? player.hp : (c.curHp != null ? c.curHp : c.hp));
                 _total += Math.max(0, _after - _before); _hit++;
             });
+            if (typeof threatHeal === 'function') threatHeal(player, _total);   // 🎯 v3.7.97 仇恨制：玩家全體治癒＝實際回復×0.5 記給玩家（overheal 不算）
             logCombat(`施放 ${sk.n}，立即治癒全隊 ${_hit} 名成員，共恢復 ${_total} 點 HP。${sk.msg || ''}`, 'heal');
         } else {
             let heal = rollHealingSpell(sk, player.d, player, _hTgt);
@@ -535,6 +538,7 @@ function castSkillInner(skId) {
             if (typeof _supHeal === 'function') _supHeal(_hTgt, heal); else if (_hTgt === player) player.hp = Math.min(player.mhp, player.hp + heal); else if (_hTgt.curHp != null) _hTgt.curHp = Math.min(_hTgt.mhp, (_hTgt.curHp || 0) + heal); else _hTgt.hp = Math.min(_hTgt.mhp, (_hTgt.hp || 0) + heal);
             let _after = (typeof _supHp === 'function') ? _supHp(_hTgt) : (_hTgt === player ? player.hp : (_hTgt.curHp != null ? _hTgt.curHp : _hTgt.hp));
             let _actual = Math.max(0, _after - _before);
+            if (typeof threatHeal === 'function') threatHeal(player, _actual);   // 🎯 v3.7.97 仇恨制：玩家單體治癒＝實際回復×0.5 記給玩家
             logCombat(`施放 ${sk.n}，恢復了${_hTgt === player ? '' : (' ' + ((typeof _supName === 'function') ? _supName(_hTgt) : ('協力·' + _hTgt._allyName)))} ${_actual} 點 HP。${sk.msg || ''}`, 'heal');
         }
         return true;
@@ -1104,13 +1108,19 @@ function autoCastSpells() {
     }
 }
 
-// 詞綴抽取（新制）：掉落/製作/潘朵拉/血盟 等管道只會隨機產生「祝福的」(bless) 1%；不再有單/雙/三詞綴或屬性/遠古的隨機掉落。
-// 🔧 詞綴抽取：怪物掉落 / 製作 / 潘朵拉 / 血盟怪掉落 等管道「只可能獲得 祝福的」詞綴（1%）。
+// 詞綴抽取（新制）：只會隨機產生「祝福的」(bless)；頭目掉落與製作基礎 10%，其他來源基礎 1%。
 //    屬性詞綴與遠古系詞綴不再由這些管道隨機產生（改由象牙塔『碧恩』的賦予祝福卷軸取得）。
-//    🔮 席琳的世界擊殺掉落仍套用 ×3（祝福機率 3%）。
-function rollAffixesNew() {
-    let m = _sherineLootCtx ? (_sherineLootCtx.mad ? 5 : 3) : 1;   // 🔮 席琳的世界 祝福機率 ×3（瘋狂×5）
-    return { attr: false, bless: (lootRng('affixb') < 0.01 * m), anc: false };   // 🎲 committed RNG（防 SL 重抽祝福詞綴）
+//    🔮 席琳一般怪仍套用 ×3（瘋狂 ×5）；席琳頭目固定 20%，瘋狂席琳頭目固定 30%。
+function rollAffixesNew(baseChance=0.01) {
+    baseChance = Number(baseChance);
+    if (!Number.isFinite(baseChance)) baseChance = 0.01;
+    baseChance = Math.max(0, Math.min(1, baseChance));
+    let chance = baseChance;
+    if (_sherineLootCtx) {
+        let isBossLoot = typeof _lootMobInfo !== 'undefined' && !!(_lootMobInfo && _lootMobInfo.boss);
+        chance = isBossLoot ? (_sherineLootCtx.mad ? 0.30 : 0.20) : baseChance * (_sherineLootCtx.mad ? 5 : 3);
+    }
+    return { attr: false, bless: (lootRng('affixb') < Math.min(1, chance)), anc: false };   // 🎲 committed RNG（防 SL 重抽祝福詞綴）
 }
 // 🗑️ v3.5.87 移除 rollAffixesOld()：與 rollAffixesNew 早已 byte-identical（新舊詞綴制 v3.1 期合一），
 //    唯一呼叫點 js/08 gainItem 已改恆走 rollAffixesNew；affixOld 參數槽保留（位置相容）但不再分派。
@@ -1131,4 +1141,30 @@ if (typeof castSkillInner === 'function' && !castSkillInner._bloodWrapped) {
         return r;
     };
     castSkillInner._bloodWrapped = true;
+}
+// 🏺 v3.7.52 專精劍術的魔劍士之刀：包裝 castSkillInner——消耗 MP 施放「傷害法術」(type:'atk') 成功後 10 秒，
+//    依法術階級提升近傷/近命（js/02 消費）且一般攻擊變成該法術屬性（js/08 getWpnEle 覆蓋·js/03 到期重算）。
+if (typeof castSkillInner === 'function' && !castSkillInner._spellbladeWrapped) {
+    let _origCastSkillInner2 = castSkillInner;
+    castSkillInner = function (skId) {
+        let _mpB2 = player ? player.mp : 0;
+        let r = _origCastSkillInner2.apply(this, arguments);
+        try {
+            let _spent2 = _mpB2 - player.mp;
+            if (r && _spent2 > 0 && !player.dead) {
+                let _w2 = player.eq.wpn && DB.items[player.eq.wpn.id];
+                let _sk2 = DB.skills[skId];
+                if (_w2 && _w2.spellbladeBuff && _sk2 && _sk2.type === 'atk') {
+                    let _sbEle2 = spellbladeSkillElement(_sk2.ele) || null;
+                    let _sbWas = (player._spellbladeUntil || 0) > state.ticks && player._spellbladeTier === (_sk2.tier || 1) && player._spellbladeEle === _sbEle2;
+                    player._spellbladeUntil = state.ticks + spellbladeDurationTicks();
+                    player._spellbladeTier = _sk2.tier || 1;
+                    player._spellbladeEle = _sbEle2;
+                    if (!_sbWas) calcStats();   // 階級/屬性有變才重算（同法術連發只刷新時限）
+                }
+            }
+        } catch (e) {}
+        return r;
+    };
+    castSkillInner._spellbladeWrapped = true;
 }

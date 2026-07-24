@@ -29,21 +29,32 @@ const CARD_REGIONS = [
     { key: 'witon',        name: '威頓',       stat: 'resFire',  vals: [1, 2, 3],   maps: ['fire_dragon', 'valakas_lair'] },
     { key: 'oren',         name: '歐瑞',       stat: 'resWater', vals: [1, 2, 3],   maps: ['zone_02', 'zone_03', 'zone_04', 'zone_05', 'zone_37', 'zone_38', 'zone_39', 'zone_40', 'zone_41', 'hidden_lab_nolife', 'hidden_lab_darkmagic', 'hidden_seal_spirit', 'hidden_seal_monster', 'hidden_seal_demon', 'crystal_cave1', 'crystal_cave2', 'crystal_cave3', 'shadow_temple'] },
     { key: 'aden',         name: '亞丁',       stat: 'resWind',  vals: [1, 2, 3],   maps: ['twilight_mt', 'dream_island'] },
-    { key: 'tower',        name: '傲慢之塔',   stat: 'extraHit', vals: [2, 3, 4],   maps: '__pride__' },
+    { key: 'tower',        name: '傲慢之塔',   stat: 'extraHit', vals: [1, 2, 3],   maps: '__pride__' },
     { key: 'rastabad',     name: '拉斯塔巴德', stat: 'mr',       vals: [1, 3, 5],   maps: ['rastabad_cave1', 'rastabad_cave2', 'rastabad_cave3', 'rastabad_gate', 'giant_tomb', 'demon_temple', 'rastabad_beast', 'dark_magic_lab', 'necro_training', 'elder_room', 'king_baranka_room', 'law_king_room', 'necro_king_room', 'assassin_king_room'] },
     { key: 'rift',         name: '時空裂痕',   stat: 'resEarth', vals: [1, 2, 3],   maps: ['thebes_desert', 'thebes_pyramid', 'thebes_temple', 'tikal_area', 'tikal_deep', 'tikal_altar', 'sunrise_castle', 'sunrise_east', 'sunrise_west', 'sunrise_north'] },
     // ⚠️ 以下兩區原本整個漏掉：35 隻該區獨有怪（遺忘之島 obli_* 26 隻、黑暗妖精聖地 sanct_* 9 隻含吉爾塔斯／冥皇丹特斯）
     //    因未被任何 CARD_REGIONS 涵蓋而從未進入 CARD_MOB_INFO，105 張卡片物品從未被 generateCardItems 產生
     //    → 玩家在這兩大區狩獵永遠掉不到卡、圖鑑也看不到這兩區。
     { key: 'oblivion',     name: '遺忘之島',   stat: 'resWater', vals: [1, 2, 3],   maps: ['oblivion_travel', 'oblivion_island'] },
-    { key: 'sanctuary',    name: '黑暗妖精聖地', stat: 'mr',     vals: [1, 3, 5],   maps: ['dark_elf_sanctuary', 'cursed_dark_elf_sanctuary', 'collapsed_elder_council_hall'] }
+    { key: 'sanctuary',    name: '黑暗妖精聖地', stat: 'mr',     vals: [1, 3, 5],   maps: ['dark_elf_sanctuary', 'cursed_dark_elf_sanctuary', 'collapsed_elder_council_hall'] },
+    // 🐉 v3.7.66 安塔瑞斯巢穴（副本四區·入口 NPC 多魯嘉貝爾）：同樣是「新增狩獵地圖忘了登記卡片地區」的漏網——
+    //    四張圖不在任何地區 → 喀瑪系/大地荒龍/被侵蝕的安塔瑞斯全都無卡無掉卡。獨立成區（不動威頓/亞丁既有完成度）。
+    { key: 'antharas',     name: '安塔瑞斯巢穴', stat: 'resEarth', vals: [1, 2, 3], maps: ['antharas_nest_1', 'antharas_nest_2', 'antharas_nest_3', 'antharas_lair'] }
 ];
 const CARD_STAT_LABEL = { mhp: 'HP', mmp: 'MP', mpR: 'MP自動恢復量', hpR: 'HP自動恢復量', dr: '傷害減免', weight: '負重上限', extraMp: '額外魔法點數', extraDmg: '額外傷害', extraHit: '額外命中', mr: 'MR', resFire: '火屬性抗性', resWater: '水屬性抗性', resWind: '風屬性抗性', resEarth: '地屬性抗性' };
 
 // ---- 特殊刷出怪：不在任何 DB.maps 出怪池（掃圖建索引抓不到）→ 手動歸入指定卡片地區（同時開通掉卡＋圖鑑）----
 //  怪id → { region: CARD_REGIONS key, mapLabel: 金卡「出沒」顯示文字 }
-//  🐉 v3.5.35 風龍林德拜爾：持有頑皮幼龍蛋於野外 1% 特殊刷出（js/03）·歸入亞丁地區（完成加成 resWind·風龍對味）。
-const CARD_SPECIAL_MOBS = { lindvior: { region: 'aden', mapLabel: '野外（持有頑皮幼龍蛋時極低機率遭遇）' } };
+//  🐉 v3.5.35 風龍林德拜爾：持有任意幼龍蛋（頑皮／淘氣）於野外 1% 特殊刷出（js/03）·歸入亞丁地區（完成加成 resWind·風龍對味）。
+const CARD_SPECIAL_MOBS = { lindvior: { region: 'aden', mapLabel: '野外（持有任意幼龍蛋時極低機率遭遇）' },
+    // 🐉 v3.7.66 安塔瑞斯巢穴四區頭目：由 ANTHARAS_AREA_BOSS 指定生成（不在 DB.maps 出怪池）→ 同樣走特殊刷出登錄
+    //    ⚠️ 只登錄「被侵蝕的安塔瑞斯」本體；兩個變身形態（狂怒/瘋狂）刻意不入圖鑑（用戶指定：整鏈只收一張卡）——
+    //    因 CARD_SPECIAL_MOBS 走 regMob 單筆註冊、不跑上面出怪池那條 transformTo 鏈追加，天然不會帶進後續階。
+    ant_kama_flame_king:  { region: 'antharas', mapLabel: '侵蝕的安塔瑞斯巢穴入口（區域頭目）' },
+    ant_kama_nan_king:    { region: 'antharas', mapLabel: '侵蝕的安塔瑞斯巢穴通道（區域頭目）' },
+    ant_kama_king:        { region: 'antharas', mapLabel: '侵蝕的安塔瑞斯巢穴深處（區域頭目）' },
+    ant_antharas_eroded:  { region: 'antharas', mapLabel: '侵蝕的安塔瑞斯棲息地（最深處頭目）' },
+};
 
 // ---- 地圖 key → 中文名（供金卡「出沒地圖」顯示）----
 const _CARD_MAP_NAMES = {};
@@ -55,6 +66,8 @@ const _CARD_MAP_NAMES = {};
     if (!_CARD_MAP_NAMES['oblivion_travel']) _CARD_MAP_NAMES['oblivion_travel'] = '遺忘之島途中';
     if (!_CARD_MAP_NAMES['oblivion_island']) _CARD_MAP_NAMES['oblivion_island'] = '遺忘之島';
     _CARD_MAP_NAMES['windwood_dungeon'] = '風木地監';
+    // 🐉 v3.7.66 安塔瑞斯巢穴四張圖不在 MAP_REGIONS（副本走推進制·地圖清單隱藏）→ 不補中文名金卡「出沒」會印英文 key
+    if (typeof ANTHARAS_AREA_NAMES !== 'undefined') for (let k in ANTHARAS_AREA_NAMES) _CARD_MAP_NAMES[k] = ANTHARAS_AREA_NAMES[k];
 })();
 function _cardMapName(k) {
     if (_CARD_MAP_NAMES[k]) return _CARD_MAP_NAMES[k];
@@ -150,14 +163,29 @@ const CARD_CHAIN_BY_FINAL = (() => {   // 最終階怪名 -> 整鏈怪名清單�
     }
     return m;
 })();
+// 🐉 v3.7.66 「整鏈只有鏈根有卡」的變身鏈（被侵蝕的安塔瑞斯：後兩階刻意不入圖鑑）：最終階名 → 改用鏈根的名字擲卡。
+//    自動推導，不寫死怪名；九尾狐鏈因最終階（殺生石）本身有卡而不會被收進來 → 維持原本的整鏈隨機規則。
+const CARD_DROP_ALIAS = (() => {
+    const isTarget = {}; for (const k in DB.mobs) { const t = DB.mobs[k] && DB.mobs[k].transformTo; if (t) isTarget[t] = 1; }
+    const m = {};
+    for (const k in DB.mobs) {
+        const d = DB.mobs[k];
+        if (!d || !d.transformTo || isTarget[k]) continue;   // 只從鏈根出發
+        let t = d.transformTo, last = null, guard = 0;
+        while (t && DB.mobs[t] && DB.mobs[t].n && guard++ < 10) { last = DB.mobs[t].n; t = DB.mobs[t].transformTo; }
+        if (last && CARD_MOB_INFO[d.n] && !CARD_MOB_INFO[last]) m[last] = d.n;
+    }
+    return m;
+})();
 function rollCardDrops(mob) {
     if (!mob || mob.race === '血盟' || mob.race === '建築') return;
     if (mob.transformTo) return;   // 🦊 變身中間階被「擊敗」不掉卡——整鏈卡由最終階出
-    if (!CARD_MOB_INFO[mob.n]) return;
-    const chainPool = CARD_CHAIN_BY_FINAL[mob.n] || null;   // 最終階＝擲中時整鏈隨機
-    _cardDropRoll(mob.n, 3, 0.0005, chainPool);    // 金卡 0.05%
-    _cardDropRoll(mob.n, 2, 0.005, chainPool);     // 銀卡 0.5%
-    _cardDropRoll(mob.n, 1, 0.01, chainPool);      // 普卡 1%
+    const nm = CARD_DROP_ALIAS[mob.n] || mob.n;   // 🐉 後續階無卡的鏈（安塔瑞斯）→ 打倒最終階＝掉鏈根那張卡
+    if (!CARD_MOB_INFO[nm]) return;
+    const chainPool = CARD_CHAIN_BY_FINAL[nm] || null;   // 最終階＝擲中時整鏈隨機（僅限整鏈都有卡者·如九尾狐）
+    _cardDropRoll(nm, 3, 0.0005, chainPool);    // 金卡 0.05%
+    _cardDropRoll(nm, 2, 0.005, chainPool);     // 銀卡 0.5%
+    _cardDropRoll(nm, 1, 0.01, chainPool);      // 普卡 1%
 }
 // 🎴 加分登錄 + 開通溢出退費（普/銀/金共用·useCardItem 與 acquireCard 單一真相）。回傳 {useN, overflow}。
 function _cardRegister(name, tier, count) {
@@ -186,7 +214,8 @@ function acquireCard(name, tier, count) {
     if (typeof _cardBookOpen !== 'undefined' && _cardBookOpen && typeof renderCardBook === 'function') renderCardBook();
 }
 function _cardDropRoll(name, tier, rate, pool) {
-    if (Math.random() >= rate) return;
+    let finalRate = (typeof partyDropRate === 'function') ? partyDropRate(rate) : rate;
+    if (Math.random() >= finalRate) return;
     if (pool && pool.length) name = pool[Math.floor(Math.random() * pool.length)];   // 🦊 變身鏈最終階：擲中後從整鏈隨機選一張（每階獨立選）
     acquireCard(name, tier, 1);   // 🎴 未開通→自動登錄(完成退溢出)；已開通→實體卡進背包
 }

@@ -381,6 +381,18 @@ const CRAFT_RECIPES = {
         { result: 'wpn_ancient_spear', req: [{ id: 'item_unknown_spear', cnt: 1 }, { id: 'item_ancient_scroll', cnt: 10 }, { id: 'new_item_153', cnt: 10 }, { id: 'new_phoenix_heart', cnt: 1 }, { id: 'new_item_178', cnt: 50 }, { id: 'mat_soulstone_shard', cnt: 500 }] },
         { result: 'wpn_ancient_axe', req: [{ id: 'mat_unknown_axe', cnt: 1 }, { id: 'item_ancient_scroll', cnt: 10 }, { id: 'new_item_159', cnt: 10 }, { id: 'new_phoenix_heart', cnt: 1 }, { id: 'new_item_177', cnt: 50 }, { id: 'mat_soulstone_shard', cnt: 500 }] }
     ],
+    // 🐉 v3.7.57 威頓村・米米：地龍之魔眼解封＋4 古代龍鱗盔甲＋4 安塔瑞斯系列盔甲（規格書配方）
+    'npc_mimi': [
+        { result: 'acc_earth_dragon_eye', req: [{ id: 'item_sealed_earth_eye', cnt: 1 }, { id: 'gold', cnt: 1000000 }] },
+        { result: 'arm_ancient_dragonscale_earth', req: [{ id: 'arm_81', cnt: 1 }, { id: 'mat_blackmithril_plate', cnt: 3 }, { id: 'new_item_152', cnt: 30 }, { id: 'mat_golem_heart', cnt: 5 }, { id: 'gold', cnt: 500000 }] },
+        { result: 'arm_ancient_dragonscale_water', req: [{ id: 'arm_80', cnt: 1 }, { id: 'mat_blackmithril_plate', cnt: 3 }, { id: 'new_item_155', cnt: 30 }, { id: 'mat_icequeen_heart', cnt: 5 }, { id: 'gold', cnt: 500000 }] },
+        { result: 'arm_ancient_dragonscale_fire', req: [{ id: 'arm_82', cnt: 1 }, { id: 'mat_blackmithril_plate', cnt: 3 }, { id: 'new_item_158', cnt: 30 }, { id: 'new_phoenix_heart', cnt: 5 }, { id: 'gold', cnt: 500000 }] },
+        { result: 'arm_ancient_dragonscale_wind', req: [{ id: 'arm_83', cnt: 1 }, { id: 'mat_blackmithril_plate', cnt: 3 }, { id: 'new_item_161', cnt: 30 }, { id: 'mat_dragon_heart', cnt: 5 }, { id: 'gold', cnt: 500000 }] },
+        { result: 'arm_antharas_power',   req: [{ id: 'arm_ancient_dragonscale_earth', cnt: 1 }, { id: 'mat_antharas_heart', cnt: 2 }, { id: 'new_item_153', cnt: 3 }, { id: 'new_item_150', cnt: 500 }, { id: 'new_item_195', cnt: 500 }] },
+        { result: 'arm_antharas_charm',   req: [{ id: 'arm_ancient_dragonscale_earth', cnt: 1 }, { id: 'mat_antharas_heart', cnt: 2 }, { id: 'new_item_153', cnt: 3 }, { id: 'new_item_150', cnt: 500 }, { id: 'new_item_195', cnt: 500 }] },
+        { result: 'arm_antharas_spring',  req: [{ id: 'arm_ancient_dragonscale_earth', cnt: 1 }, { id: 'mat_antharas_heart', cnt: 2 }, { id: 'new_item_153', cnt: 3 }, { id: 'new_item_150', cnt: 500 }, { id: 'new_item_195', cnt: 500 }] },
+        { result: 'arm_antharas_majesty', req: [{ id: 'arm_ancient_dragonscale_earth', cnt: 1 }, { id: 'mat_antharas_heart', cnt: 2 }, { id: 'new_item_153', cnt: 3 }, { id: 'new_item_150', cnt: 500 }, { id: 'new_item_195', cnt: 500 }] }
+    ],
     // 🐉 貝希摩斯・皮爾：破滅者鎖鏈劍 ＋ 古代臂甲（×2，自客盧亞移交）
     'npc_pir': [
         { result: 'wpn_chain_destroyer', req: [{ id: 'item_forgotten_greatsword', cnt: 1 }, { id: 'new_item_171', cnt: 20 }, { id: 'new_item_182', cnt: 20 }, { id: 'new_item_192', cnt: 1 }, { id: 'gold', cnt: 1000000 }] },
@@ -529,7 +541,7 @@ function doDemonKingCraft(idx) {
     if (lack.length) { logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">（尚缺：${lack.join('、')}）</span>`); return; }
     DEMONKING_MATS.forEach(m => ensureMaterial(m.id, m.cnt, 0));   // 🔧 先自動補製可合成的中間物（黑色米索莉金屬板等），玩家不需先手動製作金屬板
     DEMONKING_MATS.forEach(m => consumeMaterialById(m.id, m.cnt));
-    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless ? src.bless : rollAffixesNew().bless, anc: src.anc || false, seteff: src.seteff || false };   // 🔧 v3.1.27 祝福傳承：來源祝福/詛咒→沿用；來源無詞綴→1% 重骰祝福（rollAffixesNew·committed RNG·與一般製作一致）
+    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless ? src.bless : rollAffixesNew(0.10).bless, anc: src.anc || false, seteff: src.seteff || false };   // 🔧 祝福傳承：來源祝福/詛咒→沿用；來源無詞綴→製作 10% 重骰祝福
     if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 🔧 來源武器在倉庫：自倉庫精準消耗該實例
     else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 把來源惡魔武器（背包）
     let inst = { id: r.result, uid: uid(), cnt: 1, en: inherit.en, attr: inherit.attr, bless: inherit.bless, anc: inherit.anc, seteff: inherit.seteff, lock: false };
@@ -592,7 +604,7 @@ function doLumielCraft(idx) {
     if (lack.length) { logSys(`<span class="text-red-400 font-bold">材料不足，無法製作。</span><span class="text-red-300">（尚缺：${lack.join('、')}）</span>`); return; }
     r.mats.forEach(m => ensureMaterial(m.id, m.cnt, 0));   // 🔧 先自動補製可合成的中間物，玩家不需先手動製作
     r.mats.forEach(m => consumeMaterialById(m.id, m.cnt));
-    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless ? src.bless : rollAffixesNew().bless, anc: src.anc || false, seteff: src.seteff || false };   // 🔧 v3.1.27 祝福傳承：來源祝福/詛咒→沿用；來源無詞綴→1% 重骰祝福（rollAffixesNew·committed RNG·與一般製作一致）
+    let inherit = { en: src.en || 0, attr: src.attr || false, bless: src.bless ? src.bless : rollAffixesNew(0.10).bless, anc: src.anc || false, seteff: src.seteff || false };   // 🔧 祝福傳承：來源祝福/詛咒→沿用；來源無詞綴→製作 10% 重骰祝福
     if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 來源裝備在倉庫：自倉庫精準消耗
     else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 件來源戰士團裝備（背包）
     let inst = { id: r.result, uid: uid(), cnt: 1, en: inherit.en, attr: inherit.attr, bless: inherit.bless, anc: inherit.anc, seteff: inherit.seteff, lock: false };
@@ -659,7 +671,7 @@ function doMysticWandCraft(idx) {
     MYSTICWAND_MATS.forEach(m => consumeMaterialById(m.id, m.cnt));
     if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 來源魔杖在倉庫：自倉庫精準消耗該實例
     else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 把來源魔杖（背包）
-    gainItem(r.result, 1, true, false);   // 成品恆 +0 白板（不繼承來源的強化值／屬性／詞綴）；走 gainItem → 自動登錄裝備收集冊＋1% 祝福擲骰
+    gainItem(r.result, 1, true, false, false, false, null, 0.10);   // 成品恆 +0（不繼承來源強化值／屬性／詞綴）；製作 10% 祝福
     logSys(`<span class="text-amber-200 font-bold">神秘的魔法師</span> 製作完成：<span class="${getItemColor({ id: r.result })} font-bold">${DB.items[r.result].n}</span>`);
     updateUI(); renderTabs(true); saveGame();
     renderUniversalCraft(document.getElementById('interaction-content'), 'npc_mystic_mage');
@@ -716,7 +728,7 @@ function doSlayerCraft(idx) {
     r.mats.forEach(m => consumeMaterialById(m.id, m.cnt));
     if (src._whSource) { whRemoveStackByUid(src.uid, 1); }   // 來源鏈甲在倉庫：自倉庫精準消耗該實例
     else if ((src.cnt || 1) > 1) src.cnt -= 1; else player.inv = player.inv.filter(i => i.uid !== src.uid);   // 消耗 1 件來源鏈甲（背包）
-    gainItem(r.result, 1, true, false);   // 成品恆 +0（不繼承來源的強化值／詞綴）；走 gainItem → 自動登錄裝備收集冊＋1% 祝福擲骰
+    gainItem(r.result, 1, true, false, false, false, null, 0.10);   // 成品恆 +0（不繼承來源強化值／詞綴）；製作 10% 祝福
     logSys(`<span class="text-amber-200 font-bold">宙斯之熔岩高崙</span> 製作完成：<span class="${getItemColor({ id: r.result })} font-bold">${DB.items[r.result].n}</span>`);
     updateUI(); renderTabs(true); saveGame();
     renderUniversalCraft(document.getElementById('interaction-content'), 'npc_zeus_golem');
@@ -1115,15 +1127,15 @@ function doCraft(npcId, recipeIdx, sherine) {   // 🔮 sherine 參數保留簽�
     // 🔮 席琳製作：扣除結晶（每件 1 個；🔧 背包優先、不足扣倉庫）
     if (sherine) consumeMaterialById('sherine_crystal', makeCount);
 
-    // 產出（逐個產生，使每件各自有 1% 機率取得隨機詞綴；靜音後統一記錄一次）
+    // 產出（逐個產生，使每件各自有 10% 機率取得祝福；靜音後統一記錄一次）
     _tradLootCtx = true;   // 🏛️ 傳統模式：製作的武器/防具/飾品/寵物裝備隨機自帶強化值（材料非裝備→不受影響、恆 +0）
     let _isPetGear = !!(DB.items[recipe.result] && ['petwpn', 'petarm'].includes(DB.items[recipe.result].slot));   // 🦴 寵物裝備（之牙 petwpn／防具 petarm）＝白板
     _noAffixCtx = _isPetGear;   // 🦴 寵物裝備＝白板：擋詞綴/套裝效果
     try {
         for (let k = 0; k < makeCount; k++) {
             _forceSherineSet = !!sherine;   // 🔮 席琳製作：每件成品必定附帶隨機一種席琳套裝效果（寵物裝備 slot 非席琳適用部位，gainItem 自然不附）
-            _forceBless = (k < _craftBlessCount);   // 🔧 v3.1.27 消耗幾件祝福裝備材料→前幾件成品必定祝福（其餘照常 1% 擲·防「1 件祝福材料→整批祝福」的批量漏洞）
-            gainItem(recipe.result, recipe.yield || 1, true, false);   // 🦴 forceNormal=false → 傳統自帶強化值生效；詞綴/套裝由 _noAffixCtx 擋（寵物裝備白板）
+            _forceBless = (k < _craftBlessCount);   // 🔧 消耗幾件祝福裝備材料→前幾件成品必定祝福（其餘照製作 10% 擲）
+            gainItem(recipe.result, recipe.yield || 1, true, false, false, false, null, 0.10);   // 🦴 寵物裝備仍由 _noAffixCtx 維持白板
             _forceSherineSet = false; _forceBless = false;
         }
     } finally { _tradLootCtx = false; _forceSherineSet = false; _noAffixCtx = false; _forceBless = false; }   // try/finally：例外也必清旗標，杜絕殘留洩漏
@@ -1200,14 +1212,14 @@ function renderPandoraGacha(div) {
 // ==========================================
 // 👇 新增：2. 根據權重抽獎的函數
 // ==========================================
-function getWeightedGachaResult(doubleNonRare) {
+function getWeightedGachaResult(doubleNonRare, excludeCards) {
     let totalWeight = 0;
     let pool = [];
 
     // 建立抽獎池並計算總權重
     for (let id in DB.items) {
         let item = DB.items[id];
-        if (doubleNonRare && item.eff === 'card') continue;   // 怪物卡僅加入黑市與收購 NPC，不滲入血盟／野外特殊掉落
+        if ((doubleNonRare || excludeCards) && item.eff === 'card') continue;   // 怪物卡僅加入黑市與收購 NPC；黑市達卡片上限時亦暫時排除
         let weight = item.gachaWeight !== undefined ? item.gachaWeight : 0;   // 🎯 v3.4.2 沒有標示視同 0（initGachaWeights 已正規化·此為雙保險）
         if (weight > 0) {
             if (doubleNonRare && weight !== 1) weight *= 2;   // 🔧 血盟野外特殊掉落：潘朵拉權重 1 以外的物品以 2 倍權重計算（權重100→200）
@@ -1239,7 +1251,17 @@ function getWeightedGachaResult(doubleNonRare) {
 const PANDORA_SLOT_COUNT = 24;
 const PANDORA_SLOT_TICKS = 3000;   // 5 分鐘 = 300 秒 × 10 tick/秒
 const PANDORA_LIFETIME_TICKS = PANDORA_SLOT_TICKS * PANDORA_SLOT_COUNT;   // 240 分鐘
+const PANDORA_CARD_LIMIT = 5;       // 普卡／銀卡／金卡合計最多同時佔用 5 個黑市商品格（僅限制隨機輪換；玩家收購單上架的卡片不計入也不受限）
 let _pandoraDiv = null;            // 目前黑市面板容器（購買/輪換後重繪用）
+
+function pandoraMarketCardCount(market, replacingIndex) {
+    if (!market || !Array.isArray(market.slots)) return 0;
+    return market.slots.reduce((count, slot, index) => {
+        if (index === replacingIndex || !slot || slot.buyOrder) return count;   // 收購單上架的卡片不計入上限（也讓健檢容許第 6 張收購卡）
+        let d = DB.items[slot.id];
+        return count + (d && d.eff === 'card' ? 1 : 0);
+    }, 0);
+}
 
 function pandoraCardPriceRange(d) {
     if (!d || d.eff !== 'card') return null;
@@ -1332,7 +1354,9 @@ function pandoraStockBless(id) {
 
 // 上架一件新商品：若有收購單，先替指定物品擲一次市場價；市場價不高於喊價才命中，
 // 並以玩家喊價上架。失敗時不影響收購單，改走正常權重抽選。
-function _pandoraStock(nowT, market) {
+// 卡片上限只約束隨機輪換抽貨；收購單（含卡片）一律不受 PANDORA_CARD_LIMIT 影響。
+function _pandoraStock(nowT, market, replacingIndex) {
+    let cardLimitReached = pandoraMarketCardCount(market, replacingIndex) >= PANDORA_CARD_LIMIT;
     let order = market && market.buyOrder;
     if (order && pandoraBuyOrderAllowed(order.id) && Number.isSafeInteger(order.price) && order.price > 0) {
         let rolledPrice = pandoraBuyOrderPrice(order.id);
@@ -1344,7 +1368,7 @@ function _pandoraStock(nowT, market) {
             return hit;
         }
     }
-    let id = getWeightedGachaResult();
+    let id = getWeightedGachaResult(false, cardLimitReached);
     let d = DB.items[id] || {};
     return { id: id, price: pandoraPrice(id), weight: d.gachaWeight || 100, setTick: nowT, sold: false, bless: pandoraStockBless(id) };
 }
@@ -1491,7 +1515,7 @@ function refreshPandoraMarket(force) {
     let nowT = (typeof state !== 'undefined' && state) ? (state.ticks || 0) : 0;
     let m = player.pandoraMarket2;
     let changed = false, latest = null, orderHit = null;
-    let bad = !m || !Array.isArray(m.slots) || m.slots.length !== PANDORA_SLOT_COUNT || m.slots.some(s => !s || !DB.items[s.id]);
+    let bad = !m || !Array.isArray(m.slots) || m.slots.length !== PANDORA_SLOT_COUNT || m.slots.some(s => !s || !DB.items[s.id]) || pandoraMarketCardCount(m) > PANDORA_CARD_LIMIT;
     if (force || bad || (nowT - (m ? (m.lastTick || 0) : 0)) >= PANDORA_LIFETIME_TICKS) {
         // 初次進場／資料損壞／離線超過一圈：全面換貨（日誌只公告最新一件，不洗版）
         let nextMarket = {
@@ -1512,7 +1536,7 @@ function refreshPandoraMarket(force) {
         while ((nowT - m.lastTick) >= PANDORA_SLOT_TICKS && n < PANDORA_SLOT_COUNT) {
             m.lastTick += PANDORA_SLOT_TICKS;
             let i = (m.seq || 0) % PANDORA_SLOT_COUNT;   // round-robin：每格恰好 240 分鐘輪到一次
-            m.slots[i] = _pandoraStock(nowT, m);
+            m.slots[i] = _pandoraStock(nowT, m, i);
             if (m.slots[i].buyOrder) orderHit = m.slots[i];
             latest = m.slots[i]; m.lastIdx = i;
             m.seq = (m.seq || 0) + 1; n++; changed = true;
@@ -1894,6 +1918,7 @@ window.onload = () => {
                 let _statusName = (DB.skills[d.procStatusSkill.skId] && DB.skills[d.procStatusSkill.skId].n) || '異常狀態';
                 _eff.push(`異常攻擊 ${d.procStatusSkill.rate || 0}%（命中時造成${_statusName}）`);
             }
+            if(d.procStatus && d.procStatus.kind) _eff.push(`異常攻擊 ${d.procStatus.rate || 0}%（攻擊時使目標${(typeof STATUS_NAME !== 'undefined' && STATUS_NAME[d.procStatus.kind]) || '異常狀態'} ${d.procStatus.dur || 6} 秒）`);   // 🕸️ v3.7.75 深紅之弩：束縛
             if(d.procPoison)          _eff.push(`中毒 ${d.procPoison.rate || 0}%（命中時使目標中毒${d.procPoison.dur ? `，持續${d.procPoison.dur}秒` : ''}）`);
             else if(d.procPoisonRate) _eff.push(`中毒 ${d.procPoisonRate}%（命中時使目標中毒）`);
             if(d.procInstakill) {

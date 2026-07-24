@@ -23,14 +23,14 @@
   var CAP_MS           = CAP_HOURS * 3600 * 1000;
   var HEARTBEAT_MS     = 5 * 1000;              // 活著時多久蓋一次時間戳
   var CKPT_MS          = 5 * 1000;              // 💾 結算檢查點間隔(真實毫秒):每滿就把已結算收益 saveGame＋錨點推進到已結算時點;結算被中斷最多丟這麼久的量
-  var OVERLAY_MIN_TICK = 3000;                  // 補跑超過這麼多 tick 才顯示進度遮罩(約 5 分鐘)
+  var OVERLAY_MIN_TICK = 1500;                  // 補跑超過這麼多 tick 才顯示進度遮罩(約 2.5 分鐘)
   // 「每段最多跑這麼久就 await raf 讓出一次」＝畫面更新間隔(進度遮罩只在讓出時重繪、期間頁面凍結)。
   //   值小→讓出多、畫面順但等影格開銷大、結算慢;值大→相反。故依「要補跑的時間長短」動態取值:
   //   短離線(本來就快)用小值求順,長離線(才需要快)用大值求速度,中間線性漸變 → 兼顧順暢與速度。
   var SLICE_MIN_MS     = 28;                    // 短離線:接近一個影格(~16ms),畫面順
   var SLICE_MAX_MS     = 1000;                  // 長離線:讓出少、結算快(24h+用1500)
-  var SLICE_SHORT_TICK = 3000;                  // ≤5 分鐘(=遮罩門檻)以下一律用最小值(順)
-  var SLICE_LONG_TICK  = 36000;                 // ≥1 小時一律用最大值(快);兩者之間線性內插
+  var SLICE_SHORT_TICK = 1500;                  // ≤2.5 分鐘(=遮罩門檻)以下一律用最小值(順)
+  var SLICE_LONG_TICK  = 18000;                 // ≥30 分鐘一律用最大值(快);兩者之間線性內插
   function sliceFor(totalTicks) {
     if (totalTicks <= SLICE_SHORT_TICK) return SLICE_MIN_MS;
     var maxMs = totalTicks >= 86400 ? 1500 : SLICE_MAX_MS;   // 24h+用1500ms,1h~24h用1000ms

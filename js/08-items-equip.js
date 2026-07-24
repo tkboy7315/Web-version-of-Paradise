@@ -72,7 +72,7 @@ function _rememberCatchupGainItemStack(item) {
     cache.first = inv.length ? inv[0] : null;
     cache.last = item;
 }
-function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, deferUi=false, fixedAffixes=null) {   // ⚠️ v3.5.87 affixOld 已棄用；第 7 參僅供已預先決定詞綴的來源（如黑市上架商品）原樣交付
+function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, deferUi=false, fixedAffixes=null, blessRate=null) {   // ⚠️ 第 7 參供既定詞綴來源；第 8 參供製作等來源指定祝福率
     // 卷軸變祝福／詛咒機率：各 1%（互斥）
     if (!forceNormal && (id === 'scroll_weapon' || id === 'scroll_armor')) {
         let _r = lootRng('scrollvar');   // 🎲 committed RNG（防 SL 重抽卷軸祝福/詛咒變體）
@@ -107,11 +107,11 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, de
     let attr = false;   
     
     if (!forceNormal && !_noAffixCtx && d && !isRelic(d) && ((d.type === 'wpn' && !d.isArrow) || d.type === 'arm' || d.type === 'acc')) {   // 🦴 _noAffixCtx：白板（寵物裝備製作）→ 不附詞綴；🏺 遺物永不附詞綴（不會祝福/賦予）
-        // 詞綴：所有管道只擲 1% 祝福（席琳×3/瘋狂×5·committed RNG）；屬性/遠古改由碧恩賦予卷軸取得。箭矢/遺物/白板不附加。
+        // 詞綴：一般頭目與製作 10%；席琳頭目 20%、瘋狂席琳頭目 30%；其他來源基礎 1%。箭矢/遺物/白板不附加。
         //   🗑️ v3.5.87 舊制 rollAffixesOld 已刪（與新制 byte-identical·affixOld 參數棄用不再分派）
         let _af = (fixedAffixes && typeof fixedAffixes === 'object')
             ? { attr: !!fixedAffixes.attr, bless: fixedAffixes.bless === 'cursed' ? 'cursed' : !!fixedAffixes.bless, anc: !!fixedAffixes.anc }
-            : rollAffixesNew();
+            : rollAffixesNew(Number.isFinite(blessRate) ? blessRate : ((_lootMobInfo && _lootMobInfo.boss) ? 0.10 : 0.01));
         attr = _af.attr; bless = _af.bless; anc = _af.anc;
         if (_forceBless) bless = true;   // 🔧 v3.1.27 製作材料含祝福裝備→成品必定祝福（僅在此裝備詞綴分支·寵物白板 _noAffixCtx 已於上方擋掉）
     }
@@ -290,11 +290,19 @@ function getAttrAffix(attr) {
     let c = attrCanon(attr);
     return c ? ATTR_AFFIX[c] : null;
 }
-// 武器實際屬性（屬性詞綴優先，否則用基底物品 ele）
-function getWpnEle(wpnInst, wpnBase) {
+function resolveWeaponElement(affixPresent, affixElement, spellbladeActive, spellbladeElement, baseElement) {
+    if (affixPresent) return affixElement;
+    if (spellbladeActive && spellbladeElement) return spellbladeElement;
+    return baseElement || 'normal';
+}
+// 武器實際屬性（屬性詞綴優先，否則用基底物品 ele）；owner 供傭兵使用，省略時沿用主玩家。
+function getWpnEle(wpnInst, wpnBase, owner) {
     let a = wpnInst && getAttrAffix(wpnInst.attr);
-    if (a) return a.ele;
-    return (wpnBase && wpnBase.ele) ? wpnBase.ele : 'normal';
+    // 🏺 v3.7.54 專精劍術的魔劍士之刀：施法後 10 秒，一般攻擊變成裝備者最後施放法術的屬性。
+    let wielder = owner || ((typeof player !== 'undefined') ? player : null);
+    let spellbladeActive = !!(wpnBase && wpnBase.spellbladeBuff && wielder && wielder.eq && wielder.eq.wpn === wpnInst
+        && (wielder._spellbladeUntil || 0) > ((typeof state !== 'undefined' && state.ticks) || 0));
+    return resolveWeaponElement(!!a, a && a.ele, spellbladeActive, wielder && wielder._spellbladeEle, wpnBase && wpnBase.ele);
 }
 // 屬性剋制判定（攻擊屬性 e 是否剋制怪物屬性 te），加成量由各詞綴的 counter 決定
 // 🔧 統一：抗魔係數（MR 折減倍率，邊際效益遞減）。回傳「魔法傷害通過率」(=1-減傷%)。
@@ -523,7 +531,7 @@ function useItem(u, silent = false) {
         return;
     }
 
-    // 🥚 v3.2.17 頑皮幼龍蛋：原功能不變（攜帶觸發林德拜爾）＋新增可使用——寵物保管未滿時消耗，隨機獲得 淘氣龍/頑皮龍
+    // 🥚 v3.7.56 幼龍蛋（頑皮／淘氣共用 eff:'dragonegg'）：攜帶觸發林德拜爾＋可使用——寵物保管未滿時消耗，依蛋種 eggPet 定向孵化
     //   （🚫 舊「進化果實 eff:'evolve' 項圈進化」已隨項圈系統移除；新進化改於包武寵物保管介面進行）
     if (d.eff === 'dragonegg') {
         if (silent) return;
@@ -669,6 +677,8 @@ function useItem(u, silent = false) {
             if (prideTeleportBlocked()) { if (!silent) logSys('<span class="text-red-400">' + (state.riftRun ? '時空裂痕中無法使用瞬間移動卷軸。' : (state.prideRanked ? '排名挑戰中無法使用瞬間移動卷軸。' : '在此樓層需持有對應的傲慢之塔支配符才能使用瞬間移動卷軸。')) + '</span>'); return; }
             // 🏝️ 遺忘之島：途中與本島皆禁用瞬間移動卷軸（不消耗卷軸）
             if (state.oblivion) { if (!silent) logSys('<span class="text-red-400">遺忘之島的迷霧壓制了傳送，瞬間移動卷軸無法生效。</span>'); return; }
+            // 🐉 v3.7.57 侵蝕的安塔瑞斯巢穴：禁瞬間移動卷軸（不消耗卷軸）
+            if (state.antharas) { if (!silent) logSys('<span class="text-red-400">侵蝕的龍氣壓制了傳送，瞬間移動卷軸無法生效。</span>'); return; }
             // 瞬間移動卷軸：效果同傳送術。手動(非silent)+傳送控制戒指 → 必定遭遇BOSS；自動使用(silent) → 必定無戒指效果。
             if (!silent && HIDDEN_AREA_PARENT[mapState.current]) {   // 🏛️ 對應地圖手動用卷軸→進入隱藏狩獵區域（自動瞬移 silent 不進入、照常逃離頭目）；下方仍 consume 卷軸
                 enterHiddenArea(HIDDEN_AREA_PARENT[mapState.current]);
@@ -708,7 +718,9 @@ function useItem(u, silent = false) {
         if(reqLv === undefined) { logSys(`你的職業無法學習「${sd.n}」。`); return; }
         if(player.lv < reqLv) { logSys(`等級不足，需要等級 ${reqLv} 才能學習「${sd.n}」。`); return; }
         
-        // 🎯 妖精四屬性限制解除：不再檢查 reqEle/reqEleAny
+        // 👇 屬性限制已解除（原：確保屬性相符才能吃水晶）
+        // if(sd.reqEle && player.elfEle !== sd.reqEle) { logSys(`屬性不符，無法學習「${sd.n}」。`); return; }
+        // if(sd.reqEleAny && !player.elfEle) { logSys(`尚未選擇屬性，無法學習「${sd.n}」。`); return; }
 
         if(!player.skills.includes(d.sk)) {
             player.skills.push(d.sk);
@@ -881,18 +893,23 @@ function royalEquipOk(d, id) {
 function checkCanEquip(item) {
     let d = DB.items[item.id];
     if (d && d.reqAvatar && player && ((d.strictAvatar && player.avatar !== d.reqAvatar) || (!d.strictAvatar && player.avatar && player.avatar !== d.reqAvatar))) return false;   // 👸 性別頭像限定；strictAvatar（純潔少女的憐愛）要求必須明確為女妖精，舊檔缺 avatar 亦不放行
-    if (isRelic(d)) return reqAllowsClass(d, player.cls);   // 🏺 遺物：職業限制純以 req 白名單為準（略過各職業專屬 *EquipOk 武器/防具清單，否則戰士等會被拒）
-    if (player.cls === 'dark') return darkEquipOk(d, item.id);   // 🔧 黑暗妖精專屬裝備規則
-    if (player.cls === 'illusion') return illusionEquipOk(d, item.id);   // 🔮 幻術士專屬裝備規則（除匕首外的全職業裝備＋開放清單）
-    if (player.cls === 'dragon') return dragonEquipOk(d, item.id);   // 🐉 龍騎士專屬裝備規則（除匕首外的全職業裝備＋開放清單）
-    if (player.cls === 'warrior') return warriorEquipOk(d, item.id);   // ⚔️ 戰士專屬裝備規則（白名單制：鈍器＋全職非盾防具＋開放清單）
-    if (player.cls === 'royal') return royalEquipOk(d, item.id);   // 👑 王族專屬裝備規則（全職業裝備＋具名開放清單）
+    // 🏺 遺物：職業限制純以 req 白名單為準＝略過各職業專屬 *EquipOk 武器/防具清單（否則戰士等會被拒）。
+    //    ⚠️ v3.7.83 修：原本這裡是 `return reqAllowsClass(...)` 直接早退，連帶把下方共用尾段的**劍術精通例外**也跳過了
+    //    → 妖精選劍術精通後，一般的騎士限定單手武器借得到、同條件的「遺物」卻裝不上（8 件）。改成只跳過 *EquipOk 分派、
+    //    仍走同一條尾段，遺物與一般裝備的判定路徑就完全一致。
+    if (!isRelic(d)) {
+        if (player.cls === 'dark') return darkEquipOk(d, item.id);   // 🔧 黑暗妖精專屬裝備規則
+        if (player.cls === 'illusion') return illusionEquipOk(d, item.id);   // 🔮 幻術士專屬裝備規則（除匕首外的全職業裝備＋開放清單）
+        if (player.cls === 'dragon') return dragonEquipOk(d, item.id);   // 🐉 龍騎士專屬裝備規則（除匕首外的全職業裝備＋開放清單）
+        if (player.cls === 'warrior') return warriorEquipOk(d, item.id);   // ⚔️ 戰士專屬裝備規則（白名單制：鈍器＋全職非盾防具＋開放清單）
+        if (player.cls === 'royal') return royalEquipOk(d, item.id);   // 👑 王族專屬裝備規則（全職業裝備＋具名開放清單）
+    }
     // 1. 基本職業判定
     let canEquip = reqAllowsClass(d, player.cls);
 
     // 2. 負重強化的擴充判定
     if (!canEquip && loadUpAllows(item.id)) canEquip = true;
-    // 3. 🏅 劍術精通：妖精可裝備騎士限定的單手武器（非雙手、非弓）
+    // 3. 🏅 劍術精通：妖精可裝備騎士限定的單手武器（非雙手、非弓）——⚠️ 遺物同樣適用（v3.7.83 起遺物也會走到這裡）
     if (!canEquip && hasMastery('e_sword') && d.type === 'wpn' && !d.w2h && !d.isBow && d.req && d.req.includes('knight')) canEquip = true;
     return canEquip;
 }
@@ -1369,6 +1386,7 @@ function renderStatusEffects() {
 function _updateUIImpl() {
     if(state.ff) return; // 補跑期間不刷新畫面
     updatePrideFloorIndicator();   // 🗼 攀登中右上角顯示目前樓層（背景補跑後回到前景時同步）
+    try { if (typeof updateMercRoleHint === 'function') updateMercRoleHint(); } catch (e) {}   // 🧑‍🤝‍🧑 v3.7.84 「目前擔任隊員中」提示（受僱/解散由其他分頁造成→靠這裡每輪自動同步）
     try { renderPandoraBanner(); } catch (e) {}   // 🔧 潘朵拉黑市稀有商品公告橫幅
     try { if (typeof updatePvpButtonTone === 'function') updatePvpButtonTone(); } catch (e) {}
     try { renderSyslogPandora(); } catch (e) {}   // 🔧 系統日誌標題列右側：黑市拍賣中商品
@@ -1382,7 +1400,7 @@ function _updateUIImpl() {
       if (rb) { rb.style.display = ''; rb.textContent = _txt; rb.onclick = _fn; rb.style.background = _riftLock ? '#7c3aed' : (_inTown ? '#1d4ed8' : ''); rb.style.borderColor = _riftLock ? '#c4b5fd' : (_inTown ? '#93c5fd' : ''); }
       // 🌀 順移按鈕：固定顯示（含村莊/野外/狩獵/隱藏區域），不隨敵人或每幀重繪閃爍；僅在「傳送會破壞玩法」的鎖定模式隱藏（裂痕/傲慢之塔封鎖樓/遺忘之島/軍王之室）。
       // ⚠️ 用「狀態改變才寫 DOM」的守衛：避免每個 tick 重複 toggle class / 設 display 造成按鈕閃爍。
-      { let tpb = document.getElementById('btn-teleport'); if (tpb) { let _hideTp = !!(KING_ROOMS[mapState.current] || (typeof prideTeleportBlocked === 'function' && prideTeleportBlocked()) || state.oblivion); if (tpb.classList.contains('hidden') !== _hideTp) { tpb.classList.toggle('hidden', _hideTp); tpb.style.display = _hideTp ? 'none' : ''; } } } }   // ⚠️ _hideTp 必須 !! 強轉布林：否則 (undefined||false||undefined)===undefined → 守衛 (boolean!==undefined) 恆真 → toggle('hidden', undefined) 變成「無參數 bare toggle」每幀翻轉 → 按鈕閃爍
+      { let tpb = document.getElementById('btn-teleport'); if (tpb) { let _hideTp = !!(KING_ROOMS[mapState.current] || (typeof prideTeleportBlocked === 'function' && prideTeleportBlocked()) || state.oblivion || state.antharas); if (tpb.classList.contains('hidden') !== _hideTp) { tpb.classList.toggle('hidden', _hideTp); tpb.style.display = _hideTp ? 'none' : ''; } } } }   // ⚠️ _hideTp 必須 !! 強轉布林：否則 (undefined||false||undefined)===undefined → 守衛 (boolean!==undefined) 恆真 → toggle('hidden', undefined) 變成「無參數 bare toggle」每幀翻轉 → 按鈕閃爍
     // 👑 v3.6.05 城主稱號；😤 v3.6.31 只有王族顯示「<持有城堡>主」（肯特城主…）·非王族只顯示「<持有城堡>」（肯特城…·用戶拍板·血盟福利不變）。
     //    v3.6.34 徽章王冠改與戰鬥 sprite 同一顆動態 castle-crown.gif（#victory-badge-crown）·僅王族顯示（非王族純文字）。
     //    ⚠️ 每 tick 都會跑到這裡 → 比對後才寫 DOM（比照上方按鈕的「狀態改變才寫」守衛），避免每幀重設 textContent/display。
@@ -1435,19 +1453,7 @@ function _updateUIImpl() {
         document.getElementById('mv-mp-fill').style.width = `${Math.max(0, (player.mp/player.mmp)*100)}%`;
         document.getElementById('mv-mp-txt').innerText = `${Math.floor(player.mp)}/${Math.floor(player.mmp)}`;
     } }
-    // 🏰 城堡護衛：狀態欄依類型顯示傭兵樣式的 HP／MP
-    { let _gr = document.getElementById('castle-guard-row'), _g = player.castleGuard;
-      if (_gr) { if (_g && siegeVictoryActive()) { _gr.classList.remove('hidden');
-          let _heal = _g.mode === 'heal';
-          let _cur = _heal ? _g.mp : _g.hp, _max = _heal ? _g.maxMp : _g.maxHp;
-          document.getElementById('cg-name').innerText = _g.name + (_g.disabled ? (_heal ? '(耗盡)' : '(力竭)') : '');
-          document.getElementById('cg-txt').innerText = `${Math.floor(_cur)}/${Math.floor(_max)}`;
-          let _bar = document.getElementById('cg-bar');
-          _bar.className = `bar-fill ${_heal ? 'bg-blue-600' : 'bg-red-600'}`;
-          _bar.parentElement.title = _heal ? 'MP' : 'HP';
-          _bar.style.width = `${Math.max(0, (_cur/_max)*100)}%`;
-        } else { _gr.classList.add('hidden'); } } }
-    
+    // 🏰 v3.7.96 城堡護衛 v2：改為隊伍面板實體 HP 卡（renderGuardTeamHTML·js/31）；舊「主狀態欄承擔傷害護衛條」已移除。
     let nxtE = getExpReq(player.lv);
     let pct = player.lv >= 100 ? 100 : (nxtE > 0 && isFinite(nxtE) ? (player.exp / nxtE) * 100 : 0);
     document.getElementById('txt-exp').innerText = `${pct.toFixed(2)}%`;
