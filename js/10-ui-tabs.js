@@ -873,6 +873,80 @@ function relicPurposeLabels(d) {
     if (d.showMobEle) out.push('元素洞察（顯示敵人的屬性）');
     if (d.relicDropX2) out.push('遺物尋寶（遺物掉落判定次數×2）');
 
+    // --- v3.8.13 補齊遺物特效標籤 ---
+    if (d.procStatusSkill) out.push(`命中施放異常（${d.procStatusSkill.rate}%機率施放${skillName(d.procStatusSkill.skId)}）`);
+    if (d.procPoison) out.push(`命中附毒（${d.procPoison.rate}%機率中毒，每秒${d.procPoison.dmg[0]}D${d.procPoison.dmg[1]}傷害，持續${d.procPoison.dur}秒）`);
+    if (d.procSkill && typeof d.procSkill === 'string') out.push(`命中施法（攻擊時觸發${skillName(d.procSkill)}）`);
+    if (d.procSkill && typeof d.procSkill === 'object' && d.procSkill.skId) out.push(`命中施法（${d.procSkill.rate || 100}%機率觸發${skillName(d.procSkill.skId)}）`);
+    if (d.spellProc) { var _sp = d.spellProc; out.push(`攻擊附加魔法（${_sp.skn}：${_sp.dice[0]}D${_sp.dice[1]}${_sp.flat ? '+' + _sp.flat : ''} ${eleName(_sp.ele)}屬性${_sp.aoe ? '全體' : ''}傷害` + (_sp.heal ? `，恢復${Math.round(_sp.heal * 100)}%HP` : '') + (_sp.burnDot ? `，灼燒${_sp.burnDot.dmg}/秒${_sp.burnDot.dur}秒` : '') + '）'); }
+    if (d.procInstakill) { var _pi = d.procInstakill; out.push(`即死${_pi.tag ? '(' + _pi.tag + ')' : ''}（${Math.round((_pi.p || 0) * 100)}%機率` + (_pi.maxLv ? '，僅限' + _pi.maxLv + '級以下' : '') + (_pi.hpBelow ? '，HP低於' + Math.round(_pi.hpBelow * 100) + '%' : '') + (_pi.hardOnly ? '，僅硬皮怪' : '') + (_pi.healPct ? '，击杀恢復' + Math.round(_pi.healPct * 100) + '%HP' : '') + '）'); }
+    if (d.procOnHit) out.push('觸發條件：僅一般攻擊命中時（非每次攻擊判定）');
+    if (d.procBurn) out.push(`命中灼燒（${d.procBurn.dmg}點/秒，持續${d.procBurn.dur}秒` + (d.procBurn.magicHit ? '，受魔法傷害影響' : '') + '）');
+    if (d.procHealSkill) out.push(`命中治癒 ${d.procHealSkill.rate}%（施放${skillName(d.procHealSkill.skId)}）`);
+    if (d.onHitEleDmg) out.push(`命中附加${eleName(d.onHitEleDmg.ele)}傷害（${d.onHitEleDmg.dmg}點` + (d.onHitEleDmg.rate ? '，' + d.onHitEleDmg.rate + '%機率' : '') + '）');
+    if (d.skillDmgMult) { var _sdm = Object.keys(d.skillDmgMult).map(function (k) { return skillName(k) + '×' + d.skillDmgMult[k]; }); if (_sdm.length) out.push('技能增幅（' + _sdm.join('、') + '）'); }
+    if (d.poisonedBonusDmg) out.push(`中毒專攻（攻擊中毒目標額外傷害+${d.poisonedBonusDmg}）`);
+    if (d.silencedBonusDmg) out.push(`沉默專攻（攻擊沉默目標額外傷害+${d.silencedBonusDmg}）`);
+    if (d.slowedBonusDmg) out.push(`緩速專攻（攻擊緩速目標額外傷害+${d.slowedBonusDmg}）`);
+    if (d.frozenBonusDmg) out.push(`冰凍專攻（攻擊冰凍目標額外傷害+${d.frozenBonusDmg}）`);
+    if (d.waterFreezeProc) out.push(`冰封觸發（命中${d.waterFreezeProc.pct}%機率冰凍${d.waterFreezeProc.dur}秒）`);
+    if (d.immParalyzeBonusDmg) out.push(`強韌專攻（攻擊免疫麻痺目標額外傷害+${d.immParalyzeBonusDmg}）`);
+    if (d.eleBonusDmg) out.push(`${eleName(d.eleBonusDmg.ele)}額外傷害+${d.eleBonusDmg.add}`);
+    if (d.vampPct) out.push(`吸血（一般攻擊命中恢復造成傷害${Math.round(d.vampPct * 100)}%的HP）`);
+    if (d.firePrisonMult) out.push(`火焰牢獄（對灼燒中的敵人傷害×${d.firePrisonMult}）`);
+    if (d.flameDkMorph) out.push('變身烈焰死騎（裝備時變身 烈焰的死亡騎士）');
+    if (d.procDualSkill) { var _ds = d.procDualSkill; out.push(`雙屬施法（${_ds.rate}%機率觸發${_ds.skn}）`); }
+    if (d.procSkill2 && typeof d.procSkill2 === 'object') out.push(`第二觸發（${d.procSkill2.rate || 100}%機率施放${skillName(d.procSkill2.skId)}）`);
+    if (d.windbladeProc) out.push(`風刃觸發（${d.windbladeProc}%機率發動風刃）`);
+    if (d.hardskinFireProc) out.push('硬皮引燃（攻擊硬皮敵人時引燃目標）');
+    if (d.slowScaleDmg) out.push('緩速增傷（攻擊緩速中的敵人傷害提高）');
+    if (d.dblStrikeRate) out.push(`雙擊（${d.dblStrikeRate}%機率造成雙倍傷害）`);
+    if (d.traumaProc) out.push(`創傷（命中${d.traumaProc.pct}%機率疊加創傷，最多${d.traumaProc.maxStacks}層，每層${d.traumaProc.dmg}點/秒，持續${d.traumaProc.dur}秒）`);
+    if (d.crushInstakill) out.push(`重擊即死（重擊命中${Math.round(1 / (d.crushInstakill.cdSec || 1) * 100)}%機率即死非首領敵人；冷卻${d.crushInstakill.cdSec}秒，恢復${d.crushInstakill.healHp}HP）`);
+    if (d.undeadImmune) out.push(`亡靈庇護（每${d.undeadImmune.cdSec}秒可免疫一次死亡）`);
+    if (d.golemMarkDebuff) out.push('巨人印記（攻擊時标记目標，使其受到的傷害提高）');
+    if (d.counterEles) out.push(`屬性反擊（受到` + d.counterEles.map(eleName).join('/') + `屬性傷害時反擊）`);
+    if (d.spellbladeBuff) out.push('魔刃強化（攻擊時提升魔法傷害）');
+    if (d.dotMpRefund) out.push(`持續傷害回魔（受到持續傷害時，恢復${d.dotMpRefund}%傷害值的MP）`);
+    if (d.dragonSlayStrike) out.push(`屠龍一擊（${d.dragonSlayStrike.rate}%機率觸發${d.dragonSlayStrike.dice}D${d.dragonSlayStrike.flat}額外傷害，對龍×${d.dragonSlayStrike.dragonMult}）`);
+    if (d.autocastBacklash) out.push('自動施法反噬（自動施法失敗時反噬自身）');
+    if (d.spellIgnoreMr) out.push('無視魔防（魔法傷害無視目標MR）');
+    if (d.wishRing) out.push('許願戒指（穿戴時隨機獲得一種能力加成）');
+    if (d.slaughterHits) out.push(`連殺（每次命中增加連殺計數，${d.slaughterHits}次後觸發額外效果）`);
+    if (d.slaughterRandom) out.push('連殺隨機（每次連殺效果隨機變化）');
+    if (d.crushTornado) out.push('碎擊龍捲風（重擊時觸發龍捲風全體傷害）');
+    if (d.judgmentThunder) { var _jt = d.judgmentThunder; out.push(`審判落雷（觸發${_jt.skn}：${_jt.dice[0]}D${_jt.dice[1]}+${_jt.flat} ${eleName(_jt.ele)}屬性傷害` + (_jt.statusMagicHit ? '，' + (_jt.statusMagicHit.kind === 'paralyze' ? '麻痺' : _jt.statusMagicHit.kind) + _jt.statusMagicHit.dur + '秒' : '') + '）'); }
+    if (d.statArray) out.push('能力值陣列（六維屬性依等級成長）');
+    if (d.liningChain) out.push('鏈甲內襯（受一般攻擊時50%觸發額外防禦）');
+    if (d.stoneEssence) out.push('石化精華（被攻擊時有機率使攻擊者石化）');
+    if (d.playerHardSkin) out.push('玩家硬皮（自身獲得硬皮特性，減少受到的物理傷害）');
+    if (d.petReviveBuff) out.push('寵物復活強化（寵物死亡時立即復活並獲得短暫無敵）');
+    if (d.allLures) out.push('全誘餌（寵物可使用所有誘餌技能）');
+    if (d.raceDr) out.push(`${d.raceDr.race}減傷（受到${d.raceDr.race}傷害-${d.raceDr.pct}%）`);
+    if (d.polyAllStats) out.push(`變身全屬性+${d.polyAllStats}（變身時六維全+${d.polyAllStats}）`);
+    if (d.hpOnHit) out.push(`命中回HP+${d.hpOnHit}`);
+    if (d.mpOnComboHit) out.push(`連擊回MP+${d.mpOnComboHit}`);
+    if (d.mpOnHit) out.push('命中回MP（一般攻擊命中時恢復MP）');
+    if (d.mpOnHitAmt) out.push(`命中回MP+${d.mpOnHitAmt}`);
+    if (d.pierceMainMult) out.push(`穿刺主手（主手武器傷害×${d.pierceMainMult}）`);
+    if (d.pierceSubMult) out.push(`穿刺副手（副手武器傷害×${d.pierceSubMult}）`);
+    if (d.grantSkills) out.push('賜予技能（裝備時自動學會' + d.grantSkills.map(skillName).join('、') + '）');
+    if (d.critFuryHaste) out.push(`暴怒加速（爆擊時${d.critFuryHaste.pct}%機率攻速+${d.critFuryHaste.sec}秒）`);
+    if (d.comboForceCrit) out.push('連擊必爆（連擊時必定爆擊）');
+    if (d.drPerEr) out.push(`閃避轉減傷（DR = 閃避(ER) ÷ ${d.drPerEr}）`);
+    if (d.freeChill) out.push('寒霜吐息（攻擊時有機率冰凍敵人）');
+    if (d.autoCastMpMult) out.push(`自動施法代價（MP消耗×${d.autoCastMpMult}）`);
+    if (d.autoCastDmgMult) out.push(`自動施法增幅（傷害×${d.autoCastDmgMult}）`);
+
+    // 寵物/召喚
+    if (d.petAc) out.push(`寵物防禦+${d.petAc}`);
+    if (d.petDmg) out.push(`寵物傷害+${d.petDmg}`);
+    if (d.petHit) out.push(`寵物命中+${d.petHit}`);
+    if (d.petMdmgAll) out.push(`全寵物魔法傷害+${d.petMdmgAll}`);
+    if (d.petMpRAll) out.push(`全寵物MP恢復+${d.petMpRAll}`);
+    if (d.petHpAll) out.push(`全寵物HP+${d.petHpAll}`);
+    if (d.summonMdmg) out.push(`召喚物魔法傷害+${d.summonMdmg}`);
+
     return out;
 }
 function tooltipEscRegExp(value) {
