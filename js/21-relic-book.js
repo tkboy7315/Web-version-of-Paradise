@@ -91,10 +91,41 @@ function renderRelicBook() {
         let nameHtml = got
             ? `<div class="text-xs font-bold c-relic truncate" title="${d.n}">${d.n}</div>`
             : `<div class="text-xs font-bold text-slate-500">？？？</div>`;
+        // 遺物特效摘要
+        let effectHtml = '';
+        if (got) {
+            let tags = [];
+            if (d.wearerEle) tags.push((d.wearerEle === 'wind' ? '風' : d.wearerEle === 'fire' ? '火' : d.wearerEle === 'water' ? '水' : d.wearerEle === 'earth' ? '地' : d.wearerEle) + '之化身');
+            if (d.necroBook) tags.push('骷髏復生');
+            if (d.killTeamHealPct) tags.push('亡者餽贈');
+            if (d.fullHpMult) tags.push('滿血狙擊');
+            if (d.eleWpnMult) tags.push('元素武器');
+            if (d.heavyMult) tags.push('重擊威力');
+            if (d.heavyRatePct) tags.push('重擊率');
+            if (d.iaiCrit) tags.push('居合必爆');
+            if (d.dotCrit) tags.push('Dot爆擊');
+            if (d.onHitCastSkill) tags.push('命中施法');
+            if (d.castOnHurt) tags.push('護身反擊');
+            if (d.stealth) tags.push('常駐隱身');
+            if (d.aggroMin) tags.push('低仇恨');
+            if (d.petBleed) tags.push('寵物出血');
+            if (d.summonDmg) tags.push('召喚強化');
+            if (d.petDmgAll) tags.push('寵物全傷');
+            if (d.flameDkMorph) tags.push('變身死騎');
+            if (d.immStone || d.immPoison || d.immParalyze || d.immFreeze) tags.push('免疫異常');
+            if (d.thorns) tags.push('荊棘');
+            if (d.dmgReflect) tags.push('反傷');
+            if (d.auraDmg) tags.push('光環');
+            if (d.hitEchoMagic) tags.push('元素爆破');
+            if (d.bonespike) tags.push('骨刺');
+            if (d.trackBoost) tags.push('軌道加速');
+            if (tags.length) effectHtml = `<div class="text-[10px] text-slate-400 text-center leading-tight truncate" title="${tags.join(' / ')}">${tags.join(' / ')}</div>`;
+        }
         return `<div class="relative bg-slate-800/70 border ${got ? 'border-sky-700/70' : 'border-slate-700/60'} rounded-lg p-2 flex flex-col items-center gap-1 w-[112px]${got ? ' tip-host cursor-help' : ''}"${got ? ` data-tip-id="${id}"` : ''}>
             ${got ? '<span class="absolute top-1 right-1 text-[9px] px-1 rounded c-relic bg-black/50 font-bold">遺物</span>' : ''}
             ${got ? '<span class="relic-glow-wrap">' : ''}<img src="${imgUrl}" alt="${d.n}" class="w-14 h-14 object-contain${got ? ' relic-glow' : ''}${silh}" onerror="this.onerror=null;this.src='https://placehold.co/56x56/1e293b/334155?text=%3F';">${got ? '</span>' : ''}
             <div class="text-center w-full">${nameHtml}</div>
+            ${effectHtml}
         </div>`;
     }).join('');
     host.innerHTML = head + `<div class="flex flex-wrap gap-2 justify-center">${cells || '<div class="text-slate-500 p-8">此部位暫無可收集的遺物。</div>'}</div>`;

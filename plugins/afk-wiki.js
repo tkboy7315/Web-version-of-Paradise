@@ -1816,6 +1816,35 @@
     if (d.type === 'wpn') { bits.push((typeof isTwoHandedWpn === 'function' && isTwoHandedWpn(d)) ? '雙手' : '單手'); if (d.dmgS != null) bits.push('攻擊 ' + d.dmgS + '/' + d.dmgL); if (d.hit) bits.push('命中 ' + (d.hit > 0 ? '+' : '') + d.hit); }
     else if (d.ac != null) bits.push('防禦(AC) ' + ((-d.ac) >= 0 ? '+' : '') + (-d.ac));
     if (d.req && d.req !== 'all') bits.push(String(d.req).split(',').map(function (x) { return EQUIP_REQ_CN[x] || x; }).join('／') + '專用');   // 多職業 req(如 knight,elf,dark)逐一轉中文
+    // 遺物：顯示核心特效名稱（一眼辨識用途）
+    if (d.relic) {
+      var _relicTags = [];
+      if (d.wearerEle) _relicTags.push(d.wearerEle + '之化身');
+      if (d.necroBook) _relicTags.push('骷髏復生');
+      if (d.killTeamHealPct) _relicTags.push('亡者餽贈');
+      if (d.fullHpMult) _relicTags.push('滿血狙擊');
+      if (d.eleWpnMult) _relicTags.push((d.eleWpnMult.ele || '') + '武器強化');
+      if (d.heavyMult) _relicTags.push('重擊威力');
+      if (d.heavyRatePct) _relicTags.push('重擊率+' + d.heavyRatePct);
+      if (d.iaiCrit) _relicTags.push('居合必爆');
+      if (d.dotCrit) _relicTags.push('持續傷害爆擊');
+      if (d.onHitCastSkill) _relicTags.push('命中施法');
+      if (d.castOnHurt) _relicTags.push('護身反擊');
+      if (d.stealth) _relicTags.push('常駐隱身');
+      if (d.aggroMin) _relicTags.push('低仇恨');
+      if (d.petBleed) _relicTags.push('寵物出血');
+      if (d.summonDmg) _relicTags.push('召喚傷害+' + d.summonDmg + '%');
+      if (d.petDmgAll) _relicTags.push('寵物全傷+' + d.petDmgAll + '%');
+      if (d.flameDkMorph) _relicTags.push('變身烈焰死騎');
+      if (d.immStone || d.immPoison || d.immParalyze || d.immFreeze) _relicTags.push('免疫異常');
+      if (d.thorns) _relicTags.push('荊棘反傷');
+      if (d.dmgReflect) _relicTags.push('傷害反射');
+      if (d.auraDmg) _relicTags.push('光環傷害');
+      if (d.hitEchoMagic) _relicTags.push('元素爆破');
+      if (d.bonespike) _relicTags.push('骨刺爆裂');
+      if (d.trackBoost) _relicTags.push('軌道加速');
+      if (_relicTags.length) bits.push(_relicTags.join(' / '));
+    }
     return bits.join('　');
   }
   var _equipHtml = {};
