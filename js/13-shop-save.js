@@ -500,6 +500,11 @@ async function exportSave(slot){
         let _obj = JSON.parse(data);
         if(!_obj || typeof _obj !== 'object' || !_obj.p || typeof _obj.p !== 'object') throw new Error('invalid player save');
         let _p = _obj.p;
+        // 🐉 傭兵通關日記在角色外部小鍵，匯出任意存檔位時同步回角色欄位，確保跨機匯入後仍保留今日次數。
+        if(typeof antharasRoleRef === 'function' && typeof antharasRoleClearDay === 'function'){
+            let _antRef = antharasRoleRef(_p, slotNo);
+            if(_antRef) _p.antharasClearDay = Math.max(Number(_p.antharasClearDay) || 0, antharasRoleClearDay(_antRef));
+        }
         _obj.p.allies = [];   // 🤝 傭兵引用其他存檔位；單角色備份一律不攜帶，避免幽靈傭兵
         let _whRaw = _lzGet(whKey(_p));   // 🎮 指定角色（經典/非經典）對應的倉庫（💾 解壓成明文）
         let _wh = (_whRaw == null) ? { items: [], gold: 0 } : JSON.parse(_whRaw);
@@ -959,6 +964,7 @@ function loadDeleteSelected(){
     if(fp && !_roleMarkDeleted(fp)){ alert('無法建立刪除保護，為避免舊分頁寫回角色，本次刪除已取消。'); return; }
     try { if(typeof petReleaseSlotAssignments === 'function') petReleaseSlotAssignments(slot); } catch(e){ console.warn('pet delete cleanup', e); }
     try { if(typeof mercLedgerPurgeSlot === 'function') mercLedgerPurgeSlot(slot); } catch(e){ console.warn('merc delete cleanup', e); }
+    try { if(typeof antharasForgetRoleClear === 'function') antharasForgetRoleClear(oldPlayer, slot); } catch(e){ console.warn('antharas clear cleanup', e); }
     _lsRemove('lineage_idle_save_' + slot);
     _lsRemove('lineage_idle_save_' + slot + '_bak');
     if(_lsGet('lineage_idle_save_' + slot)){ alert('角色存檔刪除失敗，請重新整理後再試。'); return; }

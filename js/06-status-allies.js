@@ -697,7 +697,9 @@ function purgeReplacedAllies() {
                 try {
                     let _raw = _saveUnwrap(_lzGet('lineage_idle_save_' + a._slot)).payload;
                     let _sp = _raw ? JSON.parse(_raw).p : null;
-                    if (_sp) a.alignmentValue = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(_sp.alignmentValue) : Math.max(-32767, Math.min(32767, Math.round(Number(_sp.alignmentValue) || 0)));
+                    let _pendingAlignment = Math.trunc(Number(a._alignmentDelta) || 0);
+                    let _sourceAlignment = Number(_sp.alignmentValue) || 0;
+                    a.alignmentValue = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(_sourceAlignment + _pendingAlignment) : Math.max(-32767, Math.min(32767, Math.round(_sourceAlignment + _pendingAlignment)));
                 } catch (e) {}
                 return true;
             }
@@ -754,6 +756,7 @@ function buildAlly(slotN) {
     ally.statuses = {};   // 🤝 Phase4：招募即清空異常狀態（避免繼承來源存檔殘留的中毒/冰凍等）
     ally.exp = 0;   // 🤝 當前等級的經驗進度（升級時歸零再累積）
     ally._expGained = 0;   // 🤝 受雇期間「賺到的經驗總量」（含已被即時升級消耗的）→ 解雇時 delta-merge 加回該存檔角色（多開安全）
+    ally._alignmentDelta = 0;   // 🤝 受雇期間實際取得的性向差額；與經驗一起進待領帳本，避免直接覆寫來源角色存檔
     ally._atkSkill = (ally.config && ally.config.selAtkSkill) || '';   // 攻擊技能選擇（快照；法師施法 / 妖精三重矢）
     ally._healSkill = '';   // 🤝 v2.6.53 用戶選A：招募「不自動繼承治癒技」→傭兵預設攻擊優先（不再因來源角色有設治癒魔法就一直自動補血、把攻擊技/攻擊魔法回合吃光）。想要傭兵補血→於隊伍面板「治癒魔法」下拉手動指定(setAllyHealSkill·即時生效)。⚠️只影響「新招募」：已在隊傭兵的 _healSkill 早存於存檔·buildAlly 只在招募跑·不受影響（原：(ally.config&&ally.config.selHealSkill)||''）
     ally._convertSkill = (ally.config && ally.config.selConvertSkill) || '';   // 🔄 v2.6.4 轉換技能選擇（快照·可於隊伍面板改）：type:'convert' 或 立方和諧
@@ -762,6 +765,23 @@ function buildAlly(slotN) {
     { let _w = (ally.eq && ally.eq.wpn) ? DB.items[ally.eq.wpn.id] : null; ally._rapidfire = (_w && _w.isBow && _w.rapidfire) ? _w.rapidfire : 0; }   // 妖精弓：記錄連射發動機率
     applyMercPrefs(ally);   // 🤝 v3.4.23 同一角色（enSeed）先前的喝水＋技能設定記憶→套回（首次招募無記憶則沿用來源快照預設）
     return ally;
+}
+// 參戰且未倒地的傭兵共享隊長本次性向事件：性向變動時一併套用至全隊（含傭兵的待領帳本→解僱/回村時回寫來源角色存檔）
+function alliesChangeAlignment(delta) {
+    delta = Math.trunc(Number(delta) || 0);
+    if (!delta || !player || !Array.isArray(player.allies)) return 0;
+    let changed = 0;
+    player.allies.forEach(ally => {
+        if (!ally || ally._downed) return;
+        let before = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(ally.alignmentValue) : Math.max(-32767, Math.min(32767, Math.round(Number(ally.alignmentValue) || 0)));
+        let after = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(before + delta) : Math.max(-32767, Math.min(32767, Math.round(before + delta)));
+        let applied = after - before;
+        if (!applied) return;
+        ally.alignmentValue = after;
+        ally._alignmentDelta = Math.trunc(Number(ally._alignmentDelta) || 0) + applied;
+        changed++;
+    });
+    return changed;
 }
 // 協力角色攻擊一次（自包含，直接用 ally 的真實衍生值；法師走魔法、其餘走物理）
 // 🔧 對不死/狼人加成（傭兵版，比照玩家 getPhysicalDmg）：武器帶 unBonus、且目標為不死(un)或狼人(isWolf) → 額外 +1D20 固定傷害
@@ -3253,11 +3273,14 @@ function refreshAllyOnce(slotN) {
         return { kind: 'dismiss', msg: `<span class="text-amber-300">存檔 ${slotN} 已建立新角色，原隊員 ${cur._allyName} 已解散。</span>${m0 ? ' ' + m0 : ''}` };
     }
     let m = _settleAllyExp(cur, 'refresh');   // 結算：累積經驗記入待領帳本（該角色下次載入/回村領取）
+    let _pendingAlignment = Math.trunc(Number(cur._alignmentDelta) || 0);
+    let _effectiveAlignment = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment(cur.alignmentValue) : Math.max(-32767, Math.min(32767, Math.round(Number(cur.alignmentValue) || 0)));
     let fresh = buildAlly(slotN);             // 來源存檔不存在／角色不可用時回 null
     if (!fresh) {
         player.allies = player.allies.filter(a => a && a._slot !== slotN);
         return { kind: 'dismiss', msg: `<span class="text-amber-300">存檔 ${slotN} 已無可用角色，隊員已解散。</span>${m ? ' ' + m : ''}` };
     }
+    if (_pendingAlignment) fresh.alignmentValue = _effectiveAlignment;   // 帳本尚未由來源角色領取前，維持隊伍中已取得的性向效果
     fresh._hiredAt = Number(cur._hiredAt) || 0;   // 🧑‍🤝‍🧑 v3.7.93 重建快照不能重設招募時刻，否則每次進安全區都會把自己的獨佔順位往後推
     let idx = player.allies.findIndex(a => a && a._slot === slotN);
     if (idx !== -1) player.allies[idx] = fresh; else player.allies.push(fresh);
@@ -3369,16 +3392,21 @@ function _settleAllyExp(ally, reason) {
     try {
         if (!ally) return '';
         let banked = Math.floor(ally._expGained || 0);
-        if (banked <= 0) return '';
+        let alignmentDelta = Math.trunc(Number(ally._alignmentDelta) || 0);
+        if (banked <= 0 && !alignmentDelta) return '';
         let rec = {
-            uid: 'MX' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e9).toString(36),                            // 唯一編號
-            party: (player && player.name ? player.name : '?') + '@' + (typeof currentSlot !== 'undefined' ? currentSlot : '?'),   // 來源隊伍（隊長名@存檔位）
-            slot: String(ally._slot), cls: ally.cls, name: ally.name || '', enSeed: ally.enSeed || '',                     // 傭兵存檔身分（領取時比對；enSeed＝唯一角色識別·防同存檔位重新創角誤領）
-            exp: banked, ts: Date.now(), reason: reason || 'dismiss', claimed: false
+            uid: 'MX' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e9).toString(36),
+            party: (player && player.name ? player.name : '?') + '@' + (typeof currentSlot !== 'undefined' ? currentSlot : '?'),
+            slot: String(ally._slot), cls: ally.cls, name: ally.name || '', enSeed: ally.enSeed || '',
+            exp: banked, alignmentDelta: alignmentDelta, ts: Date.now(), reason: reason || 'dismiss', claimed: false
         };
         ally._expGained = 0;
-        _mercLedgerOutbox.push(rec); _mercSyncPlayerOutbox(); _mercLedgerFlush();   // 🛡️ 審計#8：先鏡像進 player 再 flush（flush 失敗時 saveGame 會把待寫紀錄帶進存檔）
-        return `<span class="text-emerald-300">${ally._allyName} 累積的 ${banked.toLocaleString()} 經驗已記入待領帳本（該角色下次載入或回村時領取）。</span>`;
+        ally._alignmentDelta = 0;
+        _mercLedgerOutbox.push(rec); _mercSyncPlayerOutbox(); _mercLedgerFlush();
+        let parts = [];
+        if (banked > 0) parts.push(`${banked.toLocaleString()} 經驗`);
+        if (alignmentDelta) parts.push(`性向 ${alignmentDelta > 0 ? '+' : ''}${alignmentDelta.toLocaleString()}`);
+        return `<span class="text-emerald-300">${ally._allyName} 累積的 ${parts.join('、')}已記入待領帳本（該角色下次載入或回村時領取）。</span>`;
     } catch (e) { return ''; }
 }
 // 🗑️ v3.7.87 移除 mercBankAlliesAtTown（v2.6.68「隊長回村只結算不重建」）：唯一呼叫點 js/11 村莊分支已改呼叫
@@ -3388,35 +3416,38 @@ function _settleAllyExp(ally, reason) {
 function mercExpClaimPending(_retry) {
     try {
         if (!player || !player.cls || typeof currentSlot === 'undefined' || currentSlot == null) return;
-        let total = 0, _writeFail = false;
+        let total = 0, alignmentDelta = 0, _writeFail = false;
         let ok = _mercLedgerLocked(() => {
             let led = _mercLedgerRead(), hit = false;
             led.forEach(r => {
                 if (!r || r.claimed) return;
-                if (String(r.slot) !== String(currentSlot) || r.cls !== player.cls) return;   // 🛡️ 基本守衛：存檔位＋職業
-                // 🪪 v3.7.32 改名安全（用戶指示）：enSeed＝創角時固定的唯一角色識別，改名不會變——
-                //    兩邊都有且相符＝同一角色→放行（名字不同也可領，改名後不再永遠領不到）；
-                //    兩邊都有但不同＝同存檔位重新創角的「別人」→擋（v3.0.108 防誤領不變）；
-                //    紀錄無 enSeed（舊帳）→退回名字守衛當後備。
+                if (String(r.slot) !== String(currentSlot) || r.cls !== player.cls) return;
                 let _seedSame = !!(r.enSeed && player.enSeed && r.enSeed === player.enSeed);
                 if (r.enSeed && player.enSeed && !_seedSame) return;
                 if (!_seedSame && (r.name || '') !== (player.name || '')) return;
                 total += Math.max(0, Math.floor(r.exp || 0));
-                r.claimed = true; r.claimedAt = Date.now(); hit = true;   // 標記已結算：同一筆只能領一次（跨分頁由鎖保證）
+                alignmentDelta += Math.trunc(Number(r.alignmentDelta) || 0);
+                r.claimed = true; r.claimedAt = Date.now(); hit = true;
             });
-            if (hit && !_mercLedgerWrite(led)) { total = 0; _writeFail = true; }   // 🛡️ 審計#18：寫入失敗（鎖失守）→ 不套用經驗、走重試（帳本未標記＝下次可重領）
+            if (hit && !_mercLedgerWrite(led)) { total = 0; alignmentDelta = 0; _writeFail = true; }
         });
         if (!ok || _writeFail) { if ((_retry || 0) < 5) setTimeout(() => mercExpClaimPending((_retry || 0) + 1), 1200 + Math.floor(Math.random() * 800)); return; }
-        if (total <= 0) return;
+        if (total <= 0 && !alignmentDelta) return;
         let before = player.lv || 1;
-        player.exp = (player.exp || 0) + total;
-        while ((player.lv || 1) < 100 && player.exp >= getExpReq(player.lv)) { player.exp -= getExpReq(player.lv); player.lv++; if (player.lv >= 50) player.bonus = (player.bonus || 0) + 1; }   // 比照 checkLvUp 升級曲線
-        if ((player.lv || 1) >= 100) player.exp = 0;   // 滿等不留溢出經驗
+        if (total > 0) {
+            player.exp = (player.exp || 0) + total;
+            while ((player.lv || 1) < 100 && player.exp >= getExpReq(player.lv)) { player.exp -= getExpReq(player.lv); player.lv++; if (player.lv >= 50) player.bonus = (player.bonus || 0) + 1; }
+            if ((player.lv || 1) >= 100) player.exp = 0;
+        }
+        if (alignmentDelta) player.alignmentValue = (typeof pvpClampAlignment === 'function') ? pvpClampAlignment((Number(player.alignmentValue) || 0) + alignmentDelta) : Math.max(-32767, Math.min(32767, Math.round((Number(player.alignmentValue) || 0) + alignmentDelta)));
         let gained = (player.lv || 1) - before;
         if (gained > 0) { try { calcStats(); } catch (e) {} }
-        try { saveGame(); } catch (e) {}   // 領取後立即存檔：本檔快照已含此經驗
+        try { saveGame(); } catch (e) {}
         try { updateUI(); } catch (e) {}
-        logSys(`<span class="text-emerald-300 font-bold">傭兵出征經驗 +${total.toLocaleString()}</span>${gained > 0 ? `<span class="text-emerald-300">，升 ${gained} 級至 Lv.${player.lv}！</span>` : ''}`);
+        let claimParts = [];
+        if (total > 0) claimParts.push(`經驗 +${total.toLocaleString()}`);
+        if (alignmentDelta) claimParts.push(`性向 ${alignmentDelta > 0 ? '+' : ''}${alignmentDelta.toLocaleString()}`);
+        logSys(`<span class="text-emerald-300 font-bold">傭兵出征${claimParts.join('、')}</span>${gained > 0 ? `<span class="text-emerald-300">，升 ${gained} 級至 Lv.${player.lv}！</span>` : ''}`);
     } catch (e) {}
 }
 function toggleAlly(slotN) {

@@ -303,13 +303,22 @@ function killMob(idx) {
     if (mob._justTransformedTick != null && state.ticks - mob._justTransformedTick <= 5 && mob.curHp > 0) return;   // 🌅 審查修：同一擊內的過時二次 killMob（on-hit 特效先殺→主判定又用舊 target.curHp 呼叫同槽位）→剛變身的滿血新階段不吃這種幽靈擊殺（真死亡 curHp<=0 不受影響）
     if (mob.transformTo && DB.mobs[mob.transformTo]) { doMobTransform(idx); return; }   // 🌅 三段變身：即使 HP=0 也不會死亡而是強制變身（先於 _dead/特效/獎勵）
     if (state.antharas && mapState.current === 'antharas_lair' && mob.n === '被侵蝕的瘋狂安塔瑞斯' &&
-        typeof antharasClaimDailyClear === 'function' && !antharasClaimDailyClear()) {
-        mob._dead = true; mob.curHp = 0;
-        state.antharas = 0; state._antAdvance = false;
-        logSys('<span class="text-amber-300 font-bold">相同模式今天已有角色完成安塔瑞斯副本，本次不重複結算通關與掉落。</span>');
-        setMapSelectors('town_witon'); changeMap(true);
-        try { saveGame(); } catch (e) {}
-        return;
+        typeof antharasClaimDailyClear === 'function') {
+        let _antClaim = antharasClaimDailyClear();
+        if (!_antClaim.ok) {
+            if (_antClaim.storageError) {
+                mob.curHp = 1;
+                logSys('<span class="text-red-400 font-bold">安塔瑞斯通關紀錄暫時無法寫入，頭目恢復 1 HP；請再次攻擊重試。</span>');
+                return;
+            }
+            mob._dead = true; mob.curHp = 0;
+            state.antharas = 0; state._antAdvance = false;
+            let _usedNames = (_antClaim.names || []).join('、') || '隊伍中的角色';
+            logSys(`<span class="text-amber-300 font-bold">${_usedNames} 今日已完成過安塔瑞斯副本，本次不重複結算通關與掉落。</span>`);
+            setMapSelectors('town_witon'); changeMap(true);
+            try { saveGame(); } catch (e) {}
+            return;
+        }
     }
     mob._dead = true;
     try { vfxKill(mob); } catch(e){}   // ✨ VFX：擊殺粒子爆裂（趁格子 DOM 仍在、重繪前）
@@ -354,6 +363,7 @@ function killMob(idx) {
             if (_up > 0) { try { if (typeof _allyLevelRecompute === 'function') _allyLevelRecompute(a); } catch (e) {} logCombat(`<span class="text-yellow-300 font-bold">協力傭兵 ${a._allyName} 升級了！目前 Lv.${a.lv}</span>`, 'mercenary'); try { renderSquadPanel(); } catch (e) {} }
         });
     }
+    if (typeof necroBookOnKill === 'function') necroBookOnKill(mob);   // 🏺 v3.8.12 死靈之書：全隊1%回復＋骷髏復生（建築由函式內排除）
     // 精神(WIS)：擊殺敵人時立即額外恢復 MP
     { let mpKill = getWisMpOnKill(player.d.wis); if (mpKill > 0 && player.mp < player.mmp) player.mp = Math.min(player.mmp, player.mp + mpKill); }
     // 🔧 v2.7.28 傭兵 MP-on-kill 平價：擊殺一律歸主玩家(killMob)→傭兵原本領不到「擊殺回魔」，
@@ -786,34 +796,81 @@ const ANTHARAS_AREAS = ['antharas_nest_1', 'antharas_nest_2', 'antharas_nest_3',
 const ANTHARAS_AREA_NAMES = { antharas_nest_1: '侵蝕的安塔瑞斯巢穴入口', antharas_nest_2: '侵蝕的安塔瑞斯巢穴通道', antharas_nest_3: '侵蝕的安塔瑞斯巢穴深處', antharas_lair: '侵蝕的安塔瑞斯棲息地' };
 const ANTHARAS_AREA_BOSS = { antharas_nest_1: 'ant_kama_flame_king', antharas_nest_2: 'ant_kama_nan_king', antharas_nest_3: 'ant_kama_king', antharas_lair: 'ant_antharas_eroded' };
 function antharasDayKey() { return Math.floor((Date.now() + 8 * 3600000) / 86400000); }   // 🕛 UTC+8 日鍵（凌晨 12 點翻日）
-function antharasModeClearKey() { return 'fb5_antharas_clear_day_v1_' + (player && player.classicMode ? 'classic' : 'normal'); }
-function antharasSharedClearDay() {
-    let today = antharasDayKey();
-    let shared = Math.max(0, Math.floor(Number(_lsGet(antharasModeClearKey())) || 0));
-    if (shared === today) return shared;
-    // 相容 v3.7.61：任一同模式舊角色今天已通關，就遷移成模式共用日鍵。
-    for (let n = 1; n <= 8; n++) {
-        try {
-            let u = _saveUnwrap(_lzGet('lineage_idle_save_' + n));
-            if (!u || !u.ok || !u.payload) continue;
-            let d = JSON.parse(u.payload), p = d && d.p;
-            if (p && p.cls && !!p.classicMode === !!player.classicMode && Number(p.antharasClearDay) === today) {
-                _lsSet(antharasModeClearKey(), String(today));
-                return today;
-            }
-        } catch (e) {}
-    }
-    return shared;
+const ANTHARAS_ROLE_DAY_KEY = 'fb5_antharas_role_clear_day_v2_';
+function antharasRoleRef(role, slotN) {
+    if (!role || !role.cls) return null;
+    let slot = String(slotN == null ? '' : slotN);
+    let seed = String(role.enSeed || '').trim();
+    let identity = seed
+        ? 'seed|' + seed
+        : ['legacy', slot, role.name || '', role.cls || ''].join('|');
+    return {
+        role: role,
+        slot: slot,
+        name: role.name || role._allyName || ('存檔 ' + (slot || '?')),
+        identity: identity,
+        classicMode: !!role.classicMode,
+        savedDay: Math.max(0, Math.floor(Number(role.antharasClearDay) || 0))
+    };
 }
-function antharasClearedToday() { return antharasSharedClearDay() === antharasDayKey(); }
-function antharasMarkDailyClear() {
+function antharasRoleClearKey(ref) {
+    return ANTHARAS_ROLE_DAY_KEY + (ref.classicMode ? 'classic_' : 'normal_') + encodeURIComponent(ref.identity);
+}
+function antharasRoleClearDay(ref) {
+    if (!ref) return 0;
+    let sharedDay = Math.max(0, Math.floor(Number(_lsGet(antharasRoleClearKey(ref))) || 0));
+    return Math.max(ref.savedDay, sharedDay);
+}
+function antharasForgetRoleClear(role, slotN) {
+    let ref = antharasRoleRef(role, slotN);
+    if (!ref) return;
+    _lsRemove(antharasRoleClearKey(ref));
+}
+function antharasPartyParticipants() {
+    let refs = [], seen = new Set();
+    let add = (role, slotN) => {
+        let ref = antharasRoleRef(role, slotN);
+        if (!ref || seen.has(ref.identity)) return;
+        seen.add(ref.identity); refs.push(ref);
+    };
+    add(player, currentSlot);
+    (player.allies || []).forEach(a => { if (a && a._slot != null) add(a, a._slot); });
+    return refs;
+}
+function antharasPartyUsedToday() {
     let today = antharasDayKey();
-    player.antharasClearDay = today;   // 保留角色欄位供舊版／匯出檔向下相容
-    return _lsSet(antharasModeClearKey(), String(today)) ? today : 0;
+    return antharasPartyParticipants().filter(ref => antharasRoleClearDay(ref) === today);
+}
+function antharasClearedToday() {
+    let ref = antharasRoleRef(player, currentSlot);
+    let cleared = antharasRoleClearDay(ref) === antharasDayKey();
+    if (cleared && Number(player.antharasClearDay) !== antharasDayKey()) player.antharasClearDay = antharasDayKey();
+    return cleared;
 }
 function antharasClaimDailyClear() {
-    if (antharasClearedToday()) return false;
-    return antharasMarkDailyClear() === antharasDayKey();
+    let today = antharasDayKey();
+    let refs = antharasPartyParticipants();
+    let used = refs.filter(ref => antharasRoleClearDay(ref) === today);
+    if (used.length) return { ok: false, names: used.map(ref => ref.name), storageError: false };
+
+    let written = [];
+    for (let ref of refs) {
+        let key = antharasRoleClearKey(ref);
+        let oldValue = _lsGet(key);
+        if (!_lsSet(key, String(today))) {
+            written.reverse().forEach(rec => {
+                try {
+                    if (rec.oldValue == null) _lsRemove(rec.key);
+                    else _lsSet(rec.key, rec.oldValue);
+                } catch (e) {}
+            });
+            return { ok: false, names: [], storageError: true };
+        }
+        written.push({ key: key, oldValue: oldValue });
+    }
+    refs.forEach(ref => { ref.role.antharasClearDay = today; });
+    player.antharasClearDay = today;
+    return { ok: true, names: refs.map(ref => ref.name), storageError: false };
 }
 function antharasEnter() {   // NPC 多魯嘉貝爾「進入副本」：守衛＝已在副本/控場中/每日已通關
     if (state.antharas) { logSys('你已身在侵蝕的安塔瑞斯巢穴之中。'); return; }
@@ -821,7 +878,8 @@ function antharasEnter() {   // NPC 多魯嘉貝爾「進入副本」：守衛�
     if (player.statuses && (player.statuses.stone > 0 || player.statuses.paralyze > 0 || player.statuses.freeze > 0 || player.statuses.stun > 0 || player.statuses.sleep > 0)) {
         logSys('你目前無法行動（石化／麻痺／冰凍／暈眩），無法進入。'); return;
     }
-    if (antharasClearedToday()) { logSys('<span class="text-amber-300">相同模式今天已有角色淨化過侵蝕的安塔瑞斯巢穴（UTC+8 凌晨 12 點重置），明天再來吧。</span>'); return; }
+    let usedToday = antharasPartyUsedToday();
+    if (usedToday.length) { logSys(`<span class="text-amber-300">${usedToday.map(ref => ref.name).join('、')} 今日已完成過安塔瑞斯副本，明天再來吧。</span>`); return; }
     state.antharas = 1; state._antAdvance = false;
     logSys('<span class="text-amber-300 font-bold">🐉 你踏入了侵蝕的安塔瑞斯巢穴……</span><span class="text-amber-200"> 區內無法選擇地圖，也無法使用傳送術與瞬間移動卷軸；擊敗各區頭目將自動深入。</span>');
     enterOblivionMap('antharas_nest_1');
@@ -831,9 +889,8 @@ function antharasEnter() {   // NPC 多魯嘉貝爾「進入副本」：守衛�
 function antharasOnBossKill(bossName) {   // 清算時呼叫：最終階＝通關回村；其餘＝推進下一區
     if (!state.antharas) return;
     if (bossName === '被侵蝕的瘋狂安塔瑞斯') {
-        antharasMarkDailyClear();   // ✅ 通關才寫入相同模式共用日鍵（失敗/中離不記）
         state.antharas = 0; state._antAdvance = false;
-        logSys('<span class="text-amber-300 font-bold">🏆 你擊敗了被侵蝕的瘋狂安塔瑞斯，淨化了巢穴！</span>自動返回威頓村。');
+        logSys('<span class="text-amber-300 font-bold">🏆 你擊敗了被侵蝕的瘋狂安塔瑞斯，淨化了巢穴！</span>主戰角色與本次出戰傭兵的今日通關次數均已消耗，自動返回威頓村。');
         setMapSelectors('town_witon'); changeMap(true);
         if (!state.ff) saveGame();
         return;
@@ -905,7 +962,8 @@ function antharasRefreshHelpers() {   // 每次對話重讀來源存檔；刪角
 }
 function renderDorugaBell(div) {   // 🐉 NPC 多魯嘉貝爾：進入副本＋助戰者設定
     antharasRefreshHelpers();
-    let cleared = antharasClearedToday();
+    let usedToday = antharasPartyUsedToday();
+    let cleared = usedToday.length > 0;
     let hired = (player.allies || []).filter(Boolean).map(a => String(a._slot));
     let used = antharasHelperSlots();
     let avail = (typeof allySlotList === 'function' ? allySlotList() : []).filter(s => !hired.includes(String(s)) && !used.includes(String(s)) && _antReadSlotStats(s));
@@ -918,8 +976,9 @@ function renderDorugaBell(div) {   // 🐉 NPC 多魯嘉貝爾：進入副本＋
     }).join('');
     div.innerHTML = `
       <div class="text-sm space-y-3">
-        <div class="text-slate-300">被侵蝕的龍之巢穴就在村外的地底深處。相同模式所有角色合計每天只能淨化一次（UTC+8 凌晨 12 點重置）；挑戰失敗不消耗次數。區內無法選擇地圖，也無法使用傳送術與瞬間移動卷軸。</div>
-        <button onclick="antharasEnter()" ${cleared ? 'disabled' : ''} class="btn w-full font-bold py-2 rounded ${cleared ? 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed' : 'bg-amber-700 hover:bg-amber-600 border-amber-500'}">${cleared ? '今日已通關（明日凌晨重置）' : '🐉 進入 侵蝕的安塔瑞斯巢穴'}</button>
+        <div class="text-slate-300">被侵蝕的龍之巢穴就在村外的地底深處。每個角色每天可擔任主戰或傭兵通關一次；成功時主戰與所有出戰傭兵都會消耗今日次數（UTC+8 凌晨 12 點重置），挑戰失敗不消耗。區內無法選擇地圖，也無法使用傳送術與瞬間移動卷軸。</div>
+        ${cleared ? `<div class="text-xs text-amber-300">今日已使用次數：${usedToday.map(ref => ref.name).join('、')}</div>` : ''}
+        <button onclick="antharasEnter()" ${cleared ? 'disabled' : ''} class="btn w-full font-bold py-2 rounded ${cleared ? 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed' : 'bg-amber-700 hover:bg-amber-600 border-amber-500'}">${cleared ? '隊伍有角色今日已通關' : '🐉 進入 侵蝕的安塔瑞斯巢穴'}</button>
         <div class="border-t border-slate-700 pt-2"><div class="font-bold text-amber-300 mb-2">助戰者設定（最多 4 位·未雇傭角色）</div><div class="text-xs text-slate-400 mb-2">每次對話都會依來源角色的最新存檔刷新助戰能力；若角色遭刪除或在同一存檔位重建，將自動解除。助戰限制只套用目前角色的傭兵名單，不影響同模式其他角色。</div>${rows}</div>
       </div>`;
 }

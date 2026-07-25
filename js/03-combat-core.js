@@ -1119,6 +1119,7 @@ function pvpAlignmentInUse(name) {
     let same = rec => rec && String(rec.n || '').slice(0, 24) === key;
     if (Array.isArray(player.trollPlayers) && player.trollPlayers.some(same)) return true;
     if (Array.isArray(player.pvpRevengeList) && player.pvpRevengeList.some(same)) return true;
+    if (Array.isArray(player.socialNpcContacts) && player.socialNpcContacts.some(same)) return true;
     let now = Date.now();
     return Array.isArray(player.pvpKillWhispers) && player.pvpKillWhispers.some(rec =>
         same(rec) && (!!rec.awaitingRevenge || Math.max(0, Number(rec.expiresAt) || 0) > now)
@@ -1157,6 +1158,7 @@ function pvpSetNpcAlignment(name, align, clanId) {
     };
     if (Array.isArray(player.trollPlayers)) player.trollPlayers.forEach(sync);
     if (Array.isArray(player.pvpRevengeList)) player.pvpRevengeList.forEach(sync);
+    if (Array.isArray(player.socialNpcContacts)) player.socialNpcContacts.forEach(sync);
     if (Array.isArray(player.pvpKillWhispers)) player.pvpKillWhispers.forEach(sync);
     try {
         if (typeof mapState !== 'undefined' && mapState && Array.isArray(mapState.mobs)) {
@@ -1223,6 +1225,42 @@ function pvpEnsureState() {
     });
     if (Array.isArray(player.trollPlayers)) player.trollPlayers.forEach(rec => {
         if (rec && rec.n) rec.alignmentValue = pvpLockAlignment(rec.n, rec.alignmentValue, rec.clanId);
+    });
+    let socialByName = Object.create(null);
+    (Array.isArray(player.socialNpcContacts) ? player.socialNpcContacts : []).forEach(raw => {
+        if (!raw || !raw.n) return;
+        let name = String(raw.n).trim().slice(0, 24);
+        if (!name) return;
+        let messages = (Array.isArray(raw.privateMessages) ? raw.privateMessages : []).slice(-12).map(entry => ({
+            role:entry && entry.role === 'player' ? 'player' : (entry && entry.role === 'system' ? 'system' : 'npc'),
+            text:String(entry && entry.text || '').trim().slice(0, 240),
+            at:Math.max(0, Math.floor(Number(entry && entry.at) || 0))
+        })).filter(entry => entry.text);
+        let rec = {
+            n:name,
+            persona:['helpful', 'veteran', 'sarcastic', 'newbie', 'trader'].includes(raw.persona) ? raw.persona : 'helpful',
+            cls:(typeof CLAN_CLASS_NAMES === 'object' && CLAN_CLASS_NAMES[raw.cls]) ? raw.cls : 'knight',
+            avatar:TROLL_CLASS_BY_AVATAR[raw.avatar] ? raw.avatar : '男戰士',
+            alignmentValue:pvpClampAlignment(raw.alignmentValue),
+            levelOffset:Number.isFinite(Number(raw.levelOffset)) ? pvpClampLevelOffset(raw.levelOffset) : 0,
+            clanId:raw.clanId == null ? null : String(raw.clanId).slice(0, 64),
+            clanName:String(raw.clanName || '').trim().slice(0, 20),
+            clanLeader:!!raw.clanLeader,
+            blocked:!!raw.blocked,
+            privateHatred:Math.max(0, Math.min(100, Math.round(Number(raw.privateHatred) || 0))),
+            privateMessages:messages,
+            privateImpactTexts:(Array.isArray(raw.privateImpactTexts) ? raw.privateImpactTexts : []).map(s => String(s || '').slice(0, 120)).filter(Boolean).slice(-12),
+            privateImpactTimes:(Array.isArray(raw.privateImpactTimes) ? raw.privateImpactTimes : []).map(Number).filter(Number.isFinite).slice(-6),
+            lastChatAt:Math.max(0, Math.floor(Number(raw.lastChatAt) || 0))
+        };
+        if (!socialByName[name] || rec.lastChatAt >= socialByName[name].lastChatAt) socialByName[name] = rec;
+    });
+    player.socialNpcContacts = Object.keys(socialByName)
+        .map(name => socialByName[name])
+        .sort((a, b) => b.lastChatAt - a.lastChatAt)
+        .slice(0, 20);
+    player.socialNpcContacts.forEach(rec => {
+        rec.alignmentValue = pvpLockAlignment(rec.n, rec.alignmentValue, rec.clanId);
     });
     let whisperByName = Object.create(null);
     (Array.isArray(player.pvpKillWhispers) ? player.pvpKillWhispers : []).forEach(raw => {
@@ -1298,6 +1336,7 @@ function pvpChangeAlignment(delta) {
     if (!player || !player.cls || !delta) return 0;
     let before = pvpClampAlignment(player.alignmentValue);
     player.alignmentValue = pvpClampAlignment(before + delta);
+    if (typeof alliesChangeAlignment === 'function') alliesChangeAlignment(delta);
     return player.alignmentValue - before;
 }
 function _pvpNameRand(rand) {
