@@ -477,7 +477,7 @@ function onSummonToggle(sid) {
             renderStatusEffects();
         }
         if (typeof summonV2DismissAll === 'function' && ((player._summonV2Sk || 'sk_summon') === sid)) summonV2DismissAll();   // 🧙 v3.2.21 召喚類 v2（召喚術/造屍術/屬性精靈）：取消勾選當前生效的召喚→全數解散＋關閉自動重施
-        if (sid === 'sk_zombie' && typeof necroDismissOwner === 'function') necroDismissOwner(player);   // 🏺 v3.8.12 死靈之書：取消造屍術自動施放→解散骷髏
+        if (sid === 'sk_zombie' && typeof necroDismissOwner === 'function') necroDismissOwner(player);
     }
     updateSummonLock();
 }
@@ -557,8 +557,8 @@ function renderSkillSelects() {
         
         let dis = isAvail ? '' : 'disabled class="text-slate-500"';
         
-        if(sk.type === 'atk' && !sk.healSlot) aHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;
-        if((sk.type === 'heal' && !sk.autoBuff && !['sk_antidote','sk_holy_light','sk_cancel'].includes(sid)) || (sk.type === 'atk' && sk.healSlot)) hHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;
+        if(sk.type === 'atk' && !sk.healSlot) aHtml += `<option value="${sid}" ${dis}>${skillDisplayName}</option>`;
+        if((sk.type === 'heal' && !sk.autoBuff && !['sk_antidote','sk_holy_light','sk_cancel'].includes(sid)) || (sk.type === 'atk' && sk.healSlot)) hHtml += `<option value="${sid}" ${dis}>${skillDisplayName}</option>`;
         let __isPurify = (sid === 'sk_antidote' || sid === 'sk_holy_light' || sid === 'sk_cancel');
         if(sk.type === 'buff' || (sk.type === 'heal' && sk.autoBuff) || __isPurify) {
             let checked = document.getElementById(`auto-sk-${sid}`)?.checked ? 'checked' : '';
@@ -584,7 +584,7 @@ function renderSkillSelects() {
                     ? ` <button onclick="openSummonSelect()" class="text-cyan-300 underline" style="font-size:11px;" title="召喚控制戒指：挑選召喚物">［${__cur}▾］</button>`
                     : ` <span class="text-slate-500" style="font-size:11px;" title="裝備召喚控制戒指可挑選召喚物">［${__cur}］</span>`;
             }
-            buffHtml += `<label class="cursor-pointer flex items-center gap-2 ${(isAvail && !__locked && !__awakenLocked)?'':'opacity-50'}"${__ttl}><input type="checkbox" id="auto-sk-${sid}" ${checked} ${__dis}${sumAttr}${__awakenAttr}${__purAttr}${__autoBuffAttr}> <span class="${__span}">${sk.n}</span>${__sumSel}</label>`;
+            buffHtml += `<label class="cursor-pointer flex items-center gap-2 ${(isAvail && !__locked && !__awakenLocked)?'':'opacity-50'}"${__ttl}><input type="checkbox" id="auto-sk-${sid}" ${checked} ${__dis}${sumAttr}${__awakenAttr}${__purAttr}${__autoBuffAttr}> <span class="${__span}">${skillDisplayName}</span>${__sumSel}</label>`;
         }
         if(sk.type === 'convert') {
             if (needLv !== undefined) cHtml += `<option value="${sid}" ${dis}>${sk.n}</option>`;   // 🔧 該職業無法學習的轉換技直接不顯示（如法師的心靈轉換/魂體轉換）；等級未達者仍顯示為灰字
@@ -809,7 +809,8 @@ function relicPurposeLabels(d) {
     if (d.crushDr) out.push(`重擊防護（受到重擊傷害-${d.crushDr}%）`);
     if (d.physDrGated) out.push(`物理防護（一般攻擊傷害-${d.physDrGated}%，每3秒一次）`);
     if (d.fireNullify) out.push('火焰化解（每10秒可免疫一次火屬性傷害）');
-    if (d.wearerEle) out.push(`${eleName(d.wearerEle)}之化身（自身轉為${eleName(d.wearerEle)}屬性，承受傷害套用屬性剋制）`);
+    if (d.wearerEle === 'wind') out.push('風之化身（自身轉為風屬性；受到地屬性傷害增加、受到水屬性傷害減少）');
+    else if (d.wearerEle) out.push(`${eleName(d.wearerEle)}之化身（自身轉為${eleName(d.wearerEle)}屬性，承受傷害套用屬性剋制）`);
     if (d.necroBook) out.push('骷髏復生（造屍術改為不消耗MP；敵人被擊敗時自動召喚1隻骷髏，全隊場上最多6隻；已達上限時完全恢復HP最低的骷髏）');
     if (d.killTeamHealPct) out.push(`亡者餽贈（擊殺敵人時，全體玩家、傭兵、召喚物、寵物與護衛恢復${d.killTeamHealPct}%最大HP）`);
     if (d.stealth) out.push('常駐隱身（不主動吸引一般怪物）');
@@ -1081,11 +1082,6 @@ function buildItemDescHTML(item) {
         if(d.meleeHitPerEn) {
             let en = capEn(item.en, d);
             desc += `<br><span class="text-sky-300">近距離命中 +${en * d.meleeHitPerEn}（每強化 +${d.meleeHitPerEn}）。</span>`;
-        }
-        let _fEn = Number(item.en) || 0;
-        if (_fEn > 0 && typeof enhanceWpnFinalMult === 'function') {
-            let _fMult = enhanceWpnFinalMult(_fEn, d);
-            if (_fMult > 1) desc += `<br><span class="text-purple-300 font-bold">最終傷害倍率: ×${_fMult.toFixed(2)}</span>`;
         }
     }
     if(d.type === 'arm' || d.type === 'acc') {
@@ -2670,6 +2666,7 @@ function renderSquadPanel() {
     let allies = (player && player.allies) ? player.allies.filter(Boolean) : [];
     let _pets = (typeof petsOutList === 'function' && player && player.cls) ? petsOutList() : [];   // 🐾 v3.2.17 出戰寵物：顯示於隊伍清單下方
     let _summons = (typeof summonV2List === 'function' && player && player.cls) ? summonV2List().filter(s => s && !s._downed && (s.hp || 0) > 0) : [];
+    if (typeof necroSkeletonList === 'function' && player && player.cls) _summons = _summons.concat(necroSkeletonList().filter(s => s && !s._downed && (s.hp || 0) > 0));
     let _summonSk = (typeof summonV2ActiveSk === 'function') ? summonV2ActiveSk() : '';
     let _summonVisible = _summons.length > 0 || !!(player && player._summonV2On && _summonSk && typeof summonV2Knows === 'function' && summonV2Knows(_summonSk));
     let _guards = (typeof guardV2List === 'function' && player && player.cls) ? guardV2List() : [];   // 🏰 城堡護衛（可招募的協同角色）

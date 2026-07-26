@@ -29,7 +29,7 @@ const CARD_REGIONS = [
     { key: 'witon',        name: '威頓',       stat: 'resFire',  vals: [1, 2, 3],   maps: ['fire_dragon', 'valakas_lair'] },
     { key: 'oren',         name: '歐瑞',       stat: 'resWater', vals: [1, 2, 3],   maps: ['zone_02', 'zone_03', 'zone_04', 'zone_05', 'zone_37', 'zone_38', 'zone_39', 'zone_40', 'zone_41', 'hidden_lab_nolife', 'hidden_lab_darkmagic', 'hidden_seal_spirit', 'hidden_seal_monster', 'hidden_seal_demon', 'crystal_cave1', 'crystal_cave2', 'crystal_cave3', 'shadow_temple'] },
     { key: 'aden',         name: '亞丁',       stat: 'resWind',  vals: [1, 2, 3],   maps: ['twilight_mt', 'dream_island'] },
-    { key: 'tower',        name: '傲慢之塔',   stat: 'extraHit', vals: [1, 2, 3],   maps: '__pride__' },
+    { key: 'tower',        name: '傲慢之塔',   stat: 'extraHit', vals: [2, 3, 4],   maps: '__pride__' },
     { key: 'rastabad',     name: '拉斯塔巴德', stat: 'mr',       vals: [1, 3, 5],   maps: ['rastabad_cave1', 'rastabad_cave2', 'rastabad_cave3', 'rastabad_gate', 'giant_tomb', 'demon_temple', 'rastabad_beast', 'dark_magic_lab', 'necro_training', 'elder_room', 'king_baranka_room', 'law_king_room', 'necro_king_room', 'assassin_king_room'] },
     { key: 'rift',         name: '時空裂痕',   stat: 'resEarth', vals: [1, 2, 3],   maps: ['thebes_desert', 'thebes_pyramid', 'thebes_temple', 'tikal_area', 'tikal_deep', 'tikal_altar', 'sunrise_castle', 'sunrise_east', 'sunrise_west', 'sunrise_north'] },
     // ⚠️ 以下兩區原本整個漏掉：35 隻該區獨有怪（遺忘之島 obli_* 26 隻、黑暗妖精聖地 sanct_* 9 隻含吉爾塔斯／冥皇丹特斯）
@@ -183,9 +183,9 @@ function rollCardDrops(mob) {
     const nm = CARD_DROP_ALIAS[mob.n] || mob.n;   // 🐉 後續階無卡的鏈（安塔瑞斯）→ 打倒最終階＝掉鏈根那張卡
     if (!CARD_MOB_INFO[nm]) return;
     const chainPool = CARD_CHAIN_BY_FINAL[nm] || null;   // 最終階＝擲中時整鏈隨機（僅限整鏈都有卡者·如九尾狐）
-    _cardDropRoll(nm, 3, 0.0005, chainPool);    // 金卡 0.05%
-    _cardDropRoll(nm, 2, 0.005, chainPool);     // 銀卡 0.5%
-    _cardDropRoll(nm, 1, 0.01, chainPool);      // 普卡 1%
+    _cardDropRoll(nm, 3, 0.05, chainPool);    // 金卡 5% (原 0.001%)
+    _cardDropRoll(nm, 2, 0.5, chainPool);     // 銀卡 50% (原 0.01%)
+    _cardDropRoll(nm, 1, 1, chainPool);       // 普卡 100% (原 0.1%)
 }
 // 🎴 加分登錄 + 開通溢出退費（普/銀/金共用·useCardItem 與 acquireCard 單一真相）。回傳 {useN, overflow}。
 function _cardRegister(name, tier, count) {

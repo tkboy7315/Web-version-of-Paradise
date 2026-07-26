@@ -274,9 +274,9 @@
         #btn-start { background: linear-gradient(135deg, #594720 0%, #786030 26%, #4a3c1a 48%, #6b5628 72%, #413518 100%); border-color: #6e5824; }  /* 開始冒險：金褐(同分頁鈕) */
         #btn-start:hover:not(:disabled) { background: linear-gradient(135deg, #6e5828 0%, #927535 26%, #5f4d22 48%, #836a30 72%, #564621 100%); }
         #tab-stats .text-slate-400:not(.text-red-400):not(.text-blue-300):not(.text-blue-300) { color: #e2e8f0; }  /* 能力分頁：非顏色屬性的灰字改亮便於閱讀(屬抗/HP/MP恢復量等有色者不受影響) */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #17161b; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb { background: #5c4739; border:1px solid #8a6547; border-radius: 2px; }
+        ::-webkit-scrollbar { width: 14px; }
+        ::-webkit-scrollbar-track { background: #17161b; border-radius: 4px; border: 2px solid #17161b; }
+        ::-webkit-scrollbar-thumb { background: #5c4739; border:2px solid #3a2a1e; border-radius: 6px; min-height: 36px; }
         ::-webkit-scrollbar-thumb:hover { background: #76563e; }
         /* 🔧 觸發爆擊：顯眼鮮紅＋微光，與敵方紅字區隔 */
         .crit-hit { color: #ff2e2e !important; font-weight: bold; text-shadow: 0 0 6px rgba(255,46,46,0.6), 0 0 2px rgba(255,120,120,0.8); }
