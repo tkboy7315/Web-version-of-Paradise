@@ -293,7 +293,7 @@ function recomputeStats() {
         // 🏺 v3.2.17 猴子的金箍棒：近距離傷害/命中 +(等級/lvDmgDiv·lvHitDiv)（隨等級成長的武器加成）
         if (w.lvDmgDiv) { let _lb = Math.floor((p.lv || 1) / w.lvDmgDiv); if (isRanged) d.rangedDmg += _lb; else d.meleeDmg += _lb; }
         if (w.lvHitDiv) { let _lh = Math.floor((p.lv || 1) / w.lvHitDiv); if (isRanged) d.rangedHit += _lh; else d.meleeHit += _lh; }
-        // 🔧 武器「強化」固定加成：近距離與遠距離 傷害＋命中 同時各加（傷害每+1各+1至+20；命中+1~+10各+1、+11起依 WPN_EN_HIT_OVER10 表續加）。強化的傷害成長僅此固定加成（最終傷害倍率機制已移除·enhanceWpnFinalMult 恆 1）
+        // 🔧 武器「強化」固定加成：近距離與遠距離 傷害＋命中 同時各加（傷害每+1各+1至+20；命中+1~+10各+1、+11起依 WPN_EN_HIT_OVER10 表續加）；另有 enhanceWpnFinalMult 最終傷害倍率（+1~+20 分段曲線·上限 +30）
         d.meleeDmg += _enW.dmg; d.rangedDmg += _enW.dmg;
         d.meleeHit += _enW.hit; d.rangedHit += _enW.hit;
         d.aspd = atkSpdBaseItv(p);   // ⚔️ 攻速改由「職業性別×武器種類」查表（ATK_APM·js/01）·武器 def 的 spd 欄位停用（玩家＋傭兵 buildAlly 共用本函式）
