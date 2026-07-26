@@ -1818,10 +1818,11 @@ function loadGame() {
             logSys(`<span class="text-amber-300 font-bold">🏛️ 傳統模式已取消：此角色已轉為${player.classicMode ? '「經典模式」' : '「一般模式」'}，裝備強化與施法卷軸恢復可用。</span>`);
         }
 
-        // ⚔️ v3.0.75 武器強化上限 +20→+15：既有 >+15 武器一律實體降為 +15（數值＝能力·搭配 ENHANCE_CAP.wpn=15＋capWpnEn/enhanceWpnFinalMult 讀取夾擠）。
-        //    範圍＝玩家背包／已裝備（含副手 offwpn）／傭兵裝備；每次載入都跑（只夾 >15·冪等·免版本戳）。倉庫武器靠 capEn 顯示 +15、提領後下次載入自動夾。
+        // ⚔️ 武器強化上限改為 +30（ENHANCE_CAP.wpn=30）：載入時只夾 >30 的武器
+        //    範圍＝玩家背包／已裝備（含副手 offwpn）／傭兵裝備；每次載入都跑（只夾 >30·冪等·免版本戳）。
         try {
-            let _cwp = it => { if (it && it.id && DB.items[it.id] && DB.items[it.id].type === 'wpn' && (Number(it.en) || 0) > 15) it.en = 15; };
+            let _capEn = (typeof ENHANCE_CAP !== 'undefined' && ENHANCE_CAP.wpn) || 30;
+            let _cwp = it => { if (it && it.id && DB.items[it.id] && DB.items[it.id].type === 'wpn' && (Number(it.en) || 0) > _capEn) it.en = _capEn; };
             (player.inv || []).forEach(_cwp);
             if (player.eq) Object.values(player.eq).forEach(_cwp);
             (player.allies || []).forEach(a => { if (a && a.eq) Object.values(a.eq).forEach(_cwp); });
