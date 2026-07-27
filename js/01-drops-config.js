@@ -2066,7 +2066,7 @@ function dollFieldVal(field){ let e = player.eq && player.eq.doll; let dd = e ? 
 
 // ===== 🔧 強化系統：上限與分段加成（武器+15 / 防具+15 / 飾品+5）=====
 //  +0~+10 維持原本「每階 +1」線性；+11 起在「+10 的量」之上再加下表（表值＝超過 +10 的額外部分）。
-//  名稱一律顯示 +N（夾擠至上限：武器+15/防具+15/飾品+5；過往超過上限資料以上限顯示與套用，見 getItemFullName / capEn）。
+//  名稱一律顯示 +N（夾擠至上限：武器+30/防具+20/飾品+15；過往超過上限資料以上限顯示與套用，見 getItemFullName / capEn）。
 //  ⚠️ v3.0.75 用戶：武器上限 +20→+15，既有 >+15 武器一律以 +15 計（顯示 capEn／能力 capWpnEn／最終傷害倍率 enhanceWpnFinalMult 皆已夾至此上限；loadGame 另做一次性實體降級）。
 const ENHANCE_CAP = { wpn: 30, arm: 20, acc: 15 };
 function enhanceCap(d) { return (d && (d.maxEn || ENHANCE_CAP[d.type])) || 10; }             // 依物品類型取強化上限（maxEn 可逐物品覆蓋·寵物防具+5）
@@ -2086,7 +2086,7 @@ function _relicPetSkillMult() {
     return m;
 }
 // 🔧 強化值上限夾擠：凡「隨強化提升」的基本能力與特效（額外傷害/命中、MP自然恢復、吸取MP、觸發機率、特效傷害…）
-//    一律以淬鍊上限計算——武器超過 +15 以 +15 計、防具超過 +15 以 +15 計、飾品超過 +5 以 +5 計。
+//    一律以淬鍊上限計算——武器超過 +30 以 +30 計、防具超過 +20 以 +20 計、飾品超過 +15 以 +15 計。
 function capEn(en, d) { return Math.min(Math.max(0, Number(en) || 0), enhanceCap(d)); }
 function capWpnEn(en) { return Math.min(Math.max(0, Number(en) || 0), ENHANCE_CAP.wpn); }   // 武器專用（上限 +30）
 // ===== 🏰 天堂經典衝裝規則（v3.0.76 強化規則變更·機率單一真相：js/08 doEnhance／js/10 executeAutoSafeEnhance／js/10 _quickEnhanceUnit 共用）=====

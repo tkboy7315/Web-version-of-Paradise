@@ -444,7 +444,7 @@ function getItemFullName(item) {
     }
     if (item.anc)   segs += `<span class="${ancColorClass(item.anc)}">${ancName(item.anc)} </span>`;   // 遠古系：遠古紫/永恆紅/不朽綠/太初藍
     if (item.bless) segs += `<span class="${blessColorClass(item.bless)}">${blessName(item.bless)} </span>`;   // 祝福的金/詛咒的紅
-    let en = (item.en > 0) ? (`+${capEn(item.en, d)} `) : ((Number(item.en) || 0) < 0 ? `${item.en} ` : "");   // 🔧 一律顯示 +N（夾擠至上限：武器/防具+15、飾品+5）；🏰 詛咒降階的負值(如 -1)原樣顯示
+    let en = (item.en > 0) ? (`+${capEn(item.en, d)} `) : ((Number(item.en) || 0) < 0 ? `${item.en} ` : "");   // 🔧 一律顯示 +N（夾擠至上限：武器+30/防具+20/飾品+15）；🏰 詛咒降階的負值(如 -1)原樣顯示
     let cnt = item.cnt > 1 ? ` (${item.cnt})` : "";
     let setPrefix = item.seteff ? item.seteff.slice(0, 2) : "";   // 🔮 席琳套裝：套裝名冠在裝備名稱前（如「紅獅環甲」）；顏色沿用 getItemColor（規則同前）
     return `${segs}<span class="${getItemColor(item)}">${en}${setPrefix}${d.n}${cnt}</span>`;
@@ -1136,7 +1136,7 @@ function doEnhance(targetUid, isEq = true) {
 
     let d = DB.items[target.id];
     if (isRelic(d) || (d && d.noEnhance)) { logSys(`<span class="c-relic">${getItemFullName(target)} 無法強化。</span>`); activeScroll = null; if (typeof closeModal === 'function') closeModal(); return; }   // 🏺 遺物/古老系列/娃娃：無法強化（防呆·enumeration 已濾除·此為直點路徑保險）
-    let _cap = enhanceCap(d);   // 🔧 強化上限：武器+15 / 防具+15 / 飾品+5
+    let _cap = enhanceCap(d);   // 🔧 強化上限：武器+30 / 防具+20 / 飾品+15
     if ((Number(target.en) || 0) >= _cap) {   // 已達上限：不消耗卷軸，提示後返回
         logSys(`<span class="text-amber-300">${getItemFullName(target)} 已達強化上限（+${_cap}），無法再強化。</span>`);
         activeScroll = null; closeModal();
