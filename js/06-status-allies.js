@@ -385,8 +385,7 @@ const ALLY_ACTIVE_MAX = 3;         // 非王族協力傭兵上限。
 const ROYAL_ALLY_ACTIVE_MAX = 7;   // 王族最多帶滿帳號其餘 7 個角色。
 function allyActiveCap() {
     if (!player || player.cls !== 'royal') return ALLY_ACTIVE_MAX;
-    const cha = Math.max(0, Math.min(60, Math.floor((player.d && player.d.cha) || 0)));
-    return Math.min(ROYAL_ALLY_ACTIVE_MAX, ALLY_ACTIVE_MAX + Math.floor(cha / 15));   // 魅力 0~14/15/30/45/60 → 3/4/5/6/7 名
+    return ROYAL_ALLY_ACTIVE_MAX;   // 👑 王族固定 7 名（必定修改紀錄 #35a·不看魅力）
 }
 // 王族魅力只調整可帶傭兵數量，不再影響傭兵傷害、HP 或 MP。
 // 保留此相容函式供既有各傷害路徑呼叫；固定回傳 1 可一次停用所有舊魅力能力倍率。
@@ -3991,9 +3990,8 @@ function renderAllyQuestManager(div, slotN) {
 }
 function renderAllyNPC(div) {
     const _activeCap = allyActiveCap();
-    const _royalCha = Math.max(0, Math.floor((player.d && player.d.cha) || 0));
     const _capHint = player.cls === 'royal'
-        ? `<br><span class="text-amber-300">王族魅力不影響傭兵能力；每滿 15 點魅力可多帶 1 名。目前魅力 ${_royalCha}，可同時帶 ${_activeCap}/7 名。</span>`
+        ? `<br><span class="text-amber-300">王族可同時帶 7 名傭兵。</span>`
         : `<br><span class="text-slate-400">目前可同時帶 ${_activeCap} 名傭兵。</span>`;
     const _hiredMap = null;   // 🧑‍🤝‍🧑 v3.7.93 【已關閉】省去掃描 7 份存檔
     let rows = allySlotList().map(n => {
