@@ -116,6 +116,11 @@ function whSubCatOptions(){
         { key:'card', name:'卡片' }, { key:'skill', name:'技能' }, { key:'craft', name:'製作' },
         { key:'quest', name:'任務' }, { key:'scroll', name:'卷軸' }, { key:'other', name:'其他' }
     ];
+    if(_whFilter === 'relic') {   // 🏺 遺物主分類：細分依裝備收集冊圖鑑類型（武器+防具+飾品全部·含內衣）——EQUIP_CATEGORIES 現已有 tshirt（內衣）鍵
+        let options = (typeof EQUIP_CATEGORIES !== 'undefined' ? EQUIP_CATEGORIES : []).map(c => ({ key:c.key, name:c.name }));
+        if(!options.some(c => c.key === 'tshirt')) options.splice(0, 0, { key:'tshirt', name:'內衣' });   // 🔧 兜底：圖鑑若缺內衣鍵則手動補（比照防具分支寫法）
+        return options;
+    }
     let grp = (_whFilter === 'weapon') ? ['武器'] : ['防具','飾品'];   // 防具主分類涵蓋圖鑑的「防具」+「飾品」部位
     let options = (typeof EQUIP_CATEGORIES !== 'undefined' ? EQUIP_CATEGORIES : []).filter(c => grp.indexOf(c.group) >= 0).map(c => ({ key:c.key, name:c.name }));
     if(_whFilter === 'armor' && !options.some(c => c.key === 'tshirt')) options.splice(2, 0, { key:'tshirt', name:'內衣' });   // 🔧 v2.6.77 倉庫防具子分類補「內衣」（EQUIP_CATEGORIES 無此鍵→手動插入·參考用戶 2667 修正版）
@@ -123,6 +128,12 @@ function whSubCatOptions(){
 }
 // 倉庫物品是否符合「主分類＋子分類」：子分類空＝只看主分類
 function whMatchFilter(id){
+    if(_whFilter === 'relic'){   // 🏺 遺物主分類：橫跨武器/防具/飾品的獨立分類（不動 whCategory → 遺物在原本的武器/防具分類仍查得到）；細分依 equipCatKey 圖鑑類型
+        let d = DB.items[id];
+        if(!d || !(typeof isRelic === 'function' && isRelic(d))) return false;
+        if(!_whSubFilter) return true;
+        return (typeof equipCatKey === 'function') ? (equipCatKey(id, d) === _whSubFilter) : true;
+    }
     if(whCategory(id) !== _whFilter) return false;
     if(!_whSubFilter) return true;
     if(_whFilter === 'item') return whItemSubCat(id) === _whSubFilter;
@@ -527,6 +538,7 @@ function renderWarehouseNPC(div){
             <select onchange="whSetFilter(this.value)" class="bg-slate-900 border border-slate-600 text-white rounded py-1 px-2 text-sm">
                 <option value="weapon" ${_whFilter==='weapon'?'selected':''}>武器</option>
                 <option value="armor" ${_whFilter==='armor'?'selected':''}>防具</option>
+                <option value="relic" ${_whFilter==='relic'?'selected':''}>遺物</option>
                 <option value="item" ${_whFilter==='item'?'selected':''}>道具</option>
             </select>
             <select onchange="whSetSubFilter(this.value)" class="bg-slate-900 border border-slate-600 text-white rounded py-1 px-2 text-sm" title="細分類：武器/防具依圖鑑類型，道具分卡片/技能/製作/任務/卷軸/其他">
