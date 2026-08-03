@@ -526,6 +526,10 @@
     //   (事件迴圈仍保留 _kbRespawnAt 時間軸與 kingLeftRoom 偵測——若日後重啟,把下行 !isKing 拿掉即可。)
     var fastEligible = !isClimb && !isKing && (!isObl || (preObl && preObl.phase === 'island'))
       && totalTicks >= (FAST_SAMPLE_TICKS + FAST_MIN_REMAIN) && !_forceNoFast;
+    // 🐲 純 BOSS 房(安塔瑞斯/龍窟等 PURE_BOSS_MAPS):場上只生 1 隻 BOSS、死後 5 秒重生,沒有小怪可 farming。
+    //   對它跑「小怪取樣」必然擊殺數 0 → 被判「樣本不可信」→ 快速段永不啟動 → 整晚逐拍全模擬、結算龜速(安塔瑞斯 8h 實測好幾分鐘)。
+    //   改:純 BOSS 房不取樣,直接進快速段——走 bossStats 機制(BOSS 首打真打記錄實測耗時/安全度,之後同名即殺+fastAdvance 跳時間)。
+    var isPureBossMap = (typeof PURE_BOSS_MAPS !== 'undefined') && PURE_BOSS_MAPS.indexOf(huntMap) >= 0;
     _forceNoFast = false;   // 🧪 一次性:用過即歸零,不影響之後的真實離線結算
     var fastMode = false, fastOff = false;   // fastOff = 本次補跑永久退出快速段
     var _dryHit = false;        // 消耗品斷貨旗標:fastAdvance 補不上貨時設起,主迴圈據此走「重取樣」而非永久退出
@@ -841,7 +845,18 @@
       fastMode = true;
       console.info('[AFK] 💾 統計快取命中:跳過取樣與 BOSS 首打,直接快速結算(每事件 ' + svcPerEvent.toFixed(1) + ' 拍×' + batchPerEvent.toFixed(2) + ' 隻,BOSS 快取 ' + Object.keys(bossStats).length + ' 種)。');
     }
-    if (fastEligible && !fastMode) beginSample(0);
+    if (fastEligible && !fastMode) {
+      if (isPureBossMap) {
+        // 🐲 純 BOSS 房:跳過小怪取樣(場上只有 BOSS,取樣必 0 擊殺 → 永遠退全模擬 → 結算龜速)。
+        //   直接進快速段,走 bossStats 機制:每種 BOSS 首打真打記錄實測耗時/安全度,之後同名即殺+fastAdvance 跳時間。
+        svcPerEvent = 1; batchPerEvent = 1;   // 佔位:純 BOSS 房不走小怪批次路徑(場上只有 BOSS),給非 0 避免 0 除
+        consumePerTick = {}; consumeAcc = {};
+        fastMode = true;
+        console.info('[AFK] 🐲 純 BOSS 房:跳過小怪取樣,直接進快速 BOSS 段(每種 BOSS 首打記錄實測,之後即殺跳時間)。');
+      } else {
+        beginSample(0);
+      }
+    }
     // ═══ 混合快速結算(宣告結束;主迴圈內 fastMode 分支使用) ═══════════════════════
 
     var done = 0, died = false, _runErr = null;
@@ -930,10 +945,10 @@
                 saveOffStats();   // 💾 新量到的 BOSS 實測 → 更新統計快取(下次同簽章連首打都免)
                 console.info('[AFK] ⚔ BOSS「' + fastBossName + '」倒下:實測 ' + Math.round(_durB) + ' 拍、同場小怪 ' + _minorB + ' 隻' + (_safeB ? ',之後同名 BOSS 即殺、時間按實測(移動平均)推進並補回小怪。' : ',對打時血量偏低(' + Math.round(fastBossMinHp * 100) + '%) → 之後每次都真打。'));
               }
-              if (fastBossUid == null && player.lv !== lastLv) {   // BOSS 經驗大,常直接升級 → 重新取樣殺速
+              if (fastBossUid == null && player.lv !== lastLv) {   // BOSS 經驗大,常直接升級 → 戰力變了
                 lastLv = player.lv;
-                fastMode = false; sampleGrew = false; sampleEnd = done + FAST_RESAMPLE_TICKS;
-                beginSample(done);
+                if (isPureBossMap) { bossStats = {}; }   // 🐲 純 BOSS 房:清 BOSS 統計,下次遇同名 BOSS 重新首打量測(無小怪可取樣,不回取樣死路)
+                else { fastMode = false; sampleGrew = false; sampleEnd = done + FAST_RESAMPLE_TICKS; beginSample(done); }
               }
               continue;
             }
@@ -953,10 +968,10 @@
               console.info('[AFK] ⚡ 快速結算退回全模擬(步驟異常),剩餘時間照真模擬。');
               continue;
             }
-            if (player.lv !== lastLv) {   // 升級 → 戰力變了 → 重新取樣殺速
+            if (player.lv !== lastLv) {   // 升級 → 戰力變了
               lastLv = player.lv;
-              fastMode = false; sampleGrew = false; sampleEnd = done + FAST_RESAMPLE_TICKS;
-              beginSample(done);
+              if (isPureBossMap) { bossStats = {}; }   // 🐲 純 BOSS 房:清 BOSS 統計,下次遇同名 BOSS 重新首打量測
+              else { fastMode = false; sampleGrew = false; sampleEnd = done + FAST_RESAMPLE_TICKS; beginSample(done); }
             }
             continue;
           }
