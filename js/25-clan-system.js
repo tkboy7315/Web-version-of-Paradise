@@ -956,11 +956,64 @@ function _npcClanApplyAssignment(entry, assignment) {
     return entry;
 }
 
+// 🏷 世界快照快取（2 秒）：spawn 密集期間直接重用最近一次解出的 NPC 血盟世界，
+//    避免每次生成敵盟 NPC 都做全量 LZ 解壓＋驗簽＋正規化（宣戰後「每次出現 LAG」的根因）。
+var _npcClanAssignCache = Object.create(null); // mode -> { at, world }
+function _npcClanAssignWorld(p) {
+    let mode = clanModeKey(p || player);
+    let now = Date.now();
+    let c = _npcClanAssignCache[mode];
+    if (c && now - c.at < 2000 && c.world) return c.world;
+    let world = npcClanEnsureWorld(p || player);
+    if (world) _npcClanAssignCache[mode] = { at: now, world: world };
+    return world;
+}
+
 function npcClanAssignOpponent(entry, opts) {
     if (!entry || !entry.n || typeof player === 'undefined' || !player || !player.cls) return entry;
     opts = opts || {};
     let mode = clanModeKey(player);
-    npcClanEnsureWorld(player);
+    let world = _npcClanAssignWorld(player);
+    let name = String(entry.n).slice(0, 24);
+    let rec = world ? (world.memberships[name] || null) : null;
+    let cachedDesired = null, cachedContextual = false;
+    if (world) {
+        if (opts.forceClanId && _npcClanById(world, opts.forceClanId)) {
+            cachedDesired = _npcClanById(world, opts.forceClanId);
+            cachedContextual = true;
+        } else if (opts.defenderClanId && _npcClanById(world, opts.defenderClanId)) {
+            let defenderChance = Number.isFinite(Number(opts.defenderChance)) ? Number(opts.defenderChance) : 0.5;
+            if (Math.random() < defenderChance) cachedDesired = _npcClanById(world, opts.defenderClanId);
+            cachedContextual = true;
+        } else if (opts.warEncounter) {
+            let requestedIds = Array.isArray(opts.encounterClanIds)
+                ? new Set(opts.encounterClanIds.map(String))
+                : null;
+            let wars = world.clans.filter(c => c && (requestedIds ? requestedIds.has(c.id) : c.war));
+            let encounterChance = Number(opts.enemyClanChance);
+            if (!Number.isFinite(encounterChance)) encounterChance = NPC_CLAN_WAR_ENCOUNTER_CHANCE;
+            encounterChance = Math.max(0, Math.min(1, encounterChance));
+            if (wars.length && Math.random() < encounterChance) cachedDesired = _npcClanPick(wars);
+            cachedContextual = wars.length > 0;
+        }
+    }
+    // 🏷 唯讀路徑：該名字已是血盟成員且不需換盟 → 直接套用既有資料，
+    //    不進 _clanWithLock（不讀鎖、不寫回），消除每次 spawn 的全量血盟序列化。
+    if (rec && (!cachedContextual || (rec.clanId || null) === (cachedDesired ? cachedDesired.id : null))) {
+        let clan = rec.clanId ? _npcClanById(world, rec.clanId) : null;
+        return _npcClanApplyAssignment(entry, {
+            n:name,
+            avatar:rec.avatar,
+            alignmentValue:rec.alignmentValue,
+            levelOffset:rec.levelOffset,
+            clanId:clan ? clan.id : null,
+            clanName:clan ? clan.name : '',
+            clanLeader:!!rec.leader && !!clan,
+            clanAtWar:!!(clan && clan.war),
+            clanConflict:!!(clan && (clan.hostile || clan.war)),
+            clanHasCastle:!!(clan && Object.values(world.castleOwners || {}).includes(clan.id))
+        });
+    }
     let result = _clanWithLock(st => {
         let world = st.npcWorlds[mode] || (st.npcWorlds[mode] = _npcClanDefaultWorld());
         _npcClanEnsureWorldData(world, mode);
@@ -1067,7 +1120,10 @@ function npcClanAssignOpponent(entry, opts) {
             }
         };
     });
-    if (result && result.ok && result.assignment) return _npcClanApplyAssignment(entry, result.assignment);
+    if (result && result.ok && result.assignment) {
+        delete _npcClanAssignCache[mode];
+        return _npcClanApplyAssignment(entry, result.assignment);
+    }
     if (opts.forceClanId) {
         let clan = npcClanGetById(opts.forceClanId, player);
         if (clan) {
@@ -1158,8 +1214,58 @@ function npcClanOnSiegeResult(city, result, defenderClanId) {
     return outcome;
 }
 
+var _npcClanKillBuf = null;   // 🧵 補跑期間累計的敵盟擊殺 delta：{ at, clans:{ clanId:{ hatred, morale, steps } } }；結算/saveGame 前一次寫回
+function npcClanFlushKillBuffer() {
+    if (!_npcClanKillBuf) return;
+    let buf = _npcClanKillBuf; _npcClanKillBuf = null;
+    let ids = Object.keys(buf.clans || {});
+    if (!ids.length || !player || !player.cls) return;
+    let mode = clanModeKey(player);
+    let events = [];
+    let result = _clanWithLock(st => {
+        let world = st.npcWorlds[mode];
+        if (!world) return { commit:false };
+        ids.forEach(id => {
+            let b = buf.clans[id];
+            let clan = _npcClanById(world, id);
+            if (!clan || !b || !(b.hatred > 0)) return;
+            _npcClanApplyHatredLocked(clan, b.hatred);
+            if (clan.war) _npcClanApplyMoraleLocked(world, clan, b.morale, events, mode);
+            if (clan.war && !clan.hostile && (b.steps || 0) > 0) {
+                // 🔄 反宣骰重播：原逐擊殺「counterWarChance += step、骰一次」——flush 時按步數重播，機率等價（每步獨立骰）
+                let c = Math.min(1, Math.max(0, Number(clan.counterWarChance) || 0));
+                for (let i = 0; i < b.steps; i++) {
+                    c = Math.min(1, c + NPC_CLAN_COUNTER_WAR_STEP);
+                    if (Math.random() < c) { clan.known = true; clan.hostile = true; clan.counterWarChance = 0; break; }
+                }
+                if (!clan.hostile) clan.counterWarChance = c;
+            }
+        });
+        return {};
+    });
+    if (result && result.ok) _npcClanEventLog(events);
+}
+
 function npcClanOnNpcKilled(mob) {
     if (!mob || !mob._npcClanId || !player || !player.cls) return;
+    // 🧵 補跑期間（state.ff/_tickDebt）不逐擊殺全量讀寫血盟：累計到緩衝，結算/saveGame 前一次寫回（消除補跑每殺敵盟的序列化卡頓）
+    if (typeof catchupActive === 'function' && catchupActive()) {
+        if (!_npcClanKillBuf) _npcClanKillBuf = { at: Date.now(), clans: Object.create(null) };
+        let bid = String(mob._npcClanId);
+        let b = _npcClanKillBuf.clans[bid] || (_npcClanKillBuf.clans[bid] = { hatred: 0, morale: 0, steps: 0 });
+        let impact = (!!mob._npcClanLeader) ? 10 : 1;
+        b.hatred += impact;
+        b.morale -= impact;
+        b.steps += 1;
+        mob._npcClanWarKill = !!mob._npcClanAtWar;
+        let battle = mapState && mapState.npcClanBattle;
+        if (battle && battle.clanId === mob._npcClanId) {
+            battle.kills = Math.max(0, Number(battle.kills) || 0) + 1;
+            if (battle.kills >= battle.target) npcClanGroupBattleEnd('victory');
+        }
+        return;
+    }
+    npcClanFlushKillBuffer();   // 離開補跑 → 先把緩衝的仇恨/士氣/反宣一次補入
     let mode = clanModeKey(player);
     let events = [];
     let result = _clanWithLock(st => {
@@ -1228,8 +1334,7 @@ function npcClanOnPlayerKilledBy(killers) {
 
 function npcClanKillIgnoresAlignment(mob) {
     if (!mob || !mob._npcClanId) return false;
-    let clan = npcClanGetById(mob._npcClanId, player);
-    return !!(mob._npcClanBattle || mob._npcClanWarKill || (clan && clan.war));
+    return !!(mob._npcClanBattle || mob._npcClanWarKill || mob._npcClanAtWar);
 }
 
 function npcClanGroupBattleActive() {
