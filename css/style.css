@@ -988,9 +988,13 @@
    :has 掛在共同祖先 #col-center(其下 #map-view-panel 與 #log-row 為兄弟)；僅「狩獵中(battle-view 顯示且 area-fit)」套用→安全區(town-view·battle-view 隱藏)/攻城/裂痕(非 area-fit·仍 16:9 吃滿)維持原樣。 */
 #col-center:has(#battle-view.area-fit:not(.hidden)) #map-view-panel { flex: 0 0 auto; }
 #col-center:has(#battle-view.area-fit:not(.hidden)) #log-row { flex: 1 1 0; }
-/* 🏘️ v3.2.87 安全區(town-view 顯示·battle-view 隱藏)比照狩獵：地圖面板依內容(標題列+800×450地圖)自適、其餘高度全給日誌列→地圖下方不再被 flex:1 撐出深色空隙、日誌緊接地圖下方（修「安全區背景把日誌撐開」） */
-#col-center:has(#town-view:not(.hidden)) #map-view-panel { flex: 0 0 auto; }
-#col-center:has(#town-view:not(.hidden)) #log-row { flex: 1 1 0; }
+/* 🏘️ v3.2.87 安全區(town-view 顯示·battle-view 隱藏)比照狩獵；v3.8.4 雙模式：
+   🖥️ 地圖模式：地圖面板依內容(800×450 固定)·日誌列吃滿剩餘高度（還原 v3.8.34 原生，無 360px 保底）
+   🏘️ 卡片模式：地圖面板依內容(標題列+卡片列表)自適、日誌列吃滿剩餘高度→卡片不會壓縮日誌（卡片區另有 max-height 內部捲動） */
+#col-center:has(#town-view:not(.hidden)):has(#town-npc-map:not(.hidden)) #map-view-panel { flex: 0 0 auto; }
+#col-center:has(#town-view:not(.hidden)):has(#town-npc-map:not(.hidden)) #log-row { flex: 1 1 0; }
+#col-center:has(#town-view:not(.hidden)):has(#town-npc-container:not(.hidden)) #map-view-panel { flex: 0 1 auto; min-height: 0; }   /* 🏘️ 空間不足時允許卡片區被壓縮（容器內部捲動），保底給日誌列 */
+#col-center:has(#town-view:not(.hidden)):has(#town-npc-container:not(.hidden)) #log-row { flex: 1 1 0; min-height: 360px; }   /* 🏘️ 日誌列最低 360px：卡片再多也不會把日誌壓扁 */
 #combat-log-panel { flex: 1 1 0; min-width: 0; min-height: 0; }   /* 左半·覆寫原 .flex-1(原垂直堆疊) */
 #syslog-panel { flex: 1 1 0; height: auto; min-width: 0; min-height: 0; }   /* 右半·覆寫原 h-1/3 */
 /* 戰鬥框填滿地圖面板（村莊 town-view 已 flex-1 自動吃滿）；area-fit 怪物 height:100% 隨之等比放大 */
@@ -1907,10 +1911,20 @@ button.classic-skill-cell { cursor:pointer; }
 }
 
 /* 🏘️ v3.2.83 城鎮 NPC 地圖：與狩獵框同尺寸(800×450 16:9)·NPC 動態站位(散佈景深)·hover 顯示名字·點擊開功能 */
+/* 🏘️ v3.8.4 雙模式：一般網頁視窗 → 地圖式 sprite（#town-npc-map 顯示）；最小視窗(手機) → 卡片模式（#town-npc-container 顯示）。
+   兩者由 JS 依視窗尺寸切換（town-view 內誰未 .hidden 誰生效），CSS 用 :has 對應。 */
 #town-view {
+    position: relative; width: 100%; max-width: 100%;
+}
+/* 🖥️ 地圖模式：回歸 v3.8.34 原生 800×450 16:9（與狩獵框同尺寸），由 #town-npc-map 承接場景背景 */
+#town-view:has(#town-npc-map:not(.hidden)) {
     position: relative; flex: 0 0 auto; width: 800px; max-width: 100%; aspect-ratio: 16 / 9;
     height: auto; padding: 0 !important; gap: 0 !important; align-self: center; overflow: hidden;
-}   /* 🏘️ 安全區外框本身即為800×450；舊版「內圖800×450＋外層padding 32px」會變成832×482並在底部露出多餘框架 */
+}
+/* 🏘️ 卡片模式：卡片列表不超過 35vh（內部捲動），把空間留給下方日誌列 */
+#town-view:has(#town-npc-container:not(.hidden)) #town-npc-container { max-height: clamp(220px, 35vh, 420px); }
+/* 🏘️ 卡片模式：地圖式 sprite 停用（JS 亦會加 .hidden 雙保險），隱藏不再載入背景/NPC 圖 */
+#town-view:has(#town-npc-container:not(.hidden)) #town-npc-map { display: none; }
 #town-npc-map {
     position: relative; width: 100%; height: 100%; aspect-ratio: auto; align-self: center; flex: 0 0 auto;
     max-width: 100%; overflow: hidden; z-index: 1; border-radius: 0.5rem;   /* 🏘️ 建立堆疊環境·把動態 NPC sprite 關在地圖層內(z 低於浮動視窗) */
@@ -1984,13 +1998,20 @@ button.classic-skill-cell { cursor:pointer; }
     #map-view-panel > .panel-header #pride-floor-indicator { flex: 1 0 100%; padding: 3px 5px !important; text-align: center; font-size: 13px !important; }
 
     #battle-view.area-fit:not(.hidden),
-    #battle-view:not(.area-fit):not(.hidden),
-    #town-view:not(.hidden) {
+    #battle-view:not(.area-fit):not(.hidden) {
         width: 100%;
         max-width: 100%;
         aspect-ratio: 16 / 9;
         height: auto;
         min-height: 0;
+    }
+    /* 🏘️ 卡片模式：村莊不再固定 16:9——卡片列表自然長高、由整頁(#game-screen overflow-y:auto)捲動 */
+    #town-view:not(.hidden) {
+        flex: none;
+        height: auto;
+        min-height: 0;
+        aspect-ratio: auto;
+        max-width: 100%;
     }
     #battle-view { padding: 6px !important; }
     #battle-view.area-fit:has(.boss-slot) { padding: 0 !important; }
