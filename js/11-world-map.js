@@ -1401,6 +1401,7 @@ function renderSherinePray(div) {
             </div>
             <button class="btn py-3 text-base font-bold ${!lvOk ? 'bg-slate-600 border-slate-500 opacity-60 cursor-not-allowed' : (mad ? 'bg-slate-700 hover:bg-slate-600 border-slate-500' : 'bg-rose-900 hover:bg-rose-800 border-rose-600')}"
                 ${!lvOk ? 'disabled' : ''} onclick="toggleSherineMad()">${!lvOk ? '等級不足（需 Lv40）' : (mad ? '🙏 祈禱：關閉瘋狂的席琳世界' : '🔥 祈禱：開啟瘋狂的席琳世界')}</button>
+            <div class="text-slate-400 text-xs leading-relaxed">⚡ 開啟期間，席琳世界的怪物（含頭目）被擊殺時有 5% 機率觸發<span class="text-green-400 font-bold">「即死恢復」</span>——不死並將血量回滿（每隻僅觸發一次）。</div>
         </div>`;
 }
 

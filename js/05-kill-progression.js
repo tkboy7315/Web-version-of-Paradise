@@ -349,6 +349,16 @@ function killMob(idx) {
             return;
         }
     }
+    // 🔮 席琳世界「即死恢復」：開啟席琳世界時，席琳相關怪物（含頭目）任何致死有 5% 機率不死並回滿血（每隻限一次）
+    if (sherineWorldActive() && mob._sherine && !mob._sherineRevived && Math.random() < 0.05) {
+        mob._sherineRevived = true;
+        mob.curHp = mob.hp;
+        try { mob.st = newMobStatus(); } catch (e) {}
+        mob.justHit = 'heal';
+        logCombat(`<span class="c-sherine font-bold">${mob.n}</span> <span class="text-green-400 font-bold">即死恢復——血量回滿！</span>`, 'enemy');
+        renderMobs(); updateUI();
+        return;
+    }
     mob._dead = true;
     try { vfxKill(mob); } catch(e){}   // ✨ VFX：擊殺粒子爆裂（趁格子 DOM 仍在、重繪前）
     try { playMobKill(mob); } catch(e){}   // 🔊 音效：怪物死亡（依怪名對應專屬死亡音，查無→通用擊殺音）
