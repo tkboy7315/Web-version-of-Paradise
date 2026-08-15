@@ -1618,6 +1618,7 @@ function clanSetCastle(city) {
 }
 
 let _clanScanCache = { mode:null, at:0, roles:null };
+function clanInvalidateScanCache() { _clanScanCache = { mode:null, at:0, roles:null }; }   // 🩹 v3.8.4 血盟資料/存檔位異動（匯入王族存檔、解散血盟）時主動清除掃描快取
 function clanScanRoles(mode) {
     mode = mode || clanModeKey(player);
     // ⚡ v3.6.01 3 秒 TTL 快取：每次掃描要解壓＋解析全部 8 個存檔位，而城鎮地圖渲染（含叫賣 NPC 每次進退場
@@ -1651,7 +1652,26 @@ function clanLeaderRole(p) {
 }
 
 function clanHasFoundingRoyal(p) {
-    return !!clanLeaderRole(p || player);
+    let cur = p || player;
+    if (clanLeaderRole(cur)) return true;
+    // 🩹 v3.8.4 bug 修復：血盟仍存在但找不到創盟王族（盟主刪除時未正確解散／王族存檔重匯入後 enSeed 與 leaderId 不符）
+    //    → 由當前同模式王族自動接管盟主（leaderId 改指向自己），恢復攻城與血盟功能；非王族角色不觸發。
+    if (!cur || !cur.cls || cur.cls !== 'royal') return false;
+    let mode = clanModeKey(cur);
+    if (!clanGetModeInfo(cur)) return false;
+    let claim = _clanWithLock(st => {
+        let live = st.modes[mode];
+        if (!live) return { commit:false };
+        if (clanScanRoles(mode).some(r => r.id === live.leaderId && r.player && r.player.cls === 'royal')) return { commit:false };
+        live.leaderId = clanRoleId(cur);
+        if (!st.members[live.leaderId]) st.members[live.leaderId] = { mode:mode, contribution:0, buffOn:false, buffAt:0 };
+        return { reclaimed:true };
+    });
+    clanInvalidateScanCache();   // 接管後立即反映新盟主
+    if (claim && claim.ok && claim.reclaimed && typeof logSys === 'function') {
+        logSys('<span class="text-amber-300 font-bold">血盟盟主資料異常，你已自動接管盟主。</span>血盟功能與攻城已恢復。');
+    }
+    return !!(claim && claim.ok && claim.reclaimed);
 }
 
 // 是否為該模式血盟的盟主本人（刪角警告 js/13 與改名權限共用；只比對 leaderId，不要求 royal 職業以免資料異常時漏警告）
@@ -1720,8 +1740,41 @@ function clanOnRoleDeleted(oldPlayer) {
         delete st.members[id];
         return {};
     });
-    _clanScanCache.at = 0;   // 角色已刪除：清掉存檔位掃描快取，成員清單／盟主判定立即反映
+    clanInvalidateScanCache();   // 角色已刪除：清掉存檔位掃描快取，成員清單／盟主判定立即反映
+    // 🩹 v3.8.4 bug 修復：盟主刪除→解散血盟時，同步清除同模式其他角色存檔中的血盟欄位。
+    //    原本只清共用血盟狀態與成員名冊，各角色存檔的 bloodPledge/clanName 仍殘留
+    //    → 那些角色在角色選擇／導出存檔仍顯示「在血盟」，且被誤導以為盟還在。
+    if (result && result.dissolved) _clanPurgeRoleClanFields(mode);
     return result;
+}
+
+// 🩹 v3.8.4 掃描全部存檔位，清除指定模式角色殘留的血盟欄位（解散血盟時呼叫；各角色寫回存檔）。
+//    清除集合比照 clanSyncCurrentPlayer：bloodPledge/clanName 與攻城勝利時效欄位。
+function _clanPurgeRoleClanFields(mode) {
+    if (typeof _roleReadSavePlayer !== 'function' || typeof _saveUnwrap !== 'function' || typeof _lzGet !== 'function' || typeof _saveWrap !== 'function' || typeof _lzSet !== 'function') return 0;
+    let cleared = 0;
+    for (let slot = 1; slot <= 8; slot++) {
+        try {
+            let raw = _lzGet('lineage_idle_save_' + slot);
+            if (raw == null) continue;
+            let u = _saveUnwrap(raw);
+            if (!u || !u.ok || !u.payload) continue;
+            let d = JSON.parse(u.payload);
+            if (!d || !d.p || !d.p.cls || clanModeKey(d.p) !== mode) continue;
+            let dirty = false;
+            if (d.p.bloodPledge) { d.p.bloodPledge = null; dirty = true; }
+            if (d.p.clanName) { d.p.clanName = null; dirty = true; }
+            if (d.p.siege && typeof d.p.siege === 'object') {
+                if (d.p.siege.victoryUntil != null) { delete d.p.siege.victoryUntil; dirty = true; }
+                if (d.p.siege.victoryCity != null) { delete d.p.siege.victoryCity; dirty = true; }
+                if (d.p.siege.rewardPending != null) { delete d.p.siege.rewardPending; dirty = true; }
+            }
+            if (!dirty) continue;
+            if (!_lzSet('lineage_idle_save_' + slot, _saveWrap(JSON.stringify(d)))) continue;
+            cleared++;
+        } catch (e) {}
+    }
+    return cleared;
 }
 
 function clanCreateFromInput() {
@@ -1761,7 +1814,7 @@ function clanCreateFromInput() {
             + (restored ? '，金幣未扣除。' : '；金幣已在記憶體中還原但尚未寫入存檔，請勿繼續操作並重新整理頁面。'));
         return;
     }
-    _clanScanCache.at = 0;   // 新盟主誕生：清掃描快取讓盟主判定立即生效
+    clanInvalidateScanCache();   // 新盟主誕生：清掃描快取讓盟主判定立即生效
     if (typeof logSys === 'function') logSys(`<span class="text-amber-300 font-bold">你創立了血盟「${clanEsc(name)}」。</span>`);
     if (typeof updateUI === 'function') updateUI();
     renderClanTab();
@@ -1945,7 +1998,13 @@ function clanNpcDisplayName() {
 function clanOpenSiegePanel() {
     let info = clanGetModeInfo(player);
     if (!info) { alert('你尚未加入血盟。'); return; }
-    if (!clanCanSiege(player)) { alert('此模式沒有創立血盟的王族，無法攻城。'); return; }
+    if (!clanCanSiege(player)) {
+        // 🩹 v3.8.4 王族角色會由 clanHasFoundingRoyal 自動接管盟主；這裡的警訊是給「接管失敗」與「非王族角色」用
+        alert(player.cls === 'royal'
+            ? '血盟盟主資料異常，自動接管未成功。請稍候再點擊攻城一次。'
+            : '此血盟目前沒有創盟的王族盟主，無法攻城。請用同模式王族角色開啟血盟分頁，即可自動接管盟主。');
+        return;
+    }
     if (typeof openTownFloatWindow !== 'function' || typeof openSiegeSelect !== 'function') return;
     openTownFloatWindow(clanLeaderDisplayName(player), '血盟', el => openSiegeSelect(info.faction, el));
 }

@@ -148,7 +148,13 @@
     function openV2SiegeSelect(faction, targetEl) {
         let clan = typeof clanGetModeInfo === 'function' ? clanGetModeInfo(player) : null;
         if (!clan) { alert('你尚未加入血盟，無法宣布攻城戰。'); return; }
-        if (typeof clanCanSiege === 'function' && !clanCanSiege(player)) { alert('此模式沒有創立血盟的王族，無法攻城。'); return; }
+        if (typeof clanCanSiege === 'function' && !clanCanSiege(player)) {
+            // 🩹 v3.8.4 王族會由 clanHasFoundingRoyal 自動接管盟主；此警訊僅在接管失敗或非王族角色時出現
+            alert(player.cls === 'royal'
+                ? '血盟盟主資料異常，自動接管未成功。請稍候再點擊攻城一次。'
+                : '此血盟目前沒有創盟的王族盟主，無法攻城。請用同模式王族角色開啟血盟分頁，即可自動接管盟主。');
+            return;
+        }
         let held = typeof rememberCastleOwnerCity === 'function' ? rememberCastleOwnerCity(clan.castle) : clan.castle;
         let el = targetEl || document.getElementById('interaction-content'); if (!el) return;
         el.innerHTML = `<div class="flex flex-col gap-4 p-2">

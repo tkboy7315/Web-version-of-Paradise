@@ -912,7 +912,7 @@ function relicPurposeLabels(d) {
     if (d.dragonSlayStrike) out.push(`屠龍一擊（${d.dragonSlayStrike.rate}%機率觸發${d.dragonSlayStrike.dice}D${d.dragonSlayStrike.flat}額外傷害，對龍×${d.dragonSlayStrike.dragonMult}）`);
     if (d.autocastBacklash) out.push('自動施法反噬（自動施法失敗時反噬自身）');
     if (d.spellIgnoreMr) out.push('無視魔防（魔法傷害無視目標MR）');
-    if (d.wishRing) out.push('許願戒指（穿戴時隨機獲得一種能力加成）');
+    if (d.wishRing) out.push('許願戒指（穿戴時隨機獲得六種能力加成）');
     if (d.slaughterHits) out.push(`連殺（每次命中增加連殺計數，${d.slaughterHits}次後觸發額外效果）`);
     if (d.slaughterRandom) out.push('連殺隨機（每次連殺效果隨機變化）');
     if (d.crushTornado) out.push('碎擊龍捲風（重擊時觸發龍捲風全體傷害）');
@@ -1024,12 +1024,12 @@ function dedupeGeneratedTooltipEffects(effects, d, options) {
     });
 }
 
-const GENIE_WISH_LABEL = { hp60: 'HP +60', mp30: 'MP +30', md3: '近距離傷害 +3', rd3: '遠距離傷害 +3', mdmg2: '魔法傷害 +2', sp6: '額外魔法點數 +6', hpr10: 'HP 自然恢復量 +10', mpr5: 'MP 自然恢復量 +5', dr3: '傷害減免 +3', ac3: 'AC -3', mr6: 'MR +6', str1: '力量 +1', dex1: '敏捷 +1', int1: '智力 +1', wis1: '精神 +1', con1: '體質 +1', cha1: '魅力 +1' };   // 🏺 v3.6.44 巨靈的三個願望
+const GENIE_WISH_LABEL = { hp60: 'HP +60', hp120: 'HP +120', hp180: 'HP +180', mp30: 'MP +30', mp60: 'MP +60', mp90: 'MP +90', hpr10: 'HP 自然恢復量 +10', hpr20: 'HP 自然恢復量 +20', hpr30: 'HP 自然恢復量 +30', mpr5: 'MP 自然恢復量 +5', mpr10: 'MP 自然恢復量 +10', mpr15: 'MP 自然恢復量 +15', md3: '近距離傷害 +3', md6: '近距離傷害 +6', md9: '近距離傷害 +9', rd3: '遠距離傷害 +3', rd6: '遠距離傷害 +6', rd9: '遠距離傷害 +9', mdmg2: '魔法傷害 +2', mdmg3: '魔法傷害 +3', mdmg4: '魔法傷害 +4', mdmg6: '魔法傷害 +6', sp6: '額外魔法點數 +6', sp7: '額外魔法點數 +7', sp8: '額外魔法點數 +8', sp9: '額外魔法點數 +9', sp12: '額外魔法點數 +12', dr3: '傷害減免 +3', dr6: '傷害減免 +6', dr9: '傷害減免 +9', ac3: 'AC -3', ac6: 'AC -6', ac9: 'AC -9', mr6: 'MR +6', mr12: 'MR +12', mr18: 'MR +18', str1: '力量 +1', str2: '力量 +2', str3: '力量 +3', dex1: '敏捷 +1', dex2: '敏捷 +2', dex3: '敏捷 +3', int1: '智力 +1', int2: '智力 +2', int3: '智力 +3', wis1: '精神 +1', wis2: '精神 +2', wis3: '精神 +3', con1: '體質 +1', con2: '體質 +2', con3: '體質 +3', cha1: '魅力 +1', cha2: '魅力 +2', cha3: '魅力 +3' };   // 🏺 v3.6.44 巨靈的三個願望（51 檔位；mdmg6/sp9/sp12 舊 key 保留顯示）
 function buildItemDescHTML(item) {
     let d = DB.items[item.id];
     if(!d) return '';
     let desc = tooltipItemDescription(d, item.id);
-    if (item.gw && Array.isArray(item.gw)) desc += `<br><span class="text-amber-300 font-bold">✦ 許下的三個願望：</span><br>` + item.gw.map(w => `<span class="text-amber-200">・${GENIE_WISH_LABEL[w] || w}</span>`).join('<br>');   // 🏺 v3.6.44 巨靈的三個願望：顯示實體抽定的能力
+    if (item.gw && Array.isArray(item.gw)) desc += `<br><span class="text-amber-300 font-bold">✦ 許下的${item.gw.length}個願望：</span><br>` + item.gw.map(w => `<span class="text-amber-200">・${GENIE_WISH_LABEL[w] || w}</span>`).join('<br>');   // 🏺 v3.6.44 巨靈的三個願望：顯示實體抽定的能力（動態個數·舊戒指 3 個新戒指 6 個）
     // 🔮 席琳套裝效果：寫在資訊欄（綠色標題＋淺綠加成說明），不冠在名稱前
     // ⚠️v3.1.68 套裝效果改由「席琳遺骸」承載：遺骸(d.remains)照常列加成；一般裝備上的舊詞綴補註「不再計入」提示（顯示保留·可由菈克希絲拆分）
     if (item.seteff) {

@@ -920,8 +920,8 @@
         _lastMapSignature = signature;
         try {
             if (typeof mapState !== 'undefined' && mapState && String(mapState.current || '').startsWith('town_') &&
-                typeof renderTownNPCMap === 'function') {
-                renderTownNPCMap(mapState.current);
+                typeof renderTownNPCs === 'function') {
+                renderTownNPCs(mapState.current);
             }
         } catch (e) {}
     }

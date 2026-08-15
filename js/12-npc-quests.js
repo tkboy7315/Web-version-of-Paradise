@@ -936,6 +936,72 @@ function shimizheEx(rewardId) {   // 🗑️ v3.5.94 原第 2 參 sherine 移除
     let _c = document.getElementById('interaction-content'); if (_c) renderShimizheExchange(_c);
 }
 
+// ===== 🔄 克里斯特（象牙塔・兌換）：施法卷軸 + 金幣 → 賦予祝福卷軸／解除詛咒卷軸（復歸·移植自 3.4.12 加掛版） =====
+//   共用試煉兌換的 trial-qty 數量列；數量取「輸入值」與「可負擔上限」較小者。金幣固定 100 萬／次。
+function kristaExchange(kind) {
+    let GOLD = 1000000;
+    let want = (typeof trialQtyVal === 'function') ? trialQtyVal() : 1;
+    if (kind === 'uncurse') {
+        let haveW = questCountId('scroll_weapon_b'), haveA = questCountId('scroll_armor_b');   // 🗄️ 含倉庫（背包＋倉庫合併計數）
+        let maxAff = Math.min(haveW, haveA, Math.floor((player.gold || 0) / GOLD));
+        if (maxAff < 1) {
+            if ((player.gold || 0) < GOLD) logSys(`<span class="text-red-400">金幣不足（需 ${GOLD.toLocaleString()}）。</span>`);
+            else logSys(`<span class="text-red-400">需要 1 張 祝福的 對武器施法的卷軸 與 1 張 祝福的 對盔甲施法的卷軸。</span>`);
+            return;
+        }
+        let n = Math.min(want, maxAff);
+        player.gold -= GOLD * n;
+        questConsumeId('scroll_weapon_b', n);   // 🗄️ 背包優先，不足扣共用倉庫（questConsumeId 內部自存倉庫）
+        questConsumeId('scroll_armor_b', n);
+        gainItem('new_item_uncurse', n, true, true);
+        renderTabs(); updateUI(); saveGame();
+        logSys(`花費 ${(GOLD * n).toLocaleString()} 金幣 ＋ ${n} 張 祝福的 對武器施法的卷軸 ＋ ${n} 張 祝福的 對盔甲施法的卷軸，換得 ${n} 張 <span class="text-cyan-200 font-bold">解除詛咒的卷軸</span>。`);
+        let _eu = document.getElementById('interaction-content'); if (_eu) renderKristaExchange(_eu);
+        return;
+    }
+    let cfg = {
+        wpn: { scroll: 'scroll_weapon', need: 100, out: 'new_item_bless_wpn', nm: '對武器施法的卷軸', outNm: '賦予武器祝福卷軸' },
+        arm: { scroll: 'scroll_armor',  need: 100, out: 'new_item_bless_arm', nm: '對盔甲施法的卷軸', outNm: '賦予盔甲祝福卷軸' },
+        acc: { scroll: 'scroll_acc',    need: 5,   out: 'new_item_bless_acc', nm: '對飾品施法的卷軸', outNm: '賦予飾品祝福卷軸' },
+    }[kind];
+    if (!cfg) return;
+    let have = questCountId(cfg.scroll);   // 🗄️ 含倉庫
+    let maxAff = Math.min(Math.floor(have / cfg.need), Math.floor((player.gold || 0) / GOLD));
+    if (maxAff < 1) {
+        if ((player.gold || 0) < GOLD) logSys(`<span class="text-red-400">金幣不足（需 ${GOLD.toLocaleString()}）。</span>`);
+        else logSys(`<span class="text-red-400">${cfg.nm} 不足 ${cfg.need} 張（目前 ${have} 張）。</span>`);
+        return;
+    }
+    let n = Math.min(want, maxAff);
+    player.gold -= GOLD * n;
+    questConsumeId(cfg.scroll, cfg.need * n);   // 🗄️ 背包優先，不足扣共用倉庫（questConsumeId 內部自存倉庫）
+    gainItem(cfg.out, n, true, true);
+    renderTabs(); updateUI(); saveGame();
+    logSys(`花費 ${(GOLD * n).toLocaleString()} 金幣與 ${cfg.need * n} 張 ${cfg.nm}，換得 ${n} 張 <span class="text-purple-300 font-bold">${cfg.outNm}</span>。`);
+    let _e = document.getElementById('interaction-content'); if (_e) renderKristaExchange(_e);
+}
+function renderKristaExchange(el) {
+    let row = (kind, scroll, need, nm, outNm) => `
+        <div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-3">
+            <div class="text-sm text-slate-200 leading-relaxed">100 萬金幣 ＋ ${need} 張 <span class="text-sky-300">${nm}</span> → 1 張 <span class="text-purple-300 font-bold">${outNm}</span><br><span class="text-xs text-slate-400">持有（含倉庫）：${questCountId(scroll)} 張</span></div>
+            <button class="btn bg-purple-800 hover:bg-purple-700 border-purple-500 py-2 px-4 font-bold shrink-0" onclick="kristaExchange('${kind}')">兌換</button>
+        </div>`;
+    el.innerHTML = `
+        <div class="flex flex-col gap-3 p-1">
+            <div class="text-slate-300 text-sm leading-relaxed">克里斯特：把施法卷軸與金幣交給我，我能煉成『賦予祝福卷軸』。換得的卷軸可以交給碧恩，為你的裝備施加祝福。</div>
+            <div class="text-sm">你的金幣：<span class="text-yellow-400 font-bold">${(player.gold || 0).toLocaleString()}</span></div>
+            ${(typeof trialQtyBar === 'function') ? trialQtyBar() : ''}
+            <div class="text-xs text-slate-400 -mt-2">兌換數量會自動以「可負擔上限（卷軸／金幣）」為準，各項共用上方數量。</div>
+            ${row('wpn', 'scroll_weapon', 100, '對武器施法的卷軸', '賦予武器祝福卷軸')}
+            ${row('arm', 'scroll_armor', 100, '對盔甲施法的卷軸', '賦予盔甲祝福卷軸')}
+            ${row('acc', 'scroll_acc', 5, '對飾品施法的卷軸', '賦予飾品祝福卷軸')}
+            <div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-3">
+                <div class="text-sm text-slate-200 leading-relaxed">100 萬金幣 ＋ 1 張 <span class="text-yellow-300">祝福的 對武器施法的卷軸</span> ＋ 1 張 <span class="text-yellow-300">祝福的 對盔甲施法的卷軸</span> → 1 張 <span class="text-cyan-200 font-bold">解除詛咒的卷軸</span><br><span class="text-xs text-slate-400">持有（含倉庫）：${questCountId('scroll_weapon_b')} / ${questCountId('scroll_armor_b')} 張</span></div>
+                <button class="btn bg-purple-800 hover:bg-purple-700 border-purple-500 py-2 px-4 font-bold shrink-0" onclick="kristaExchange('uncurse')">兌換</button>
+            </div>
+        </div>`;
+}
+
 function doYuriaHatinExchange(rewardId) {   // 🗑️ v3.5.94 原第 2 參 sherine 移除（席琳兌換管線已廢）
     if (!YURIA_HATIN_REWARDS.some(r => r.id === rewardId)) return;
     let n = trialRun(['item_hatin_diary'], rewardId);   // 🔧 可選數量批量兌換

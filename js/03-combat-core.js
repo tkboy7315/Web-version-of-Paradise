@@ -229,6 +229,32 @@ function gameLoop() {
         return;
     }
 
+    // ⏩ v3.8.4-x 長補跑委託離線引擎：凍結回前景債務超門檻時，改由 afk-offline 混合快速結算處理
+    //    （`window.__afk.forceCatchup` 以當前地圖跑試探取樣＋事件驅動，內部自行暫停/resume 主迴圈、
+    //    收尾重繪/存檔/摘要）。僅在安全地圖委託：攀登/軍王之室/遺忘之島為避免語義偏差維持逐 tick。
+    //    放在 spd 分流之前：開 ×5 掛機凍結回前景同樣會在此委託，不會被下方逐 tick 分流吃掉。
+    if (!_hidden && !_ffAcc && owed >= FF_DELEGATE_MIN_TICKS
+        && (typeof state.prideClimb === 'undefined' || !state.prideClimb)
+        && (typeof KING_ROOMS === 'undefined' || !KING_ROOMS[mapState.current])
+        && (typeof state.oblivion === 'undefined' || !state.oblivion)
+        && typeof window !== 'undefined' && window.__afk && typeof window.__afk.forceCatchup === 'function') {
+        let _delegatedMs = _tickDebt;
+        _tickDebt = 0;
+        _ffAcc = null;
+        if (typeof resetCatchupGainItemIndex === 'function') resetCatchupGainItemIndex();
+        if (typeof discardCatchupAutoSort === 'function') discardCatchupAutoSort();
+        _ffProgressHide();
+        _ffErrorStreak = 0;
+        state.ff = false;
+        state.ffSmall = false;
+        let _mins = Math.max(1, Math.round(_delegatedMs / 60000));   // _tickDebt 單位 = 毫秒
+        try { window.__afk.forceCatchup(_mins); } catch (e) {
+            console.error('[catchup] delegate forceCatchup failed', e);
+            _tickDebt = _delegatedMs;   // 失敗回填，退回逐 tick 補跑
+        }
+        return;
+    }
+
     // ⏩ 加速前景多 tick 分流：state.spd > 1 時不走 ff 靜音路徑，保留戰鬥日誌輸出
     if (state.spd > 1 && owed > 1 && !_hidden && !_ffAcc) {
         if (typeof flushAwaySummary === 'function') flushAwaySummary();
@@ -354,17 +380,24 @@ function _ffFinishCatchup() {
     _ffErrorStreak = 0;
     _ffProgressHide();
 }
-// ⏩ 補跑專用快速排程：每批最多運算 80ms、讓出 8ms 後續跑；仍逐 tick 真實結算。
-const FF_BUDGET_MS = 80;
+// ⏩ 補跑專用快速排程：每批最多運算 250ms、讓出 8ms 後續跑；仍逐 tick 真實結算。
+//    (v3.8.4-x) FF_BUDGET_MS 80→250：批次變少 → 排程讓步與進度條 DOM 更新次數降到 ~1/3。
+const FF_BUDGET_MS = 250;
 const FF_YIELD_MS = 8;
 const FF_HARD_CAP = 6000;
 const FF_MAX_ELAPSED_MS = 300000;
 const FF_ERROR_STREAK_MAX = 3;
 const FF_PROGRESS_MIN_MS = 3000;
+// ⏩ v3.8.4-x 長補跑委託離線引擎門檻：背景完全凍結回前景、待補 tick ≥ 此值時，改由 afk-offline 的
+//    混合快速結算（試探取樣＋事件驅動）處理——與離線結算同一引擎、收益規則一致；逐 tick 全模擬在
+//    傲塔量測約 0.043ms/tick（帶傭兵 0.055），24h 凍結補跑約 37~47 秒，委託後降至秒級。
+const FF_DELEGATE_MIN_TICKS = 36000;   // 10 分鐘（100 tick/秒）
+const FF_PROGRESS_THROTTLE_MS = 250;   // ⚡ (v3.8.4-x) 進度條 DOM 節流：長補跑每批都重寫一次 DOM 是白耗 reflow
 let _ffAcc = null;   // 補跑摘要累計（跨多次 gameLoop 呼叫·還清時歸零）
 let _ffErrorStreak = 0;
 let _ffResumeTimer = null;
 let _ffProgressEl = null;
+let _ffLastProgressAt = 0;   // (v3.8.4-x) 進度條 DOM 節流時間戳
 
 function _ffProgressEnsure() {
     if (typeof document === 'undefined' || !document.body) return null;
@@ -409,6 +442,10 @@ function _ffProgressUpdate(acc, remainingMs) {
     let remainMs = Math.max(0, Math.floor((Number(remainingMs) || 0) / TICK_MS) * TICK_MS);
     let totalMs = doneMs + remainMs;
     if (totalMs < FF_PROGRESS_MIN_MS) { _ffProgressHide(); return; }
+    // ⚡ (v3.8.4-x) 節流：長補跑每批都重寫 DOM 是白耗 reflow；僅「補跑完成」瞬間強制刷一次 100%
+    let nowT = Date.now();
+    if (remainMs >= TICK_MS && nowT - _ffLastProgressAt < FF_PROGRESS_THROTTLE_MS) return;
+    _ffLastProgressAt = nowT;
     let el = _ffProgressEnsure();
     if (!el) return;
     let percent = remainMs < TICK_MS ? 100 : Math.max(1, Math.min(99, Math.floor(doneMs * 100 / Math.max(TICK_MS, totalMs))));

@@ -127,9 +127,15 @@ function applyAreaBackground() {
     }
     let tv = document.getElementById('town-view');
     if (tv) {
-        // 🏘️ v3.2.84 城鎮改地圖式 NPC 後，場景背景改由 #town-npc-map(800×450·自帶 _townMapBg) 承載
-        //   → town-view 不再鋪舊的半透明底圖與 has-bg 圓角框（移除城鎮舊 assets/background 底圖與框架，只保留新區域）
-        tv.style.backgroundImage = ''; tv.classList.remove('has-bg');
+        if (cur.startsWith('town_') && _townCardMode()) {
+            // 🏘️ 卡片模式：場景背景由 #town-npc-map 移回 town-view（重用 _townMapBg 的 1920×1080 實景＋遮罩），
+            //    has-bg 讓下方卡片呈現半透明深底（style.css #town-view.has-bg）
+            tv.style.backgroundImage = (typeof _townMapBg === 'function') ? _townMapBg(cur) : '';
+            tv.classList.add('has-bg');
+        } else {
+            // 🖥️ 地圖模式：背景由 #town-npc-map 自帶（_townMapBg），town-view 不套實景
+            tv.style.backgroundImage = ''; tv.classList.remove('has-bg');
+        }
     }
 }
 function applyElfBorder() {
@@ -762,6 +768,7 @@ function importSave(n){
                 } catch(e){}
             }
             renderLoadSelect();   // 重新整理存檔位清單（更新名稱/等級與可載入狀態）
+            if(typeof clanInvalidateScanCache === 'function') clanInvalidateScanCache();   // 🩹 v3.8.4 匯入後清除血盟角色掃描快取，讓重匯入的王族存檔立即被攻城/血盟判定看到
             let ns = slotSummary(n);
             alert(`已匯入到存檔 ${n}：${ns ? (ns.cls + ' Lv.' + ns.lv + '　' + ns.name) : '完成'}。${whMsg}${petMsg}${pandoraMsg}${clanMsg}`);
         };

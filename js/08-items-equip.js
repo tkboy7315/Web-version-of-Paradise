@@ -137,12 +137,12 @@ function gainItem(id, cnt=1, silent=false, forceNormal=false, affixOld=false, de
     //    倉庫(js/12 _whStackFind)、載入合併(js/13 consolidateInventory)、上鎖/解鎖(js/10 toggleLock) 皆同口徑。
     //    ⚠️ 唯一例外＝`_lockMergeOff`（js/14 ensureMaterial 製作遞迴補製中間物）：中間物若併進鎖定疊，
     //       invCountId/buildPool 看不到它 → 父層扣不到 → 重演 v3.5.85 的「底層材料被吃掉、中間物卻沒扣」。
-    // 🏺 v3.6.44 巨靈的三個願望：獲得瞬間以 committed RNG 從 16 種能力抽 3 個（不重複）存於實體 gw（永不與其他堆疊合併——每只戒指願望各自獨立·calcStats 消費·tooltip 顯示）
+    // 🏺 v3.6.44 巨靈的三個願望：獲得瞬間以 committed RNG 從 51 種能力抽 6 個（不重複）存於實體 gw（永不與其他堆疊合併——每只戒指願望各自獨立·calcStats 消費·tooltip 顯示）
     let _gw = null;
     if (id === 'relic_genie_wishes' && d && d.wishRing) {
-        let _pool = ['hp60','mp30','md3','rd3','mdmg2','sp6','hpr10','mpr5','dr3','ac3','mr6','str1','dex1','int1','wis1','con1','cha1'];   // 用戶規格 17 項能力
+        let _pool = ['hp60','hp120','hp180','mp30','mp60','mp90','hpr10','hpr20','hpr30','mpr5','mpr10','mpr15','md3','md6','md9','rd3','rd6','rd9','mdmg2','mdmg3','mdmg4','sp6','sp7','sp8','dr3','dr6','dr9','ac3','ac6','ac9','mr6','mr12','mr18','str1','str2','str3','dex1','dex2','dex3','int1','int2','int3','wis1','wis2','wis3','con1','con2','con3','cha1','cha2','cha3'];   // 用戶規格 51 檔位（11 類×三檔＋六維×三檔；魔傷 +2/3/4·SP +6/7/8）
         _gw = [];
-        for (let _k = 0; _k < 3; _k++) { let _ri = Math.floor(lootRng('geniewish') * _pool.length); _gw.push(_pool.splice(_ri, 1)[0]); }
+        for (let _k = 0; _k < 6; _k++) { let _ri = Math.floor(lootRng('geniewish') * _pool.length); _gw.push(_pool.splice(_ri, 1)[0]); }
     }
     let _fastGainIndex = !_gw && _catchupGainItemIndexActive();
     if (!_fastGainIndex && _catchupGainItemIndex && !(typeof catchupActive === 'function' && catchupActive())) resetCatchupGainItemIndex();

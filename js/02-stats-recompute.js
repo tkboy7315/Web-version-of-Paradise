@@ -140,8 +140,8 @@ function recomputeStats() {
     //    收集判定走 player.equipDex(共用桶)；傭兵經 buildAlly/_allyLevelRecompute 換身（player 暫指向傭兵）時借用隊長共用桶，同樣吃到此加成。label 由 js/16 EQUIP_CAT_BONUS.doll 顯示。
     if (typeof equipCatComplete === 'function' && equipCatComplete('doll')) { d.str += 1; d.dex += 1; d.con += 1; d.int += 1; d.wis += 1; d.cha += 1; }
 
-    // 🏺 v3.6.44 巨靈的三個願望（六維類願望）：掃裝備實體 gw 的 str1/dex1/int1/wis1/con1/cha1（非六維願望於防具迴圈套用·置於上限夾擠前）
-    if (p.eq) { for (let _gk in p.eq) { let _ge = p.eq[_gk]; if (_ge && _ge.gw && Array.isArray(_ge.gw)) _ge.gw.forEach(w => { if (w === 'str1') d.str += 1; else if (w === 'dex1') d.dex += 1; else if (w === 'int1') d.int += 1; else if (w === 'wis1') d.wis += 1; else if (w === 'con1') d.con += 1; else if (w === 'cha1') d.cha += 1; }); } }
+    // 🏺 v3.6.44 巨靈的三個願望（六維類願望）：掃裝備實體 gw 的 str1~3/dex1~3/int1~3/wis1~3/con1~3/cha1~3（非六維願望於防具迴圈套用·置於上限夾擠前）
+    if (p.eq) { for (let _gk in p.eq) { let _ge = p.eq[_gk]; if (_ge && _ge.gw && Array.isArray(_ge.gw)) _ge.gw.forEach(w => { if (w.indexOf('str') === 0) d.str += (parseInt(w.slice(3), 10) || 1); else if (w.indexOf('dex') === 0) d.dex += (parseInt(w.slice(3), 10) || 1); else if (w.indexOf('int') === 0) d.int += (parseInt(w.slice(3), 10) || 1); else if (w.indexOf('wis') === 0) d.wis += (parseInt(w.slice(3), 10) || 1); else if (w.indexOf('con') === 0) d.con += (parseInt(w.slice(3), 10) || 1); else if (w.indexOf('cha') === 0) d.cha += (parseInt(w.slice(3), 10) || 1); }); } }
 
     // 🏺 遺物「百變的透明內衣」(highestAttrPlus)：目前最高的六維屬性 +1（並列最高皆 +1）。置於六維加總完、上限夾擠前→吃進衍生值(HP/近傷/命中等)。掃 p.eq(玩家或換身傭兵)。
     { let _hap = false; if (p.eq) { for (let _k in p.eq) { let _e = p.eq[_k]; if (_e) { let _hd = DB.items[_e.id]; if (_hd && _hd.highestAttrPlus) { _hap = true; break; } } } }
@@ -401,11 +401,17 @@ d.mr += (baseMr + bonusMr);
         if(ed.corrosiveJellySkin) d.corrosiveJellySkin = true;
         if(ed.charmOnHit) d.charmOnHit = true;
         if(e.gw && Array.isArray(e.gw)) e.gw.forEach(w => {   // 🏺 v3.6.44 巨靈的三個願望（非六維願望·六維於 Phase 1 區塊套用）
-            if (w === 'hp60') p.mhp += 60; else if (w === 'mp30') p.mmp += 30;
-            else if (w === 'md3') d.meleeDmg += 3; else if (w === 'rd3') d.rangedDmg += 3;
-            else if (w === 'mdmg2') d.magicDmg += 2; else if (w === 'sp6') d.extraMp += 6;
-            else if (w === 'hpr10') d.hpR += 10; else if (w === 'mpr5') d.mpR += 5;
-            else if (w === 'dr3') d.dr += 3; else if (w === 'ac3') d.ac -= 3; else if (w === 'mr6') d.mr += 6;
+            if (w.indexOf('hpr') === 0) d.hpR += (parseInt(w.slice(3), 10) || 0);
+            else if (w.indexOf('mpr') === 0) d.mpR += (parseInt(w.slice(3), 10) || 0);
+            else if (w.indexOf('mdmg') === 0) d.magicDmg += (parseInt(w.slice(4), 10) || 0);
+            else if (w.indexOf('hp') === 0) p.mhp += (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('mp') === 0) p.mmp += (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('md') === 0) d.meleeDmg += (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('rd') === 0) d.rangedDmg += (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('sp') === 0) d.extraMp += (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('dr') === 0) d.dr += (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('ac') === 0) d.ac -= (parseInt(w.slice(2), 10) || 0);
+            else if (w.indexOf('mr') === 0) d.mr += (parseInt(w.slice(2), 10) || 0);
         });
         if(ed.poisonHealMult) d.poisonHealMult = Math.max(d.poisonHealMult, ed.poisonHealMult);   // 🏺 遺物 毒液化身：毒性 DoT 轉治癒倍率（取最高·不疊加）
         if(ed.dotCrit) d.dotCrit = true;                       // 🏺 v3.1.80 永不終止的夢魘：持續傷害可爆擊（js/06 _teamDotCrit）

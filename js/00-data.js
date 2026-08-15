@@ -891,7 +891,7 @@ const DB = {
         "relic_hellfire_hammer":   { n: "業火鍛造鎚", type: "wpn", relic: true, noEnhance: true, eff: "crush", dmgS: 8, dmgL: 6, hit: 13, dmgBonus: 13, req: "royal,knight,illusion,dragon,warrior", p: 10000, gachaWeight: 0, ignHardSkin: true, hardskinFireProc: true, d: "【遺物】火靈之主的業火鍛成的鐵鎚，專為敲碎頑固的外殼而生。鈍擊；貫穿；命中擁有硬皮值的敵人時，額外造成目標剩餘 HP 1% 的火屬性魔法傷害。" },
         "relic_pet_devotion":      { n: "珍愛夥伴的執念", type: "acc", slot: "amulet", relic: true, noEnhance: true, ac: 0, petReviveBuff: true, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】墳墓守護者至死仍護著夥伴的執念。寵物復活後 8 秒內：受到的傷害減少 100%、額外傷害 +8。" },
         "relic_blood_ritual_dagger":{ n: "血祭儀式短刀", type: "wpn", relic: true, noEnhance: true, dmgS: 7, dmgL: 7, hit: 15, dmgBonus: 12, req: "royal,mage,elf", p: 10000, gachaWeight: 0, autocastBacklash: true, spellIgnoreMr: true, d: "【遺物】血色術士獻祭用的短刀，以持有者的血肉換取穿透一切的咒力。出血；若自身 HP 大於 200，施放自動技能時受到等同消耗 MP 的固定傷害；施放的傷害魔法無視目標魔法抗性。" },
-        "relic_genie_wishes":      { n: "巨靈的三個願望", type: "acc", slot: "ring", relic: true, noEnhance: true, ac: 0, wishRing: true, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】被恐怖的伊弗利特吞下的許願戒指，獲得時會從諸多能力中隨機許下三個願望（HP/MP/近遠魔傷/SP/自然恢復/減免/AC/MR/六維）。" },
+        "relic_genie_wishes":      { n: "巨靈的三個願望", type: "acc", slot: "ring", relic: true, noEnhance: true, ac: 0, wishRing: true, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】被恐怖的伊弗利特吞下的許願戒指，獲得時會從諸多能力中隨機許下六個願望（HP/MP/近遠魔傷/SP/自然恢復/減免/AC/MR/六維，各含 3 檔）。" },
         "relic_cold_blueflame":    { n: "凜冽的青色火炎", type: "wpn", chainsword: true, w2h: true, relic: true, noEnhance: true, dmgS: 26, dmgL: 26, hit: 16, dmgBonus: 18, req: "dragon", p: 10000, gachaWeight: 0, ignHardSkin: true, ele: "fire", slaughterHits: 5, slaughterRandom: true, d: "【遺物】藍色火焰之靈魂凝成的鎖鏈劍，青焰冷冽卻灼人。弱點曝光；貫穿；一般攻擊變成火屬性；屠宰者變成攻擊 5 次，隨機攻擊場上任意目標。" },
         "relic_scorch_greatsword": { n: "烈炎燒灼的滾燙巨劍", type: "wpn", w2h: true, relic: true, noEnhance: true, dmgS: 21, dmgL: 24, hit: 15, dmgBonus: 19, req: "royal,knight,dragon", p: 10000, gachaWeight: 0, ignHardSkin: true, ele: "fire", hardWear: 100, d: "【遺物】火焰烈炎獸的體溫燒灼的滾燙巨劍，握柄至今仍燙手。切割；貫穿；一般攻擊變成火屬性；一般攻擊命中時額外削減目標 100 點硬皮值。" },
         "relic_guardian_riddle":   { n: "守護獸的難題", type: "arm", slot: "cloak", relic: true, noEnhance: true, ac: 8, mr: 5, playerHardSkin: true, req: "all", p: 10000, gachaWeight: 0, d: "【遺物】斯芬克斯的謎題織成的斗篷，答不出的攻擊都會被外殼擋下。裝備後獲得 30 點硬皮值：有硬皮時受到的一般攻擊傷害 -2 並消耗 1 點；每 5 秒恢復 1 點，上限 20。MR +5。" },
@@ -1287,10 +1287,10 @@ const DB = {
         "scroll_attr_water": { n: "水之武器強化卷軸", type: "misc", p: 100000, c: "c-attr-wa3", noUse: true, gachaWeight: 0, d: "封存伊娃潮汐的卷軸，可交由象牙塔的碧恩嘗試將水之力灌入武器。" },
         "scroll_attr_wind":  { n: "風之武器強化卷軸", type: "misc", p: 100000, c: "c-attr-wi3", noUse: true, gachaWeight: 0, d: "封存沙哈疾風的卷軸，可交由象牙塔的碧恩嘗試將風之力灌入武器。" },
         "scroll_attr_earth": { n: "地之武器強化卷軸", type: "misc", p: 100000, c: "c-attr-ea3", noUse: true, gachaWeight: 0, d: "封存馬普勒大地之力的卷軸，可交由象牙塔的碧恩嘗試將地之力灌入武器。" },
-        "new_item_bless_wpn": { n: "賦予武器祝福卷軸", type: "misc", p: 0, c: "text-purple-300", d: "舊時代的祝福卷軸（祝福裝備功能已由『賦予屬性』取代，此卷軸已無用途）。", isAnc: true, noUse: true, gachaWeight: 0 },   // 🔥 v3.0.77 停用（碧恩改賦予屬性·克里斯特移除）
-        "new_item_bless_arm": { n: "賦予盔甲祝福卷軸", type: "misc", p: 0, c: "text-purple-300", d: "舊時代的祝福卷軸（祝福裝備功能已由『賦予屬性』取代，此卷軸已無用途）。", isAnc: true, noUse: true, gachaWeight: 0 },
-        "new_item_bless_acc": { n: "賦予飾品祝福卷軸", type: "misc", p: 0, c: "text-purple-300", d: "舊時代的祝福卷軸（祝福裝備功能已由『賦予屬性』取代，此卷軸已無用途）。", isAnc: true, noUse: true, gachaWeight: 0 },
-        "new_item_uncurse": { n: "解除詛咒的卷軸", type: "misc", p: 0, c: "text-cyan-200", d: "於象牙塔『碧恩』處用來移除裝備的詛咒（無法直接使用；沒有卷軸時碧恩也可收費 100 萬金幣解除）。", noUse: true, gachaWeight: 0 },
+        "new_item_bless_wpn": { n: "賦予武器祝福卷軸", type: "misc", p: 0, c: "text-purple-300", d: "於象牙塔『碧恩』處用來祝福武器（無法直接使用）。", isAnc: true, noUse: true, gachaWeight: 0 },   // 🔄 克里斯特復歸·祝福體系還原（原 v3.0.77 隨克里斯特移除而停用）
+        "new_item_bless_arm": { n: "賦予盔甲祝福卷軸", type: "misc", p: 0, c: "text-purple-300", d: "於象牙塔『碧恩』處用來祝福防具（無法直接使用）。", isAnc: true, noUse: true, gachaWeight: 0 },
+        "new_item_bless_acc": { n: "賦予飾品祝福卷軸", type: "misc", p: 0, c: "text-purple-300", d: "於象牙塔『碧恩』處用來祝福飾品（無法直接使用）。", isAnc: true, noUse: true, gachaWeight: 0 },
+        "new_item_uncurse": { n: "解除詛咒的卷軸", type: "misc", p: 0, c: "text-cyan-200", d: "於象牙塔『克里斯特』處以祝福的施法卷軸兌換，用來移除裝備的詛咒（無法直接使用；沒有卷軸時碧恩也可收費 100 萬金幣解除）。", noUse: true, gachaWeight: 0 },
         // 🚫 v3.2.17「肉 new_item_143」已隨舊項圈夥伴系統移除（誘捕改用 漂浮之眼肉 等專屬誘捕道具）
         "new_item_144": { n: "夏洛伯之爪", p: 1, c: "text-blue-300", gachaWeight: 0 },   // 🔧 試煉材料統一藍色
         "new_item_145": { n: "阿吐巴圖騰", p: 667, gachaWeight: 0 },
@@ -2676,7 +2676,8 @@ const DB = {
                 { id: "npc_taras", n: "塔拉斯", title: "試煉", type: "quest", d: "鑽研亡者學識的塔拉斯。主持法師的 30、45 級試煉：達等級後接取任務，收集不死族遺物，一次完成領取全部獎勵。" },
                 { id: "npc_tas", n: "塔斯", title: "製作", type: "craft", d: "煉藥師塔斯能將純白之力調和成各色靈藥。以 3 個純白的萬能藥，製作任一屬性的萬能藥。" },
                 { id: "npc_bayes", n: "巴耶斯", title: "魔法商人", type: "shop", d: "博覽群書的巴耶斯，書架上盡是深奧的咒文。販售各種高階魔法書。" },
-                { id: "npc_bian", n: "碧恩", title: "賦予屬性", type: "bless", d: "屬性強化師碧恩，能將四大元素之力銘刻於武器。使用屬性強化卷軸為裝備中的武器（與副手武器）賦予或提升屬性（成功率 7%，失敗僅消耗卷軸）。" },
+                { id: "npc_bian", n: "碧恩", title: "賦予屬性", type: "bless", d: "屬性強化師碧恩，能將四大元素之力銘刻於武器。使用屬性強化卷軸為裝備中的武器（與副手武器）賦予或提升屬性（成功率 7%，失敗僅消耗卷軸）；亦可為身上裝備施加祝福。" },
+                { id: "npc_krista", n: "克里斯特", title: "兌換", type: "exchange", d: "掌管祝福奧秘的克里斯特。以施法卷軸與金幣交換『賦予祝福卷軸』，亦能用祝福的施法卷軸兌換解除詛咒的卷軸。" },
                 { id: "npc_digallatin", n: "迪嘉勒廷", title: "試煉", type: "quest", d: "嚴苛的試煉主持者迪嘉勒廷，只認可真正的強者。主持騎士、妖精、法師與王族的 50 級試煉（需等級 50 接取；完成階段任務後開啟魔族神殿）。" },
                 { id: "npc_dytite", n: "迪泰特", title: "解除封印", type: "craft", d: "通曉古法的迪泰特，能讀懂被歲月遺忘的封印。以古代的卷軸解除被遺忘裝備的封印，還原成古老的武器與防具。" },
                 { id: "npc_mystic_mage", n: "神秘的魔法師", title: "魔杖改造", type: "craft", d: "不願透露姓名的魔法師，擅長以鋼鐵重鑄法器。以 +7 以上的瑪那魔杖或力量魔法杖，加上魔法寶石與金屬塊，鍛造出鋼鐵瑪那魔杖（成品為 +0）。" }

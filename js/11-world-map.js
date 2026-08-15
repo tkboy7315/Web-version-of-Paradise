@@ -160,8 +160,13 @@ const MAP_REGIONS = [
         {v:'town_sherine', t:'席琳神殿'}
     ]}
 ];
-// 由地圖 v 找回 MAP_CATEGORIES 的原始定義（顏色/進入條件/原名）
-function mapEntryOf(v) { for (let c in MAP_CATEGORIES) { let e = MAP_CATEGORIES[c].find(x => x.v === v); if (e) return e; } return null; }
+// 由地圖 v 找回 MAP_CATEGORIES 的原始定義（顏色/進入條件/原名）⚡ 預建索引 O(1)（MAP_CATEGORIES 為載入後不再變動的 const）
+const _MAP_ENTRY_INDEX = (() => {
+    let idx = new Map();
+    for (let c in MAP_CATEGORIES) for (let e of MAP_CATEGORIES[c]) idx.set(e.v, e);
+    return idx;
+})();
+function mapEntryOf(v) { return _MAP_ENTRY_INDEX.get(v) || null; }
 // 地圖 v 屬於哪個「地區」下拉分類（特例：攻城動態、攻城獲勝城堡歸所屬地區、傲慢之塔攀登樓層、時空裂痕戰場）
 function mapRegionOf(v) {
     if (SIEGE_OUTER_INNER.includes(v)) return 'siege';
@@ -173,14 +178,22 @@ function mapRegionOf(v) {
     return null;
 }
 // 某地區下拉應顯示的地圖清單（攻城動態另接；其餘由 MAP_REGIONS 取 v、自 MAP_CATEGORIES 解析顏色/條件、以地區自訂名覆寫顯示）
+// ⚡ 基底清單載入時預建快取（MAP_REGIONS/MAP_CATEGORIES 皆 const 不變）；僅「攻城獲勝城堡注入」保留動態（siegeVictoryActive 有時效守衛）
+const _REGION_BASE_LIST = (() => {
+    let out = {};
+    for (let r of MAP_REGIONS) {
+        out[r.key] = r.maps.map(m => { let ce = _MAP_ENTRY_INDEX.get(m.v) || {}; return Object.assign({}, ce, { v: m.v, t: m.t || ce.t || m.v }); });
+    }
+    return out;
+})();
 function regionMapList(rk) {
     if (rk === 'siege') return getSiegeAreas();
     let reg = MAP_REGIONS.find(r => r.key === rk); if (!reg) return [];
-    let out = reg.maps.map(m => { let ce = mapEntryOf(m.v) || {}; return Object.assign({}, ce, { v: m.v, t: m.t || ce.t || m.v }); });
+    let out = _REGION_BASE_LIST[rk];
     // 🏰 攻城獲勝城堡：依位置注入所屬地區（取代舊「城堡」分類）。getCastleAreas 自帶 siegeVictoryActive 時效守衛、只回傳當前獲勝城池(風木另含風木地監)
     if (reg.castleCity && siegeVictoryActive() && victoryCityCfg().key === reg.castleCity) {
         let _at = reg.castleAt || 0;
-        out = out.slice(0, _at).concat(getCastleAreas(), out.slice(_at));
+        return out.slice(0, _at).concat(getCastleAreas(), out.slice(_at));
     }
     return out;
 }
@@ -305,16 +318,15 @@ function mapOptDisabled(m) {
 }
 function populateMapSelect(cat) {
     let sel = document.getElementById('map-select'); if (!sel) return;
-    sel.innerHTML = '';
     let list = regionMapList(cat);
-    list.forEach(m => {
-        if (m.classicHide && player.classicMode) return;   // 🔥 經典模式：隱藏席琳神殿（連選項都不顯示）
-        let o = document.createElement('option');
-        o.value = m.v; o.textContent = m.t;
-        if (mapOptDisabled(m)) { o.disabled = true; o.style.color = '#64748b'; }
-        else if (m.c) o.style.color = m.c;
-        sel.appendChild(o);
-    });
+    let html = '';
+    for (let m of list) {
+        if (m.classicHide && player.classicMode) continue;   // 🔥 經典模式：隱藏席琳神殿（連選項都不顯示）
+        let dis = mapOptDisabled(m);
+        let style = dis ? 'color:#64748b' : (m.c ? 'color:' + m.c : '');
+        html += '<option value="' + m.v + '"' + (dis ? ' disabled' : '') + (style ? ' style="' + style + '"' : '') + '>' + m.t + '</option>';
+    }
+    sel.innerHTML = html;   // ⚡ 批次字串一次建置（取代逐項 createElement/appendChild）
 }
 function onMapCategoryChange() {
     // 切換分類時，重建右側清單並讓人物一併移動到該分類的第一個可選地圖
@@ -393,6 +405,7 @@ function _cddScroll() {
     if (!_cddFresh() && (r.bottom <= 0 || r.top >= window.innerHeight || (r.width === 0 && r.height === 0))) { _cddClose(); return; }   // select 已捲出畫面→關閉（冷卻窗內不關·避免開啟瞬間版面微調誤判）
     _cddPositionPop(pop, r);   // 否則黏著 select 重新定位
 }
+function _cddEsc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }   // ⚡ 批次 innerHTML 建置所需的文字逸出（取代 textContent）
 function openCustomSelectPopup(sel) {
     if (_cddSel === sel) { _cddClose(); return; }   // 再點同一個 → 收合
     _cddClose();
@@ -403,17 +416,21 @@ function openCustomSelectPopup(sel) {
     var pop = document.createElement('div');
     pop.id = 'cdd-pop'; pop.className = 'cdd-pop';
     pop.style.minWidth = r.width + 'px';
+    // ⚡ 批次字串建置 + 單一事件委派（取代逐項 createElement/appendChild/綁 listener）
+    var rowsHtml = '';
     Array.prototype.forEach.call(sel.options, function (o, idx) {
-        var row = document.createElement('div');
-        row.className = 'cdd-opt' + (o.disabled ? ' cdd-disabled' : '') + (idx === sel.selectedIndex ? ' cdd-sel' : '');
-        row.textContent = o.textContent;
-        if (o.style && o.style.color) row.style.color = o.style.color;
-        if (!o.disabled) row.addEventListener('click', function () {
-            if (_cddFresh()) return;   // 🔧 開啟手勢殘留 click 落在彈出層選項上（彈出層蓋住點擊點時）→ 冷卻窗內不誤選
-            if (sel.value !== o.value) { sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
-            _cddClose();
-        });
-        pop.appendChild(row);
+        rowsHtml += '<div class="cdd-opt' + (o.disabled ? ' cdd-disabled' : '') + (idx === sel.selectedIndex ? ' cdd-sel' : '') + '" data-idx="' + idx + '"'
+            + (o.style && o.style.color ? ' style="color:' + o.style.color + '"' : '') + '>'
+            + _cddEsc(o.textContent) + '</div>';
+    });
+    pop.innerHTML = rowsHtml;
+    pop.addEventListener('click', function (e) {
+        var row = e.target && e.target.closest ? e.target.closest('.cdd-opt') : null;
+        if (!row || row.classList.contains('cdd-disabled')) return;
+        if (_cddFresh()) return;   // 🔧 開啟手勢殘留 click 落在彈出層選項上（彈出層蓋住點擊點時）→ 冷卻窗內不誤選
+        var o = sel.options[+row.getAttribute('data-idx')];
+        if (o && sel.value !== o.value) { sel.value = o.value; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+        _cddClose();
     });
     document.body.appendChild(pop);
     _cddPositionPop(pop, r);   // 定位＋視窗邊界夾擠（下方不足往上開／右側超出靠右）
@@ -651,7 +668,13 @@ function openSiegeSelect(faction, targetEl) {
     let s = player.siege || {};
     let clan = (typeof clanGetModeInfo === 'function') ? clanGetModeInfo(player) : null;
     if (!clan) { alert('你尚未加入血盟，無法宣布攻城戰。'); return; }
-    if (typeof clanCanSiege === 'function' && !clanCanSiege(player)) { alert('此模式沒有創立血盟的王族，無法攻城。'); return; }
+    if (typeof clanCanSiege === 'function' && !clanCanSiege(player)) {
+        // 🩹 v3.8.4 王族會由 clanHasFoundingRoyal 自動接管盟主；此警訊僅在接管失敗或非王族角色時出現
+        alert(player.cls === 'royal'
+            ? '血盟盟主資料異常，自動接管未成功。請稍候再點擊攻城一次。'
+            : '此血盟目前沒有創盟的王族盟主，無法攻城。請用同模式王族角色開啟血盟分頁，即可自動接管盟主。');
+        return;
+    }
     if (s.active) { alert('攻城戰正在進行中！'); return; }
     faction = clan.faction;
     let held = rememberCastleOwnerCity(clan.castle);
@@ -685,7 +708,12 @@ function startSiege(faction, city) {
     let s = player.siege || (player.siege = { active:false, city:'kent', gateKilled:false, towerKilled:false, endTime:0, kills:0, result:null, cooldownUntil:0, accCdUntil:0 });
     let clan = (typeof clanGetModeInfo === 'function') ? clanGetModeInfo(player) : null;
     if (!clan) { alert('你尚未加入血盟，無法宣布攻城戰。'); return; }
-    if (typeof clanCanSiege === 'function' && !clanCanSiege(player)) { alert('此模式沒有創立血盟的王族，無法攻城。'); return; }
+    if (typeof clanCanSiege === 'function' && !clanCanSiege(player)) {
+        alert(player.cls === 'royal'
+            ? '血盟盟主資料異常，自動接管未成功。請稍候再點擊攻城一次。'
+            : '此血盟目前沒有創盟的王族盟主，無法攻城。請用同模式王族角色開啟血盟分頁，即可自動接管盟主。');
+        return;
+    }
     if (s.active) { alert('攻城戰正在進行中！'); return; }
     let held = rememberCastleOwnerCity(clan.castle);
     // ⚔️ v3.6.05 等級限制取消（用戶拍板·原 Lv40 門檻）：與 v3.6.01 的冷卻取消一致，攻城不再有任何前置條件
@@ -1063,7 +1091,20 @@ function doBianUncurse(slotKey) {
     logSys(`碧恩為你的裝備解除了詛咒 → ${getItemFullName(item)}。`);
     let _e = document.getElementById('interaction-content'); if (_e) renderBianAttr(_e);
 }
+let _bianTab = 'attr';   // 碧恩視窗分頁：'attr' 賦予屬性｜'bless' 賦予祝福（🔄 克里斯特復歸·祝福體系還原）
+function setBianTab(t) {
+    _bianTab = (t === 'bless') ? 'bless' : 'attr';
+    let e = document.getElementById('interaction-content'); if (e) renderBianAttr(e);
+}
+function _bianTabBar() {
+    let mk = (t, n) => `<button class="btn py-1 px-3 text-sm font-bold shrink-0 ${_bianTab === t ? 'bg-blue-800 border-blue-500 text-white' : 'bg-slate-700 border-slate-600 text-slate-300'}" onclick="setBianTab('${t}')">${n}</button>`;
+    return `<div class="flex items-center gap-2">${mk('attr', '賦予屬性')}${mk('bless', '賦予祝福')}</div>`;
+}
 function renderBianAttr(el) {
+    if (_bianTab === 'bless') { renderBianBless(el); return; }
+    renderBianAttrBody(el);
+}
+function renderBianAttrBody(el) {
     // 只列出 裝備中武器 與 副手武器（戰士雙持時才有 offwpn）
     let slots = [{ k: 'wpn', n: '武器' }];
     if (player.eq && player.eq.offwpn) slots.push({ k: 'offwpn', n: '副手武器' });
@@ -1095,12 +1136,73 @@ function renderBianAttr(el) {
     }).join('');
     el.innerHTML = `
         <div class="flex flex-col gap-2 p-1">
+            ${_bianTabBar()}
             <div class="text-slate-300 text-sm leading-relaxed">碧恩：我能將四大元素之力銘刻於你手中的武器。屬性提升成功率為 <b>7%</b>；第5階使用同屬性卷軸附加／重抽魔法的成功率為 <b>1%</b>。失敗僅消耗卷軸，武器不會消失。</div>
             <div class="text-xs text-slate-400">無屬性成功→第1階；同屬性成功→提升1階（最高5階）；<b>不同屬性成功→變成該屬性第1階</b>。衝第4階需武器+10以上、第5階需+11以上（<b>無法強化的武器如古老的劍／古老的巨劍免此門檻</b>）。第1~5階：額外傷害/額外魔法點數 +1/+3/+5/+7/+9，一般攻擊轉為該屬性。</div>
             <div class="text-xs text-slate-400">只有本身沒有攻擊／命中觸發技能的非遺物武器可附加魔法；成功時從該屬性5種魔法中抽選。同技能升1星並使觸發率乘上星數，最高3星；抽到不同技能則改為新技能1星。</div>
             <div class="text-xs text-slate-400">持有卷軸：<span class="c-attr-fr3">火 ${cnt('scroll_attr_fire')}</span>｜<span class="c-attr-wa3">水 ${cnt('scroll_attr_water')}</span>｜<span class="c-attr-wi3">風 ${cnt('scroll_attr_wind')}</span>｜<span class="c-attr-ea3">地 ${cnt('scroll_attr_earth')}</span></div>
             ${rows}
             ${cursedRows ? `<div class="text-xs text-slate-400 mt-1">被詛咒的裝備（優先消耗 解除詛咒的卷軸，持有 ${cnt('new_item_uncurse')}；無卷軸時花費 100 萬金幣）：</div>${cursedRows}` : ''}
+        </div>`;
+}
+// 🔄 克里斯特復歸·祝福體系還原：碧恩「賦予祝福」（移植自 3.4.12 加掛版——隨機更動「遠古系 / 祝福」其中之一；火/水/風/地屬性由「賦予屬性」分頁專責，祝福不再抽屬性）
+function doBianBless(slotKey) {
+    let item = player.eq[slotKey];
+    if (!item) { logSys('該欄位沒有裝備。'); return; }
+    if (item.bless === 'cursed') { logSys('<span class="text-red-400 font-bold">被詛咒的裝備無法施加祝福，請先解除詛咒。</span>'); return; }
+    let isAcc = (slotKey === 'ring1' || slotKey === 'ring2' || slotKey === 'ring3' || slotKey === 'ring4' || slotKey === 'amulet' || slotKey === 'belt');
+    let scrollId = (slotKey === 'wpn' || slotKey === 'offwpn') ? 'new_item_bless_wpn' : (isAcc ? 'new_item_bless_acc' : 'new_item_bless_arm');
+    let scrollNm = { 'new_item_bless_wpn': '賦予武器祝福卷軸', 'new_item_bless_arm': '賦予盔甲祝福卷軸', 'new_item_bless_acc': '賦予飾品祝福卷軸' }[scrollId];
+    let sc = player.inv.find(i => i.id === scrollId);
+    if (!sc || sc.cnt < 1) { logSys(`<span class="text-red-400">缺少 ${scrollNm}。</span>`); return; }
+    sc.cnt--; if (sc.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== sc.uid);
+    let pick = Math.floor(lootRng('bianpick') * 2);   // 🎲 committed RNG（防 SL 重抽碧恩賦予結果）；0=遠古系｜1=祝福
+    let msg = '';
+    if (pick === 1) {
+        let rolled = (lootRng('bianbless') < 0.5) ? true : 'cursed';
+        let curB = item.bless || false;
+        let curN = (curB === true) ? 'blessed' : (curB || false);
+        let rolN = (rolled === true) ? 'blessed' : rolled;
+        if (!curB) { item.bless = rolled; msg = `附加了 <span class="${blessColorClass(rolled)}">${blessName(rolled)}</span>`; }
+        else if (curN === rolN) { let oc = blessColorClass(curB), on = blessName(curB); item.bless = false; msg = `<span class="${oc}">${on}</span> 消失了`; }
+        else { let oc = blessColorClass(curB), on = blessName(curB); item.bless = rolled; msg = `<span class="${oc}">${on}</span> 被 <span class="${blessColorClass(rolled)}">${blessName(rolled)}</span> 取代`; }
+    } else {
+        let variants = [true, 'eternal', 'immortal', 'primordial'];
+        let rolled = variants[Math.floor(lootRng('biananc') * 4)];
+        let curN = (item.anc === true) ? 'ancient' : (item.anc || false);
+        let rolN = (rolled === true) ? 'ancient' : rolled;
+        if (!item.anc) { item.anc = rolled; msg = `附加了 <span class="${ancColorClass(rolled)}">${ancName(rolled)}</span>`; }
+        else if (curN === rolN) { let old = ancName(item.anc), oc = ancColorClass(item.anc); item.anc = false; msg = `<span class="${oc}">${old}</span> 消失了`; }
+        else { let old = ancName(item.anc), oc = ancColorClass(item.anc); item.anc = rolled; msg = `<span class="${oc}">${old}</span> 被 <span class="${ancColorClass(rolled)}">${ancName(rolled)}</span> 取代`; }
+    }
+    if (DB.items[item.id] && DB.items[item.id].grantSkills) renderSkillSelects();
+    calcStats(); updateUI(); renderTabs(true); saveGame();
+    logSys(`碧恩為你的裝備施加祝福 → ${getItemFullName(item)}（${msg}）。`);
+    let _e = document.getElementById('interaction-content'); if (_e) renderBianAttr(_e);
+}
+function renderBianBless(el) {
+    let slots = [{ k: 'wpn', n: '武器' }, { k: 'shield', n: '副手' }, { k: 'helm', n: '頭盔' }, { k: 'armor', n: '盔甲' }, { k: 'tshirt', n: 'T恤' }, { k: 'cloak', n: '斗篷' }, { k: 'gloves', n: '手套' }, { k: 'shin', n: '脛甲' }, { k: 'boots', n: '長靴' }, { k: 'amulet', n: '項鍊' }, { k: 'ring1', n: '戒指' }, { k: 'ring2', n: '戒指' }, { k: 'ring3', n: '戒指' }, { k: 'ring4', n: '戒指' }, { k: 'belt', n: '腰帶' }];
+    if (player.eq && player.eq.offwpn) slots.splice(1, 0, { k: 'offwpn', n: '副手武器' });
+    let cnt = id => questCountId(id);   // 🗄️ 含倉庫
+    let rows = slots.map(sl => {
+        let it = player.eq[sl.k];
+        let name = it ? getItemFullName(it) : '<span class="text-slate-500">（未裝備）</span>';
+        let _cursed = !!(it && it.bless === 'cursed');
+        let _btn;
+        if (_cursed) _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-cyan-800 border-cyan-500 text-cyan-100" onclick="doBianUncurse('${sl.k}')">解除詛咒</button>`;
+        else if (it) _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-purple-800 border-purple-500 text-purple-100" onclick="doBianBless('${sl.k}')">祝福${sl.n}</button>`;
+        else _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-slate-700 border-slate-600 text-slate-400 cursor-not-allowed" disabled>祝福${sl.n}</button>`;
+        return `<div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-2 text-sm">
+            <span class="truncate"><b class="text-amber-300">${sl.n}</b>：${name}</span>
+            <div class="flex items-center gap-1 shrink-0">${_btn}</div>
+        </div>`;
+    }).join('');
+    el.innerHTML = `
+        <div class="flex flex-col gap-2 p-1">
+            ${_bianTabBar()}
+            <div class="text-slate-300 text-sm leading-relaxed">碧恩：我能為你的裝備灌注力量。每次祝福會在「遠古系 / 祝福」二者中平均抽一個詞綴，隨機<b>附加、取代或消除</b>（只影響該詞綴）。火／水／風／地屬性請用「賦予屬性」分頁。</div>
+            <div class="text-xs text-slate-400">武器用 賦予武器祝福卷軸(持有 ${cnt('new_item_bless_wpn')})；防具用 賦予盔甲祝福卷軸(持有 ${cnt('new_item_bless_arm')})；飾品用 賦予飾品祝福卷軸(持有 ${cnt('new_item_bless_acc')})。含詛咒的裝備可用 解除詛咒的卷軸(持有 ${cnt('new_item_uncurse')}) 移除詛咒。</div>
+            ${rows}
         </div>`;
 }
 function ismaelBuyAcc() {
@@ -1453,14 +1555,89 @@ function renderHanNPC(div) {
     </div>`;
 }
 
+// 🏘️ 雙模式切換：最小視窗(手機)用卡片模式、一般網頁視窗用地圖式 sprite。
+//    判定基準與 CSS 手機媒體查詢同源（max-width 768 或 矮視窗＋粗指標）；跨斷點時由檔尾 matchMedia 監聽重渲染。
+function _townCardMode() {
+    return typeof window !== 'undefined' && window.matchMedia &&
+        window.matchMedia('(max-width: 768px), (max-height: 520px) and (pointer: coarse)').matches;
+}
 function renderTownNPCs(townId) {
-    renderTownNPCMap(townId);   // 🏘️ v3.2.83 城鎮 NPC 改為地圖式動態站位（與狩獵框同尺寸·散佈景深·hover 名字·點擊開功能）
+    if (_townCardMode()) { renderTownNPCCards(townId); return; }
+    // 一般視窗：地圖式 sprite（新版原生顯示）
     let container = document.getElementById('town-npc-container');
+    if (container) container.classList.add('hidden');
+    let mapEl = document.getElementById('town-npc-map');
+    if (mapEl) mapEl.classList.remove('hidden');
+    renderTownNPCMap(townId);
+}
+function renderTownNPCCards(townId) {
+    // 🏘️ 卡片模式：改回「整張大卡片」列表渲染（手機好點擊）。地圖式 sprite 系統（renderTownNPCMap）整組保留但不顯示。
+    let mapEl = document.getElementById('town-npc-map');
+    if (mapEl) mapEl.classList.add('hidden');
+    let container = document.getElementById('town-npc-container');
+    if (!container) return;
     container.innerHTML = '';
-    // 🗼🌀 v3.2.89 底部入口按鈕全取消：傲慢之塔／時空裂痕的進入選單改成地圖上的「告示 NPC」，點擊才跳浮動視窗（見 renderTownNPCMap）
-    container.classList.add('hidden');
-    // 🗑️ v3.5.87 移除註解掉的舊 NPC 卡片清單死碼（48 行）：其城堡血盟過濾漏 heine、typeIcon 表漏 warehouse、
-    //    無 classicOnly 過濾——三處皆與現行單一真相 renderTownNPCMap 不符，留著只會誤導維護。
+    container.classList.remove('hidden');
+
+    let esc = s => (typeof _pandoraEsc === 'function') ? _pandoraEsc(s) : String(s == null ? '' : s);
+    // typeIcon 表：涵蓋 3.8.4 全部 17 種 npc type（在 3.4.12 基礎上移除 race、補 warehouse/arena/dungeon）
+    let typeIcon = {
+        shop: '💰', craft: '⚒️', skill: '📖', exchange: '⚖️', quest: '📜',
+        pledge: '⚔️', ally: '🤝', bless: '✨', pray: '🙏', mastery: '🏅',
+        castleguard: '🛡️', petstore: '🐾', travel: '⛵', synth: '🎴',
+        warehouse: '📦', arena: '🗡️', dungeon: '🐉'
+    };
+
+    let td = DB.towns[townId];
+    if (!td) return;
+
+    // 可見性過濾：與 renderTownNPCMap 完全同一套（含 heine 城堡盟主、classicOnly）
+    let cards = [];
+    (td.npcs || []).forEach(npc => {
+        if (npc.id === 'npc_esti' || npc.id === 'npc_tros') {
+            if (typeof clanNpcVisible === 'function' && !clanNpcVisible(npc.id, townId)) return;
+        }
+        if (npc.darkOnly && player.cls !== 'dark') return;   // 🔧 黑暗妖精限定試煉：其他職業看不到
+        if (npc.classicHide && player.classicMode) return;   // 🔥 經典模式：隱藏克里斯特/碧恩/漢
+        if (npc.classicOnly && !player.classicMode) return;   // 🕊️ 經典限定 NPC（聖使阿卡塔）：一般模式不顯示
+        let name = (npc.id === 'npc_esti' || npc.id === 'npc_tros') && typeof clanNpcDisplayName === 'function' ? clanNpcDisplayName() : npc.n;
+        cards.push({ name, title: npc.title || '', desc: npc.d || '', icon: typeIcon[npc.type] || '👤', full: false, onClick: () => interactNPC(npc.id, townId) });
+    });
+    // 🗼🌀 v3.2.89 傲慢之塔／時空裂痕入口：比照地圖告示 NPC，點擊 → 浮動視窗（openTownFloatWindow）
+    if (townId === 'town_pride') cards.push({ name: '傲慢之塔', title: '入口', desc: '', icon: '🗼', full: true, onClick: () => openTownFloatWindow('傲慢之塔', '排名挑戰', renderPrideEntrance) });
+    if (townId === 'town_rift') cards.push({ name: '時空裂痕', title: '入口', desc: '', icon: '🌀', full: true, onClick: () => openTownFloatWindow('時空裂痕', '進入', renderRiftEntrance) });
+    // 🏴 潘朵拉叫賣玩家（收購者）：原本只有地圖 sprite 入口，卡片模式轉成卡片（點擊 → 收購浮動窗）
+    try {
+        if (typeof getWanderingBuyersForTown === 'function') {
+            let wanderers = getWanderingBuyersForTown(townId);
+            if (Array.isArray(wanderers)) wanderers.forEach(w => {
+                let item = (DB.items && DB.items[w.itemId]) ? DB.items[w.itemId].n : (w.itemId || '');
+                let what = (w.en ? '+' + w.en + ' ' : '') + item;
+                cards.push({ name: w.n, title: w.title || '玩家收購', desc: what ? '收購 ' + what : '玩家攤位，點擊查看收購內容', icon: '🏴', full: false, wander: true, onClick: () => openWanderingBuyerDialog(w.id) });
+            });
+        } else if (typeof getWanderingBuyerForTown === 'function') {
+            let w = getWanderingBuyerForTown(townId);
+            if (w) cards.push({ name: w.n, title: w.title || '玩家收購', desc: '玩家攤位，點擊查看收購內容', icon: '🏴', full: false, wander: true, onClick: () => openWanderingBuyerDialog(w.id) });
+        }
+    } catch (e) {}
+
+    cards.forEach(c => {
+        let el = document.createElement('div');
+        el.className = (c.full ? 'col-span-2 ' : '') + (c.wander
+            ? 'bg-slate-800/90 border border-amber-600/60 rounded-lg p-3 hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-between'
+            : 'bg-slate-800 border border-slate-600 rounded-lg p-3 hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-between');
+        el.innerHTML = `
+            <div class="flex items-start justify-between mb-2">
+                <div class="flex flex-col">
+                    <span class="text-white font-bold text-lg leading-none">${esc(c.name)}</span>
+                    <span class="text-yellow-500 text-sm mt-1">[${esc(c.title)}]</span>
+                </div>
+                <span class="text-2xl">${c.icon}</span>
+            </div>
+            ${c.desc ? `<p class="text-slate-400 text-sm mt-auto leading-snug">${esc(c.desc)}</p>` : ''}`;
+        el.onclick = c.onClick;
+        container.appendChild(el);
+    });
 }
 
 // 🗼 傲慢之塔入口：攀登與排名模式的大按鈕＋紀錄面板
@@ -1741,6 +1918,8 @@ function interactNPC(npcId, townId) {
         renderPledgeNPC(contentDiv, 'esti');
     } else if (npc.id === 'npc_tros') {
         renderPledgeNPC(contentDiv, 'tros');
+    } else if (npc.id === 'npc_krista') {
+        renderKristaExchange(contentDiv);   // 🔄 克里斯特復歸：施法卷軸＋金幣→賦予祝福卷軸／解除詛咒卷軸兌換
     } else if (npc.id === 'npc_bian') {
         renderBianAttr(contentDiv);   // 🔥 v3.0.77 碧恩改「賦予屬性」（克里斯特已移除）
     } else if (npc.id === 'npc_ismael') {
@@ -1787,9 +1966,15 @@ function closeNpcInteraction() {
     //    那樣會變成點任何一個 NPC 都把倉庫關掉。倉庫的關閉點在 changeMap 的「離開安全區」分支。
     document.getElementById('town-interaction-container').classList.add('hidden');
     document.getElementById('town-interaction-container').classList.remove('flex');
-    { let _m = document.getElementById('town-npc-map'); if (_m) _m.classList.remove('hidden'); }   // 🏘️ v3.2.83 關閉功能視窗→重新顯示地圖
-    // NPC 底列容器：v3.2.89 起恆為空（傲慢之塔/時空裂痕入口改地圖告示 NPC＋浮動視窗），維持收合即可
-    { let _c = document.getElementById('town-npc-container'); if (_c) _c.classList.add('hidden'); }   // 🗑️ v3.5.87 原 children.length 判斷恆 0·簡化
+    // 🏘️ 雙模式：卡片模式關閉浮動窗 → 重新顯示卡片列表（地圖式 sprite 已停用，直接收合）；
+    //    一般視窗 → 浮動窗本就疊在地圖之上、地圖保持顯示，僅確保容器收合。
+    if (_townCardMode()) {
+        { let _c = document.getElementById('town-npc-container'); if (_c) _c.classList.remove('hidden'); }
+        { let _m = document.getElementById('town-npc-map'); if (_m) _m.classList.add('hidden'); }
+    } else {
+        { let _c = document.getElementById('town-npc-container'); if (_c) _c.classList.add('hidden'); }
+        { let _m = document.getElementById('town-npc-map'); if (_m) _m.classList.remove('hidden'); }
+    }
 }
 
 // ================= 🏘️ v3.2.83 城鎮 NPC 地圖系統 =================
@@ -1848,6 +2033,7 @@ const NPC_SPR_FIXED = {
     npc_herbert: '1312', npc_taras: '2060', npc_bayes: '2090', npc_shimizhe: '4127',
     npc_evert: '1296', npc_hector: '1208', npc_wino: '1254', npc_digallatin: '2767',
     npc_ismael: '460', npc_os: '916', npc_dytite: '237', npc_moliya: '1307',
+    npc_krista: '6804',   // 🚺🔄 克里斯特復歸＝女性外型 6804（v3.3.7 新增女性外型池）
     // 魔物追蹤三兄弟共用 cray；港口/寵物保管等亦可指定
     npc_obel: '1049', npc_hert: '1049', npc_diren: '1049'
 };
@@ -1946,8 +2132,8 @@ const TOWN_NPC_SPOTS = {
     town_witon: [[70, 37], [48, 52], [27, 40], [13, 72], [66, 79], [77, 48], [38, 84], [24, 57], [88, 30]],
     // 希培利亞(天空神殿)：倉管=左上殿門階梯｜史菲爾=上方大殿門前｜巴特爾=右側步道橋頭｜希蓮恩=中央圓形圖紋
     town_hyperia: [[15, 32], [48, 24], [68, 56], [48, 55]],
-    // 象牙塔：帕羅=左階梯平台｜塔拉斯=上廳地磚(v3.3.32勿站上層平台)｜塔斯=星紋左側｜巴耶斯=右書牆前｜碧恩=右上水晶祭壇階下(賦屬)｜迪嘉勒廷=大階梯底｜迪泰特=中央星紋｜神秘的魔法師=閱讀角書桌右側地磚(v3.3.32勿站桌區)
-    town_ivory_tower: [[20, 60], [35, 31], [38, 55], [78, 50], [76, 28], [62, 32], [52, 58], [89, 76]],
+    // 象牙塔：帕羅=左階梯平台｜塔拉斯=上廳地磚(v3.3.32勿站上層平台)｜塔斯=星紋左側｜巴耶斯=右書牆前｜碧恩=右上水晶祭壇階下(賦屬)｜迪嘉勒廷=大階梯底｜迪泰特=中央星紋｜神秘的魔法師=閱讀角書桌右側地磚(v3.3.32勿站桌區)｜克里斯特=中央下方石板空位
+    town_ivory_tower: [[20, 60], [35, 31], [38, 55], [78, 50], [76, 28], [62, 32], [52, 58], [89, 76], [45, 75]],
     // 🌑 長老會議廳(環形議場·v3.3.33)：真‧冥皇丹特斯=上方大門前階台(骸骨王座坐像)｜亞提利歐=中央星紋右側石板
     town_elder_council: [[50, 38], [63, 60]],
     // 席琳神殿(圓形劇場遺跡)：席琳=劇場圓台中央(祈禱)｜伊奧=十字路星紋｜菈克希絲=左上拱門前；避開四處水池
@@ -2346,3 +2532,18 @@ function _townNpcAnimTick() {
     }
 }
 setInterval(_townNpcAnimTick, 125);   // 8fps 站立循環
+
+// 🏘️ v3.8.4 雙模式（卡片/地圖式）：跨斷點時若停在村莊安全區 → 依新視窗尺寸重渲染，免重整頁
+try {
+    let _mq = window.matchMedia('(max-width: 768px), (max-height: 520px) and (pointer: coarse)');
+    let _onTownModeChange = function () {
+        let tv = document.getElementById('town-view');
+        if (!tv || tv.classList.contains('hidden')) return;
+        if (typeof mapState === 'undefined' || !mapState.current) return;
+        if (String(mapState.current).indexOf('town_') !== 0) return;
+        closeNpcInteraction();   // 🏘️ 先收合浮動窗（含其模式分支），再依新尺寸重渲染
+        renderTownNPCs(mapState.current);
+    };
+    if (typeof _mq.addEventListener === 'function') _mq.addEventListener('change', _onTownModeChange);
+    else if (typeof _mq.addListener === 'function') _mq.addListener(_onTownModeChange);
+} catch (e) {}
