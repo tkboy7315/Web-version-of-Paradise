@@ -1072,20 +1072,14 @@ function doBianAttr(slotKey, ele) {
     calcStats(); updateUI(); renderTabs(true); saveGame();
     let _e = document.getElementById('interaction-content'); if (_e) renderBianAttr(_e);
 }
-// 解除詛咒（保留原功能）：優先消耗 解除詛咒的卷軸；沒有卷軸時可付 100 萬金幣（克里斯特已移除→金幣後備，避免詛咒裝備無解）
+// 解除詛咒：消耗 1 張 解除詛咒的卷軸（同 v3.4.12：無金幣後備）
 function doBianUncurse(slotKey) {
     let item = player.eq[slotKey];
     if (!item) { logSys('該欄位沒有裝備。'); return; }
     if (item.bless !== 'cursed') { logSys('該裝備沒有詛咒。'); return; }
     let sc = player.inv.find(i => i.id === 'new_item_uncurse');
-    if (sc && sc.cnt >= 1) {
-        sc.cnt--; if (sc.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== sc.uid);
-    } else if ((player.gold || 0) >= 1000000) {
-        player.gold -= 1000000;
-        logSys('花費 1,000,000 金幣請碧恩淨化詛咒。');
-    } else {
-        logSys(`<span class="text-red-400">缺少 解除詛咒的卷軸（或 1,000,000 金幣）。</span>`); return;
-    }
+    if (!sc || sc.cnt < 1) { logSys(`<span class="text-red-400">缺少 解除詛咒的卷軸。</span>`); return; }
+    sc.cnt--; if (sc.cnt <= 0) player.inv = player.inv.filter(i => i.uid !== sc.uid);
     item.bless = false;   // 移除詛咒：變成沒有祝福也沒有詛咒（不影響屬性 / 遠古系）
     calcStats(); updateUI(); renderTabs(true); saveGame();
     logSys(`碧恩為你的裝備解除了詛咒 → ${getItemFullName(item)}。`);
@@ -1142,7 +1136,7 @@ function renderBianAttrBody(el) {
             <div class="text-xs text-slate-400">只有本身沒有攻擊／命中觸發技能的非遺物武器可附加魔法；成功時從該屬性5種魔法中抽選。同技能升1星並使觸發率乘上星數，最高3星；抽到不同技能則改為新技能1星。</div>
             <div class="text-xs text-slate-400">持有卷軸：<span class="c-attr-fr3">火 ${cnt('scroll_attr_fire')}</span>｜<span class="c-attr-wa3">水 ${cnt('scroll_attr_water')}</span>｜<span class="c-attr-wi3">風 ${cnt('scroll_attr_wind')}</span>｜<span class="c-attr-ea3">地 ${cnt('scroll_attr_earth')}</span></div>
             ${rows}
-            ${cursedRows ? `<div class="text-xs text-slate-400 mt-1">被詛咒的裝備（優先消耗 解除詛咒的卷軸，持有 ${cnt('new_item_uncurse')}；無卷軸時花費 100 萬金幣）：</div>${cursedRows}` : ''}
+            ${cursedRows ? `<div class="text-xs text-slate-400 mt-1">被詛咒的裝備（需消耗 解除詛咒的卷軸，持有 ${cnt('new_item_uncurse')}）：</div>${cursedRows}` : ''}
         </div>`;
 }
 // 🔄 克里斯特復歸·祝福體系還原：碧恩「賦予祝福」（移植自 3.4.12 加掛版——隨機更動「遠古系 / 祝福」其中之一；火/水/風/地屬性由「賦予屬性」分頁專責，祝福不再抽屬性）
@@ -1150,6 +1144,8 @@ function doBianBless(slotKey) {
     let item = player.eq[slotKey];
     if (!item) { logSys('該欄位沒有裝備。'); return; }
     if (item.bless === 'cursed') { logSys('<span class="text-red-400 font-bold">被詛咒的裝備無法施加祝福，請先解除詛咒。</span>'); return; }
+    let _dB = DB.items[item.id];
+    if (_dB && isRelic(_dB)) { logSys('<span class="c-relic">遺物無法施加祝福。</span>'); return; }   // 🏺 遺物：無法賦予祝福
     let isAcc = (slotKey === 'ring1' || slotKey === 'ring2' || slotKey === 'ring3' || slotKey === 'ring4' || slotKey === 'amulet' || slotKey === 'belt');
     let scrollId = (slotKey === 'wpn' || slotKey === 'offwpn') ? 'new_item_bless_wpn' : (isAcc ? 'new_item_bless_acc' : 'new_item_bless_arm');
     let scrollNm = { 'new_item_bless_wpn': '賦予武器祝福卷軸', 'new_item_bless_arm': '賦予盔甲祝福卷軸', 'new_item_bless_acc': '賦予飾品祝福卷軸' }[scrollId];
@@ -1188,8 +1184,10 @@ function renderBianBless(el) {
         let it = player.eq[sl.k];
         let name = it ? getItemFullName(it) : '<span class="text-slate-500">（未裝備）</span>';
         let _cursed = !!(it && it.bless === 'cursed');
+        let _isRelic = !!(it && DB.items[it.id] && isRelic(DB.items[it.id]));
         let _btn;
         if (_cursed) _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-cyan-800 border-cyan-500 text-cyan-100" onclick="doBianUncurse('${sl.k}')">解除詛咒</button>`;
+        else if (_isRelic) _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-slate-700 border-slate-600 text-slate-500 cursor-not-allowed" disabled title="遺物無法施加祝福">祝福${sl.n}</button>`;
         else if (it) _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-purple-800 border-purple-500 text-purple-100" onclick="doBianBless('${sl.k}')">祝福${sl.n}</button>`;
         else _btn = `<button class="btn py-1 px-2 text-sm font-bold w-24 text-center bg-slate-700 border-slate-600 text-slate-400 cursor-not-allowed" disabled>祝福${sl.n}</button>`;
         return `<div class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-600 rounded p-2 text-sm">
